@@ -1,0 +1,1 @@
+- [KORE Architecture](kore-architecture.md) — stack, Vite proxy wiring, briefing cache, mutation pattern, Red Team philosophy
