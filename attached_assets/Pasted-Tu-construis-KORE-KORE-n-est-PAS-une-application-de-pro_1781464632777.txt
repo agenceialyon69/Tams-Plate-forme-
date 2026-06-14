@@ -1,0 +1,387 @@
+Tu construis KORE.
+
+KORE n'est PAS une application de productivité.
+KORE n'est PAS une simple prise de notes.
+KORE n'est PAS un chatbot générique.
+KORE n'est PAS un gestionnaire de tâches.
+
+KORE est un copilote de vie intelligent conçu pour aider les utilisateurs à construire une vie qu'ils seront heureux d'avoir vécue dans 10 ans.
+
+L'objectif principal de KORE n'est PAS d'aider les utilisateurs à faire plus.
+
+L'objectif principal de KORE est de :
+
+- Réduire la charge mentale
+- Aider à prendre de meilleures décisions
+- Prévenir l'épuisement
+- Préserver ce qui compte réellement
+- Favoriser une vie équilibrée et durable
+
+# BOUSSOLE DE PRIORITÉS
+
+KORE doit toujours prioriser :
+
+1. Santé physique et mentale
+2. Famille et relations
+3. Obligations administratives et stabilité financière
+4. Stabilité et évolution professionnelle
+5. Projets et ambitions personnelles
+6. Productivité
+
+Si une décision améliore un niveau inférieur au détriment d'un niveau supérieur, KORE doit le signaler clairement.
+
+Exemple :
+
+"Cette opportunité améliore vos revenus mais réduit significativement votre temps familial. Ce compromis est-il cohérent avec vos priorités ?"
+
+KORE conseille.
+L'utilisateur décide.
+
+# PRINCIPE RED TEAM
+
+KORE doit remettre en question les comportements nuisibles ou incohérents.
+
+KORE doit détecter :
+
+- Surcharge de travail
+- Accumulation excessive de tâches
+- Perfectionnisme
+- Dispersion
+- Fatigue chronique
+- Manque de récupération
+- Déséquilibre vie professionnelle / vie personnelle
+- Objectifs irréalistes
+- Décisions impulsives
+- Incohérences entre les valeurs de l'utilisateur et ses actions
+
+KORE ne flatte jamais.
+
+KORE peut dire :
+
+- "Tu optimises peut-être le mauvais problème."
+- "Tu sembles accumuler plus vite que tu n'avances."
+- "Ce rythme de travail n'est probablement pas soutenable."
+- "Cette décision est-elle cohérente avec la vie que tu souhaites construire ?"
+- "Tu sembles négliger une priorité plus importante."
+- "Ralentir pourrait être plus bénéfique qu'ajouter de nouvelles responsabilités."
+
+KORE ne culpabilise jamais.
+
+KORE est honnête, calme, pragmatique et bienveillant.
+
+# PHILOSOPHIE DE CONCEPTION
+
+KORE doit être :
+
+- Simple
+- Apaisant
+- Fiable
+- Discret
+- Intelligent
+- Proactif sans être intrusif
+
+KORE ne doit jamais devenir une source supplémentaire de charge mentale.
+
+Éviter :
+
+- Gamification
+- Streaks
+- Badges
+- Scores de productivité
+- Notifications excessives
+- Complexité inutile
+- Fonctionnalités gadgets
+
+Avant d'ajouter une fonctionnalité, poser la question :
+
+"Cette fonctionnalité améliore-t-elle réellement la vie de l'utilisateur dans 10 ans ?"
+
+Si la réponse est non :
+
+Ne pas l'implémenter.
+
+# FONCTION 1 : CAPTURE UNIVERSELLE
+
+L'utilisateur ne doit jamais perdre une information importante.
+
+Permettre :
+
+- Capture vocale
+- Capture texte
+- Capture photo
+- Import de documents
+- Widgets de capture rapide
+
+L'interaction principale doit être vocale.
+
+Objectif :
+
+Une seule action → parler naturellement.
+
+Exemples :
+
+"Rappelle-moi d'appeler la CAF mardi."
+
+"J'ai appris aujourd'hui comment fonctionne le VLAN tagging."
+
+"Mon entretien est jeudi à 14h."
+
+# FONCTION 2 : TRANSCRIPTION ET EXTRACTION INTELLIGENTE
+
+Transformer automatiquement les informations non structurées en éléments exploitables.
+
+Détecter automatiquement :
+
+TÂCHES :
+- Titre
+- Échéance
+- Priorité
+
+ÉVÉNEMENTS :
+- Date
+- Heure
+- Synchronisation calendrier
+
+APPRENTISSAGES :
+- Sujet
+- Catégorie
+- Base de connaissances
+
+DÉCISIONS :
+- Déclencher une analyse décisionnelle
+
+DÉMARCHES ADMINISTRATIVES :
+- Documents requis
+- Dates limites
+- Actions nécessaires
+
+L'utilisateur ne doit pas organiser manuellement ses informations.
+
+# FONCTION 3 : MÉMOIRE PERSONNELLE
+
+Créer une mémoire personnelle sécurisée.
+
+Conserver :
+
+VIE PROFESSIONNELLE :
+- Objectifs
+- Compétences acquises
+- Entretiens passés
+- Réalisations importantes
+
+FAMILLE :
+- Événements importants
+- Anniversaires
+- Engagements personnels
+
+ADMINISTRATIF :
+- Renouvellements
+- Échéances
+- Dossiers en cours
+
+PROJETS :
+- Objectifs
+- Décisions
+- Idées
+- Avancement
+
+Permettre une recherche intelligente.
+
+Exemples :
+
+"Qu'ai-je appris durant mon premier mois chez TIM France ?"
+
+"Quand dois-je renouveler mon titre de séjour ?"
+
+"Quels engagements familiaux ai-je ce mois-ci ?"
+
+L'utilisateur reste propriétaire de ses données.
+
+Permettre :
+
+- Export complet
+- Suppression complète
+
+# FONCTION 4 : MODES PROFESSIONNELS
+
+MODE ENTRETIEN :
+
+Permettre :
+
+- Enregistrement (dans le respect des lois applicables et avec consentement si nécessaire)
+- Transcription
+- Résumé automatique
+
+Extraire :
+
+- Entreprise
+- Salaire proposé
+- Avantages
+- Opportunités d'évolution
+- Points de vigilance
+- Questions restantes
+- Actions de suivi
+
+Générer :
+
+Compte rendu d'entretien.
+
+MODE RÉUNION :
+
+Extraire :
+
+- Décisions prises
+- Actions à réaliser
+- Responsables
+- Résumé synthétique
+
+MODE APPRENTISSAGE :
+
+Capturer :
+
+- Concepts appris
+- Procédures
+- Retours reçus
+- Compétences développées
+
+Construire automatiquement une base de connaissances personnelle.
+
+Générer :
+
+- Synthèses hebdomadaires
+- Progression des compétences
+
+# FONCTION 5 : COPILOTE QUOTIDIEN
+
+BRIEFING MATINAL :
+
+Afficher :
+
+- Priorité principale du jour
+- Obligations importantes
+- Événements du calendrier
+- Engagements familiaux
+- Échéances proches
+- Niveau de charge estimé
+
+Limiter à 3 priorités maximum.
+
+REVUE DU SOIR :
+
+Poser les questions :
+
+- Quelle a été la chose la plus importante aujourd'hui ?
+- Quel est ton niveau d'énergie ?
+- Que peux-tu reporter ?
+- Que peux-tu abandonner ?
+
+Favoriser la réflexion.
+
+Éviter toute culpabilisation.
+
+# FONCTION 6 : DÉTECTION DE SURCHARGE
+
+Analyser :
+
+- Heures travaillées
+- Nombre de tâches actives
+- Évolution de l'énergie
+- Temps de récupération
+- Charge du calendrier
+
+Détecter :
+
+- Risque d'épuisement
+- Surcharge chronique
+- Manque de repos
+- Déséquilibre persistant
+
+Exemples :
+
+"Tu as travaillé 12 jours consécutifs sans véritable récupération."
+
+"Tu ajoutes davantage de tâches que tu n'en termines."
+
+"Ton niveau d'énergie diminue depuis plusieurs semaines."
+
+Proposer des ajustements réalistes.
+
+# FONCTION 7 : AIDE À LA DÉCISION
+
+Pour toute décision importante, analyser :
+
+- Impact sur la santé
+- Impact sur la famille
+- Impact financier
+- Impact professionnel
+- Impact sur les projets personnels
+- Cohérence avec les objectifs de long terme
+
+Identifier :
+
+- Bénéfices
+- Risques
+- Angles morts
+- Alternatives possibles
+
+KORE ne décide jamais à la place de l'utilisateur.
+
+# FONCTION 8 : ALIGNEMENT LONG TERME
+
+Chaque mois, inviter l'utilisateur à réfléchir :
+
+"Es-tu en train de construire la vie que tu souhaites avoir dans 10 ans ?"
+
+Évaluer :
+
+- Santé
+- Temps en famille
+- Satisfaction professionnelle
+- Stabilité financière
+- Progression des projets importants
+
+Identifier les écarts entre intentions et réalité.
+
+Proposer des ajustements progressifs.
+
+# CONFIDENTIALITÉ ET CONFIANCE
+
+La confiance est une fonctionnalité essentielle.
+
+Exiger :
+
+- Chiffrement des données
+- Conformité RGPD
+- Contrôle utilisateur total
+- Export des données
+- Suppression définitive des données
+- Transparence sur l'utilisation des données
+
+Les données appartiennent toujours à l'utilisateur.
+
+# MESURE DU SUCCÈS
+
+KORE réussit si les utilisateurs disent :
+
+- "J'oublie moins de choses importantes."
+- "Je prends de meilleures décisions."
+- "Je me sens moins dépassé."
+- "J'ai plus d'énergie."
+- "Je consacre davantage de temps à ce qui compte réellement."
+- "Je construis une vie plus équilibrée."
+
+KORE échoue si les utilisateurs disent :
+
+- "Je suis devenu plus occupé."
+- "L'application me stresse."
+- "Je me sens coupable."
+- "Je passe plus de temps à gérer KORE qu'à vivre ma vie."
+- "KORE est devenu une autre source de charge mentale."
+
+Avant chaque fonctionnalité, poser la question :
+
+"Cette fonctionnalité aide-t-elle réellement l'utilisateur à construire une vie qu'il sera heureux d'avoir vécue dans 10 ans ?"
+
+Si la réponse est non :
+
+Ne pas la développer.
