@@ -1,13 +1,66 @@
-import { useGetMorningBriefing, getGetMorningBriefingQueryKey } from "@workspace/api-client-react";
+import { useState, useEffect } from "react";
+import { 
+  useGetMorningBriefing, 
+  useLogEnergyLevel, 
+  useListTasks, 
+  useUpdateTask,
+  getListTasksQueryKey 
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, CheckCircle2, Clock, Battery, ListTodo } from "lucide-react";
 import { motion } from "framer-motion";
-import { format } from "date-fns";
+import { format, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { data: briefing, isLoading } = useGetMorningBriefing();
+  const { data: pendingTasks } = useListTasks({ status: 'pending' });
+  const logEnergy = useLogEnergyLevel();
+  const updateTask = useUpdateTask();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [hideEnergyWidget, setHideEnergyWidget] = useState(false);
+
+  useEffect(() => {
+    const lastLogStr = localStorage.getItem("lastEnergyLogTime");
+    if (lastLogStr) {
+      const lastLog = parseInt(lastLogStr, 10);
+      if (Date.now() - lastLog < 3600000) {
+        setHideEnergyWidget(true);
+      }
+    }
+  }, []);
+
+  const handleEnergySelect = async (level: number) => {
+    try {
+      await logEnergy.mutateAsync({ data: { level, context: "Depuis le tableau de bord" } });
+      localStorage.setItem("lastEnergyLogTime", Date.now().toString());
+      setHideEnergyWidget(true);
+      toast({ description: "Niveau d'énergie enregistré." });
+    } catch (error) {
+      toast({ variant: "destructive", description: "Erreur lors de l'enregistrement." });
+    }
+  };
+
+  const handleMarkTaskDone = async (id: number) => {
+    try {
+      await updateTask.mutateAsync({ id, data: { status: 'done' } });
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      toast({ description: "Tâche terminée." });
+    } catch (error) {
+      toast({ variant: "destructive", description: "Erreur lors de la mise à jour." });
+    }
+  };
+
+  const overdueTasks = pendingTasks?.filter(task => {
+    if (!task.dueDate) return false;
+    return isBefore(startOfDay(new Date(task.dueDate)), startOfDay(new Date()));
+  }) || [];
 
   if (isLoading) {
     return (
@@ -46,6 +99,57 @@ export default function Dashboard() {
               <p className="text-destructive/80">{briefing.overloadAlert}</p>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {!hideEnergyWidget && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <Card className="bg-card/50 border-card-border">
+            <CardContent className="p-6">
+              <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-4">
+                <Battery className="w-4 h-4" />
+                Comment tu te sens maintenant ?
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(1)} disabled={logEnergy.isPending}>Épuisé</Button>
+                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(3)} disabled={logEnergy.isPending}>Fatigué</Button>
+                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(5)} disabled={logEnergy.isPending}>Correct</Button>
+                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(7)} disabled={logEnergy.isPending}>Bien</Button>
+                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(9)} disabled={logEnergy.isPending}>En forme</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {overdueTasks.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+          <Card className="bg-amber-500/5 border-amber-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 font-serif font-normal text-xl text-amber-500">
+                <ListTodo className="w-5 h-5" />
+                En retard
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {overdueTasks.map((task) => (
+                  <li key={task.id} className="flex items-center justify-between gap-4 bg-background/50 p-3 rounded-md border border-border/50">
+                    <span className="text-foreground/90 font-medium truncate">{task.title}</span>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="shrink-0 h-8"
+                      onClick={() => handleMarkTaskDone(task.id)}
+                      disabled={updateTask.isPending}
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fait
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </motion.div>
       )}
 

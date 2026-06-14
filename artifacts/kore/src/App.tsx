@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Compass, CheckCircle2, BrainCircuit, Activity, MoonStar, Home, Mic } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { QuickCapture } from "@/components/QuickCapture";
 
 const queryClient = new QueryClient();
 
@@ -32,46 +33,62 @@ function AppSidebar() {
   ];
 
   return (
-    <Sidebar>
-      <SidebarHeader className="py-6 px-4">
-        <div className="flex items-center gap-2 px-2">
-          <div className="w-4 h-4 rounded-full bg-accent" />
-          <h1 className="font-serif text-xl tracking-tight text-foreground font-semibold">KORE</h1>
-        </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton asChild isActive={location === item.href}>
-                <Link href={item.href} className="flex items-center gap-3 px-4 py-2">
-                  <item.icon className="w-4 h-4 opacity-70" />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-        
-        <div className="mt-auto p-6">
-          <div className="space-y-2">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">Boussole</h3>
-            {['Santé', 'Famille', 'Administratif', 'Travail', 'Projets', 'Productivité'].map((domain, i) => (
-              <div key={domain} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
-                <span className={i === 0 ? "text-foreground" : ""}>{domain}</span>
+    <>
+      <div className="hidden md:flex">
+        <Sidebar>
+          <SidebarHeader className="py-6 px-4">
+            <div className="flex items-center gap-2 px-2">
+              <div className="w-4 h-4 rounded-full bg-accent" />
+              <h1 className="font-serif text-xl tracking-tight text-foreground font-semibold">KORE</h1>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={location === item.href}>
+                    <Link href={item.href} className="flex items-center gap-3 px-4 py-2">
+                      <item.icon className="w-4 h-4 opacity-70" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+            
+            <div className="mt-auto p-6">
+              <div className="space-y-2">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-3">Boussole</h3>
+                {['Santé', 'Famille', 'Administratif', 'Travail', 'Projets', 'Productivité'].map((domain, i) => (
+                  <div key={domain} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
+                    <span className={i === 0 ? "text-foreground" : ""}>{domain}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </SidebarContent>
-    </Sidebar>
+            </div>
+          </SidebarContent>
+        </Sidebar>
+      </div>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border flex items-center justify-around pb-safe">
+        {navItems.slice(0, 5).map((item) => {
+          const isActive = location === item.href;
+          return (
+            <Link key={item.href} href={item.href} className={`flex flex-col items-center justify-center py-3 px-4 flex-1 ${isActive ? 'text-accent' : 'text-muted-foreground'}`}>
+              <item.icon className="w-5 h-5 mb-1" />
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 
 function Router() {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background pb-16 md:pb-0">
       <AppSidebar />
       <main className="flex-1 overflow-y-auto">
         <Switch>
@@ -85,6 +102,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
+      <QuickCapture />
     </div>
   );
 }
