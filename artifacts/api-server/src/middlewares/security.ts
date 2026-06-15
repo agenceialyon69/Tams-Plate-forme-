@@ -14,9 +14,17 @@ export function securityHeaders(
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'none'; frame-ancestors 'none'",
+  );
+  // Tell browsers to pin HTTPS. Harmless over plain HTTP (ignored), valuable
+  // behind the platform's TLS terminator in production.
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains",
   );
   res.removeHeader("X-Powered-By");
   next();

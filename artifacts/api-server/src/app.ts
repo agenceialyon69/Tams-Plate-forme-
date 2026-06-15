@@ -67,12 +67,23 @@ app.use(
 // to expensive LLM endpoints inside the router.
 app.use(rateLimit({ windowMs: 60_000, max: 120 }));
 
-// Explicit body size caps. Audio transcription sends base64 audio, so allow a
-// larger ceiling on JSON while still bounding memory/cost.
-app.use(express.json({ limit: "8mb" }));
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+// Explicit body size caps. Text endpoints are capped tightly; only the audio
+// transcription endpoint is allowed a larger base64 payload.
+const audioJson = express.json({ limit: "10mb" });
+const textJson = express.json({ limit: "512kb" });
+app.use((req, res, next) =>
+  req.path === "/api/ai/transcribe"
+    ? audioJson(req, res, next)
+    : textJson(req, res, next),
+);
+app.use(express.urlencoded({ extended: true, limit: "64kb" }));
 
 app.use("/api", router);
+
+// Unknown API routes get a generic JSON 404 (no Express HTML default).
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 
 // Centralized error handler: generic message to the client, full detail to
 // the server log. Must be registered last and take 4 args.
@@ -81,13 +92,16 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     res.status(403).json({ error: "Origin not allowed" });
     return;
   }
-  if (
-    err &&
-    typeof err === "object" &&
-    "type" in err &&
-    (err as { type?: string }).type === "entity.too.large"
-  ) {
+  const errType =
+    err && typeof err === "object" && "type" in err
+      ? (err as { type?: string }).type
+      : undefined;
+  if (errType === "entity.too.large") {
     res.status(413).json({ error: "Payload too large" });
+    return;
+  }
+  if (errType === "entity.parse.failed") {
+    res.status(400).json({ error: "Invalid JSON body" });
     return;
   }
   req.log?.error({ err }, "Unhandled request error");
