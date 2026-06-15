@@ -33,6 +33,10 @@ fi
 [ -n "${GEMINI_API_KEY:-}" ] || echo "⚠ GEMINI_API_KEY not set — AI extraction/analysis will return defaults."
 [ -n "${GROQ_API_KEY:-}" ]   || echo "⚠ GROQ_API_KEY not set — voice transcription will be disabled."
 
+# The web build (vite) requires these at config-eval time.
+export PORT="${PORT:-8080}"
+export BASE_PATH="${BASE_PATH:-/}"
+
 # --- Install, migrate, build ------------------------------------------------
 echo "→ Installing dependencies (pnpm)"
 pnpm install
@@ -40,7 +44,7 @@ pnpm install
 echo "→ Creating / updating database tables (drizzle push)"
 pnpm --filter @workspace/db run push
 
-echo "→ Type-checking and building"
+echo "→ Type-checking and building API + web app"
 pnpm run build
 
 echo ""

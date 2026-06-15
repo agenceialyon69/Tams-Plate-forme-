@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import express, {
   type Express,
   type Request,
@@ -84,6 +86,38 @@ app.use("/api", router);
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
+
+// Single-service mode: when the built web app is present, serve it from the
+// same origin as the API. One URL, no CORS, no separate frontend host.
+// Falls back to API-only when the build is absent (e.g. separate deploys).
+const clientDir =
+  process.env.CLIENT_DIR ??
+  path.resolve(process.cwd(), "artifacts/kore/dist/public");
+
+if (existsSync(path.join(clientDir, "index.html"))) {
+  logger.info({ clientDir }, "Serving web app");
+  app.use(
+    express.static(clientDir, {
+      index: false,
+      setHeaders(res, filePath) {
+        // Long-cache fingerprinted assets; never cache the HTML shell.
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
+
+  // SPA fallback: any non-API GET returns index.html for client-side routing.
+  app.use((req, res, next) => {
+    if (req.method !== "GET") {
+      next();
+      return;
+    }
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.join(clientDir, "index.html"));
+  });
+}
 
 // Centralized error handler: generic message to the client, full detail to
 // the server log. Must be registered last and take 4 args.

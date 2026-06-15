@@ -20,7 +20,10 @@ Deux options : **A) tester en local** (le plus simple pour commencer) ou
 
 ---
 
-## Option A — Lancer en local (recommandé pour démarrer)
+## Option A — Lancer en local (le plus simple : 3 commandes)
+
+> **Mode service unique** : un seul programme sert à la fois l'API et le site,
+> sur **une seule URL**. Pas de CORS, pas de second serveur à gérer.
 
 ### Étape 1 — Récupérer le code
 ```bash
@@ -34,62 +37,60 @@ git checkout claude/red-team-audit-qbtht9   # tant que la PR n'est pas mergée
 cp .env.example .env
 ```
 Ouvre `.env` et remplis **au minimum** :
-- `DATABASE_URL` → ta connection string Postgres (étape « besoin » n°2).
+- `DATABASE_URL` → ta connection string Postgres (préalable n°1).
 - `API_AUTH_TOKEN` → ton mot de passe d'accès. Génère-le avec :
   ```bash
   openssl rand -hex 32
   ```
   Copie le résultat dans `.env`. **C'est ce token que tu colleras dans l'app.**
-- `PORT` → laisse `8080`.
-- (Optionnel) `GEMINI_API_KEY` et `GROQ_API_KEY` si tu veux l'IA et la voix.
+- Laisse `PORT=8080` et `BASE_PATH=/`.
+- Laisse `VITE_API_URL` **vide** (mode service unique).
+- (Optionnel) `GEMINI_API_KEY` et `GROQ_API_KEY` pour l'IA et la voix.
 
 > `.env` est ignoré par git : tes secrets ne partiront jamais dans le dépôt.
 
-### Étape 3 — Installer + créer les tables + construire (une commande)
+### Étape 3 — Tout préparer (une commande)
 ```bash
 bash scripts/setup.sh
 ```
-Ce script vérifie ta config, installe les dépendances, **crée les tables dans la
-base** et compile tout. Relançable sans risque.
+Vérifie la config, installe, **crée les tables** et compile l'API + le site.
+Relançable sans risque.
 
-### Étape 4 — Démarrer l'application
+### Étape 4 — Démarrer (une commande, une URL)
 ```bash
-bash scripts/dev.sh
+bash scripts/start.sh
 ```
-- L'API démarre sur `http://localhost:8080`.
-- Le site démarre (Vite affiche l'URL, en général `http://localhost:5173`).
+Ouvre **http://localhost:8080**, colle ton `API_AUTH_TOKEN` dans l'écran
+« KORE — Accès ». C'est tout — le token reste mémorisé dans ce navigateur.
 
-### Étape 5 — Première connexion
-1. Ouvre l'URL du site dans ton navigateur.
-2. Un écran « KORE — Accès » s'affiche : colle ton `API_AUTH_TOKEN`.
-3. C'est tout — tu es dedans. Le token reste mémorisé dans ce navigateur.
+> **Tu développes le code ?** Utilise plutôt `bash scripts/dev.sh` (rechargement
+> à chaud ; le site est sur `http://localhost:5173` et l'API sur `:8080`).
 
 ---
 
-## Option B — Déployer en ligne
+## Option B — Déployer en ligne (un seul service, recommandé)
 
-### B.1 — L'API (Railway, déjà configurée via `railway.toml`)
+Le dépôt est déjà configuré pour **Railway** (`railway.toml`) en mode service
+unique : Railway construit le site **et** l'API, puis l'API sert tout sur une
+seule URL.
+
 1. Crée un projet sur [Railway](https://railway.app) à partir du dépôt.
-2. Dans **Variables**, ajoute :
-   - `DATABASE_URL` (ta base Postgres ; Railway peut aussi en provisionner une)
+2. Ajoute une base **PostgreSQL** au projet (Railway fournit `DATABASE_URL`),
+   ou colle la tienne.
+3. Dans **Variables**, ajoute :
    - `API_AUTH_TOKEN` (ton `openssl rand -hex 32`)
-   - `FRONTEND_URL` = l'URL exacte de ton site Vercel (ex. `https://kore.vercel.app`)
    - `GEMINI_API_KEY`, `GROQ_API_KEY` (optionnels)
-   - `PORT` = `8080`
-3. **Crée les tables une fois** : depuis ton poste, avec le `DATABASE_URL` de prod
+   - (`PORT`, `NODE_ENV`, `BASE_PATH` sont déjà fournis par `railway.toml`)
+4. **Crée les tables une fois** : depuis ton poste, avec le `DATABASE_URL` de prod
    dans `.env`, lance `pnpm --filter @workspace/db run push`.
-4. Déploie. Vérifie que `https://<ton-api>/api/healthz` répond `{"status":"ok"}`.
+5. Déploie. Ouvre l'URL Railway, colle ton token. Fini — **pas de CORS, pas de
+   second hébergement.**
 
-### B.2 — Le site (Vercel)
-1. Importe le dépôt sur [Vercel](https://vercel.com), dossier racine
-   `artifacts/kore`.
-2. Build command : `pnpm --filter @workspace/kore run build` — output : `dist`.
-3. Variable d'environnement : `VITE_API_URL` = l'URL de ton API Railway
-   (ex. `https://kore-api.up.railway.app`).
-4. Déploie, ouvre le site, colle ton token. Fini.
+> Vérifie au passage que `https://<ton-app>/api/healthz` répond `{"status":"ok"}`.
 
-> **Important CORS** : `FRONTEND_URL` (sur l'API) doit correspondre **exactement**
-> à l'origine du site, sinon le navigateur bloque les appels.
+> **Hébergement séparé (avancé)** : tu peux toujours héberger le site à part
+> (ex. Vercel). Dans ce cas, définis `VITE_API_URL` (côté site) = URL de l'API,
+> et `FRONTEND_URL` (côté API) = origine exacte du site, pour le CORS.
 
 ---
 
@@ -97,13 +98,14 @@ bash scripts/dev.sh
 
 | Variable | Où | Obligatoire | Rôle |
 |---|---|---|---|
-| `DATABASE_URL` | API | ✅ | Connexion Postgres |
-| `API_AUTH_TOKEN` | API | ✅ | Token d'accès (≥ 16 car.) |
-| `PORT` | API | ✅ | Port d'écoute (8080) |
-| `FRONTEND_URL` | API | recommandé | Origine autorisée (CORS) |
-| `GEMINI_API_KEY` | API | pour l'IA | Extraction / analyse / bilans |
-| `GROQ_API_KEY` | API | pour la voix | Transcription audio |
-| `VITE_API_URL` | Site | ✅ | URL de l'API à appeler |
+| `DATABASE_URL` | serveur | ✅ | Connexion Postgres |
+| `API_AUTH_TOKEN` | serveur | ✅ | Token d'accès (≥ 16 car.) |
+| `PORT` | serveur | ✅ | Port d'écoute (8080) |
+| `BASE_PATH` | build | ✅ | Chemin du site (`/`) |
+| `GEMINI_API_KEY` | serveur | pour l'IA | Extraction / analyse / bilans |
+| `GROQ_API_KEY` | serveur | pour la voix | Transcription audio |
+| `FRONTEND_URL` | serveur | seulement si site séparé | Origine autorisée (CORS) |
+| `VITE_API_URL` | site | seulement si site séparé | URL de l'API à appeler |
 
 ---
 
