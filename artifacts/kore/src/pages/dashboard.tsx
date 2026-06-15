@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   const handleEnergySelect = async (level: number) => {
     try {
-      await logEnergy.mutateAsync({ data: { level, context: "Depuis le tableau de bord" } });
+      await logEnergy.mutateAsync({ data: { level, note: "Depuis le tableau de bord" } });
       localStorage.setItem("lastEnergyLogTime", Date.now().toString());
       setHideEnergyWidget(true);
       toast({ description: "Niveau d'énergie enregistré." });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCreateDecision, useListDecisions, getListDecisionsQueryKey, useGetDecision } from "@workspace/api-client-react";
+import { useCreateDecision, useListDecisions, getListDecisionsQueryKey, useGetDecision, getGetDecisionQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,12 @@ export default function Decisions() {
   const { data: decisions, isLoading: isLoadingList } = useListDecisions();
   const { data: activeDecision, isLoading: isLoadingDecision } = useGetDecision(
     selectedDecisionId as number,
-    { query: { enabled: !!selectedDecisionId } }
+    {
+      query: {
+        enabled: !!selectedDecisionId,
+        queryKey: getGetDecisionQueryKey(selectedDecisionId as number),
+      },
+    }
   );
   
   const queryClient = useQueryClient();

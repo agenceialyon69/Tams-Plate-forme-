@@ -46,7 +46,7 @@ router.get("/tasks/summary", async (_req, res): Promise<void> => {
 
 router.post("/tasks", async (req, res): Promise<void> => {
   const parsed = CreateTaskBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const [task] = await db.insert(tasksTable).values({
     title: parsed.data.title,
@@ -61,10 +61,10 @@ router.post("/tasks", async (req, res): Promise<void> => {
 
 router.patch("/tasks/:id", async (req, res): Promise<void> => {
   const params = UpdateTaskParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const parsed = UpdateTaskBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const updates: Record<string, unknown> = {};
   if (parsed.data.title !== undefined) updates.title = parsed.data.title;
@@ -80,7 +80,7 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
 
 router.delete("/tasks/:id", async (req, res): Promise<void> => {
   const params = DeleteTaskParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   await db.delete(tasksTable).where(eq(tasksTable.id, params.data.id));
   res.sendStatus(204);

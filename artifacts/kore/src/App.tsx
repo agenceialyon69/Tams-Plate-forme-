@@ -7,6 +7,7 @@ import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, S
 import { Compass, CheckCircle2, BrainCircuit, Activity, MoonStar, Home, Mic, BarChart2, Settings2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
+import { LoginGate } from "@/components/LoginGate";
 import { useEffect } from "react";
 import { loadPrefs } from "@/hooks/useNotifications";
 
@@ -135,11 +136,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <SidebarProvider>
-            <Router />
-          </SidebarProvider>
-        </WouterRouter>
+        <LoginGate>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <SidebarProvider>
+              <Router />
+            </SidebarProvider>
+          </WouterRouter>
+        </LoginGate>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

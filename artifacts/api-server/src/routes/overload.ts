@@ -53,7 +53,7 @@ router.get("/overload/status", async (_req, res): Promise<void> => {
 
 router.post("/overload/energy", async (req, res): Promise<void> => {
   const parsed = LogEnergyLevelBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const today = new Date().toISOString().split("T")[0];
 

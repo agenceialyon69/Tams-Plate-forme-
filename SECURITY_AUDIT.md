@@ -159,7 +159,32 @@ Caches au niveau module, partagés par toutes les requêtes. Sans notion d'utili
 
 ## Plan de remédiation priorisé
 
-1. **Immédiat (P0)** : authentification + middleware appliqué à tout `/api` ; ajouter `userId` à chaque table et filtrer toutes les requêtes.
-2. **Court terme (P1)** : durcir CORS (origines exactes) ; rate limiting + quotas LLM ; `helmet`.
-3. **Moyen terme (P2)** : revalider la sortie LLM ; bornes de taille (`express.json` + `maxLength` Zod) ; handler d'erreur global + messages génériques.
-4. **Durcissement (P3)** : caches par utilisateur ; durcissement prompt (séparation instructions/données) ; CSP.
+1. **Immédiat (P0)** : authentification + middleware appliqué à tout `/api`.
+2. **Court terme (P1)** : durcir CORS (origines exactes) ; rate limiting + quotas LLM ; en-têtes de sécurité.
+3. **Moyen terme (P2)** : revalider la sortie LLM ; bornes de taille ; handler d'erreur global + messages génériques.
+4. **Durcissement (P3)** : durcissement prompt (bornes d'entrée) ; CSP.
+
+---
+
+## Journal de remédiation (appliqué le 2026-06-15)
+
+Modèle retenu : **mono-utilisateur par token unique** (les comptes multi-utilisateurs ne sont pas pertinents pour un copilote personnel ; le constat n°2 « colonne `userId` » est donc volontairement écarté au profit du token unique qui ferme l'accès).
+
+| # | Constat | Correctif | Fichier |
+|---|---------|-----------|---------|
+| 1 | Pas d'auth | Middleware bearer token (SHA-256 + comparaison à temps constant), default-deny sur tout `/api` sauf `/healthz`. Refus de démarrage si `API_AUTH_TOKEN` absent/faible. | `middlewares/auth.ts`, `routes/index.ts` |
+| 3 | CORS permissif | Allowlist stricte d'origines exactes via `FRONTEND_URL` ; suppression de `origin: true` et de la regex `*.vercel.app` ; `credentials: false`. | `app.ts` |
+| 4 | Coût LLM non borné | Rate limiting : 120 req/min global + 20 req/min sur `/captures`, `/decisions`, `/ai/*`. | `middlewares/rate-limit.ts`, routes |
+| 5 | Injection de prompt | Bornes d'entrée (contenu 10k, question/contexte 4k) avant envoi au LLM. | `lib/ai.ts` |
+| 6 | Pas d'en-têtes / rate limit | En-têtes de sécurité (CSP, nosniff, X-Frame, Referrer, CORP), suppression `X-Powered-By`. | `middlewares/security.ts` |
+| 7 | Sortie LLM non validée | Sanitisation : tableaux plafonnés (50), enums validés, types coercés, longueurs bornées avant insertion. | `lib/ai.ts` |
+| 8 | Pas de limite de taille | `express.json({ limit: '8mb' })`, urlencoded 1mb, plafond audio base64 (~7,5MB décodés). | `app.ts`, `routes/ai.ts` |
+| 9 | Fuite via erreurs | Messages d'erreur génériques côté client + handler d'erreur global centralisé. | toutes les routes, `app.ts` |
+| — | Robustesse | Init paresseuse du client Groq : le serveur ne crashe plus au démarrage si `GROQ_API_KEY` est absente. | `lib/ai.ts` |
+| — | Build cassé | Bugs de typage préexistants corrigés (`note` au lieu de `context` ; `queryKey` manquant). | `pages/dashboard.tsx`, `pages/decisions.tsx` |
+
+**Côté frontend** : token stocké localement et envoyé en `Authorization: Bearer` (`lib/auth.ts`, `main.tsx`) ; écran de déverrouillage + déconnexion automatique sur réponse 401 (`components/LoginGate.tsx`, `App.tsx`).
+
+**Validation** : `pnpm run typecheck` OK sur tous les packages, `pnpm run build` OK, et test fumée confirmant 401 sans/avec mauvais token, accès public à `/healthz`, et présence des en-têtes de sécurité.
+
+**Non traité volontairement** : multi-tenant (`userId`) — hors périmètre d'une app mono-utilisateur.
