@@ -1,121 +1,102 @@
-# Mettre KORE en service — guide pas à pas
+# Mettre KORE en service — guide débutant (objectif : l'utiliser sur ton téléphone)
 
-Ce guide liste **tout ce que tu dois faire toi-même**. Tout le reste (code, sécurité,
-scripts) est déjà prêt dans le dépôt.
+KORE est une **application web** : une fois mise en ligne, tu obtiens un lien
+(une URL). Tu ouvres ce lien sur ton téléphone et tu l'ajoutes à l'écran
+d'accueil → elle se comporte comme une vraie app, **sans passer par l'App Store
+ni le Play Store**.
 
-Deux options : **A) tester en local** (le plus simple pour commencer) ou
-**B) déployer en ligne** (Railway pour l'API + Vercel pour le site).
-
----
-
-## Ce dont tu as besoin avant de commencer
-
-1. **Node.js 24** et **pnpm** installés (`npm install -g pnpm`).
-2. **Une base PostgreSQL.** Gratuit et rapide : [Neon](https://neon.tech) ou
-   [Supabase](https://supabase.com). Tu récupères une *connection string* qui
-   ressemble à `postgres://user:motdepasse@host:5432/nom_de_base`.
-3. **(Optionnel, pour l'IA)** une clé **Google Gemini**
-   ([aistudio.google.com](https://aistudio.google.com/app/apikey)) et une clé
-   **Groq** ([console.groq.com/keys](https://console.groq.com/keys)) pour la dictée vocale.
+Tu n'as **aucune commande à taper** : la base de données crée ses tables toute
+seule au premier démarrage.
 
 ---
 
-## Option A — Lancer en local (le plus simple : 3 commandes)
+## Le token, c'est quoi ?
 
-> **Mode service unique** : un seul programme sert à la fois l'API et le site,
-> sur **une seule URL**. Pas de CORS, pas de second serveur à gérer.
+C'est un **mot de passe secret** que tu choisis toi-même (tu ne le récupères
+nulle part). Il sert à deux endroits, avec **la même valeur** :
+1. tu le mets dans la configuration du serveur (une variable `API_AUTH_TOKEN`) ;
+2. tu le colles dans l'app, dans la case « KORE — Accès » au premier lancement.
 
-### Étape 1 — Récupérer le code
-```bash
-git clone <url-du-repo>
-cd Tams-Plate-forme-
-git checkout claude/red-team-audit-qbtht9   # tant que la PR n'est pas mergée
+Un token déjà prêt (tu peux l'utiliser tel quel) :
 ```
-
-### Étape 2 — Créer ton fichier de configuration
-```bash
-cp .env.example .env
+ca262dff8b9b6ca3ffbcdf337df5505b428a18439ee9bdfb9a2d499bdcb09fe5
 ```
-Ouvre `.env` et remplis **au minimum** :
-- `DATABASE_URL` → ta connection string Postgres (préalable n°1).
-- `API_AUTH_TOKEN` → ton mot de passe d'accès. Génère-le avec :
-  ```bash
-  openssl rand -hex 32
-  ```
-  Copie le résultat dans `.env`. **C'est ce token que tu colleras dans l'app.**
-- Laisse `PORT=8080` et `BASE_PATH=/`.
-- Laisse `VITE_API_URL` **vide** (mode service unique).
-- (Optionnel) `GEMINI_API_KEY` et `GROQ_API_KEY` pour l'IA et la voix.
-
-> `.env` est ignoré par git : tes secrets ne partiront jamais dans le dépôt.
-
-### Étape 3 — Tout préparer (une commande)
-```bash
-bash scripts/setup.sh
-```
-Vérifie la config, installe, **crée les tables** et compile l'API + le site.
-Relançable sans risque.
-
-### Étape 4 — Démarrer (une commande, une URL)
-```bash
-bash scripts/start.sh
-```
-Ouvre **http://localhost:8080**, colle ton `API_AUTH_TOKEN` dans l'écran
-« KORE — Accès ». C'est tout — le token reste mémorisé dans ce navigateur.
-
-> **Tu développes le code ?** Utilise plutôt `bash scripts/dev.sh` (rechargement
-> à chaud ; le site est sur `http://localhost:5173` et l'API sur `:8080`).
 
 ---
 
-## Option B — Déployer en ligne (un seul service, recommandé)
+## Mettre en ligne avec Railway (recommandé, zéro installation)
 
-Le dépôt est déjà configuré pour **Railway** (`railway.toml`) en mode service
-unique : Railway construit le site **et** l'API, puis l'API sert tout sur une
-seule URL.
+Faisable depuis un ordinateur **ou** depuis le navigateur de ton téléphone.
 
-1. Crée un projet sur [Railway](https://railway.app) à partir du dépôt.
-2. Ajoute une base **PostgreSQL** au projet (Railway fournit `DATABASE_URL`),
-   ou colle la tienne.
-3. Dans **Variables**, ajoute :
-   - `API_AUTH_TOKEN` (ton `openssl rand -hex 32`)
-   - `GEMINI_API_KEY`, `GROQ_API_KEY` (optionnels)
-   - (`PORT`, `NODE_ENV`, `BASE_PATH` sont déjà fournis par `railway.toml`)
-4. **Crée les tables une fois** : depuis ton poste, avec le `DATABASE_URL` de prod
-   dans `.env`, lance `pnpm --filter @workspace/db run push`.
-5. Déploie. Ouvre l'URL Railway, colle ton token. Fini — **pas de CORS, pas de
-   second hébergement.**
+1. **Crée un compte** sur [railway.app](https://railway.app) (connexion avec
+   GitHub).
+2. **New Project → Deploy from GitHub repo** → choisis ce dépôt
+   (`tams-plate-forme-`).
+3. **Ajoute une base de données** : dans le projet, bouton **New → Database →
+   PostgreSQL**. Railway crée et relie `DATABASE_URL` tout seul.
+4. **Ajoute ton token** : ouvre le service de l'app → onglet **Variables** →
+   **New Variable** :
+   - Nom : `API_AUTH_TOKEN`
+   - Valeur : le token ci-dessus (ou le tien)
+   - *(facultatif)* `GEMINI_API_KEY` et `GROQ_API_KEY` pour l'IA et la dictée.
+5. **Déploie** (Railway le fait automatiquement). Quand c'est vert, ouvre
+   l'onglet **Settings → Networking → Generate Domain** : tu obtiens ton URL
+   publique (ex. `https://kore-production.up.railway.app`).
+6. **Ouvre cette URL**, colle ton token dans « KORE — Accès ». 🎉
 
-> Vérifie au passage que `https://<ton-app>/api/healthz` répond `{"status":"ok"}`.
+> Les variables `PORT`, `NODE_ENV` et `BASE_PATH` sont déjà fournies par le
+> fichier `railway.toml` du dépôt — tu n'as pas à t'en occuper.
 
-> **Hébergement séparé (avancé)** : tu peux toujours héberger le site à part
-> (ex. Vercel). Dans ce cas, définis `VITE_API_URL` (côté site) = URL de l'API,
-> et `FRONTEND_URL` (côté API) = origine exacte du site, pour le CORS.
+---
+
+## Installer KORE sur ton téléphone (comme une app)
+
+Une fois l'URL ouverte sur le tél et le token saisi :
+
+- **iPhone (Safari)** : bouton **Partager** → **Sur l'écran d'accueil**.
+- **Android (Chrome)** : menu **⋮** → **Ajouter à l'écran d'accueil**.
+
+Une icône KORE apparaît. Tu l'ouvres comme n'importe quelle app, en plein écran.
+
+---
+
+## (Optionnel) Tester sur un ordinateur d'abord
+
+Si tu veux essayer en local avant de mettre en ligne, il te faut **Node.js 24**
+et **pnpm**, puis dans un Terminal, à la racine du projet :
+
+```bash
+cp .env.example .env          # mets DATABASE_URL + API_AUTH_TOKEN dedans
+bash scripts/setup.sh         # installe et compile (une fois)
+bash scripts/start.sh         # démarre tout
+```
+Puis ouvre **http://localhost:8080** et colle ton token.
+
+*(Pour développer avec rechargement à chaud : `bash scripts/dev.sh`, le site est
+alors sur `http://localhost:5173`.)*
 
 ---
 
 ## Récapitulatif des variables
 
-| Variable | Où | Obligatoire | Rôle |
-|---|---|---|---|
-| `DATABASE_URL` | serveur | ✅ | Connexion Postgres |
-| `API_AUTH_TOKEN` | serveur | ✅ | Token d'accès (≥ 16 car.) |
-| `PORT` | serveur | ✅ | Port d'écoute (8080) |
-| `BASE_PATH` | build | ✅ | Chemin du site (`/`) |
-| `GEMINI_API_KEY` | serveur | pour l'IA | Extraction / analyse / bilans |
-| `GROQ_API_KEY` | serveur | pour la voix | Transcription audio |
-| `FRONTEND_URL` | serveur | seulement si site séparé | Origine autorisée (CORS) |
-| `VITE_API_URL` | site | seulement si site séparé | URL de l'API à appeler |
+| Variable | Obligatoire | Rôle |
+|---|---|---|
+| `DATABASE_URL` | ✅ (fournie par Railway) | Connexion à la base |
+| `API_AUTH_TOKEN` | ✅ | Ton mot de passe d'accès (≥ 16 caractères) |
+| `GEMINI_API_KEY` | pour l'IA | Analyse des captures, décisions, bilans |
+| `GROQ_API_KEY` | pour la voix | Dictée vocale |
+| `PORT`, `NODE_ENV`, `BASE_PATH` | auto | Déjà réglées par `railway.toml` |
+| `FRONTEND_URL`, `VITE_API_URL` | seulement si site hébergé séparément | CORS / URL de l'API |
 
 ---
 
 ## En cas de souci
 
-- **L'API ne démarre pas, message « API_AUTH_TOKEN must be set »** → la variable
-  est absente ou trop courte. C'est volontaire (sécurité).
-- **Le site affiche l'écran d'accès en boucle** → token incorrect, ou l'API
-  renvoie 401. Vérifie que le token collé est exactement celui de `.env`.
-- **Les appels échouent avec une erreur CORS** → `FRONTEND_URL` ne correspond pas
-  à l'origine du site.
-- **Pas d'analyse IA / pas de dictée** → `GEMINI_API_KEY` / `GROQ_API_KEY` manquantes
-  (l'app fonctionne quand même, sans l'IA).
+- **Le serveur ne démarre pas, « API_AUTH_TOKEN must be set »** → la variable
+  est absente ou trop courte (< 16 caractères). C'est voulu (sécurité).
+- **L'app redemande sans cesse le token** → la valeur collée ne correspond pas
+  exactement à `API_AUTH_TOKEN`. Recopie-la sans espace.
+- **Pas d'analyse IA / pas de dictée** → `GEMINI_API_KEY` / `GROQ_API_KEY`
+  manquantes. L'app fonctionne quand même, sans ces fonctions.
+- **Vérifier que le serveur tourne** : ouvre `https://<ton-url>/api/healthz`,
+  ça doit afficher `{"status":"ok"}`.

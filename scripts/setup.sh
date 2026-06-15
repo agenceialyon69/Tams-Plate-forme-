@@ -37,12 +37,11 @@ fi
 export PORT="${PORT:-8080}"
 export BASE_PATH="${BASE_PATH:-/}"
 
-# --- Install, migrate, build ------------------------------------------------
+# --- Install and build ------------------------------------------------------
+# Note: database tables are created automatically on first server start
+# (see ensureSchema). No manual migration step needed.
 echo "→ Installing dependencies (pnpm)"
 pnpm install
-
-echo "→ Creating / updating database tables (drizzle push)"
-pnpm --filter @workspace/db run push
 
 echo "→ Type-checking and building API + web app"
 pnpm run build
