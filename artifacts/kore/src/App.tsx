@@ -4,9 +4,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Compass, CheckCircle2, BrainCircuit, Activity, MoonStar, Home, Mic, BarChart2 } from "lucide-react";
+import { Compass, CheckCircle2, BrainCircuit, Activity, MoonStar, Home, Mic, BarChart2, Settings2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
+import { useEffect } from "react";
+import { loadPrefs } from "@/hooks/useNotifications";
 
 const queryClient = new QueryClient();
 
@@ -19,10 +21,27 @@ import Decisions from "./pages/decisions";
 import Evening from "./pages/evening";
 import Overload from "./pages/overload";
 import Weekly from "./pages/weekly";
+import SettingsPage from "./pages/settings";
+
+function useScheduleNotifications() {
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const prefs = loadPrefs();
+    if (!prefs.enabled || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.active?.postMessage({
+        type: "SCHEDULE_NOTIFICATIONS",
+        morningTime: prefs.morningTime,
+        eveningTime: prefs.eveningTime,
+      });
+    });
+  }, []);
+}
 
 function AppSidebar() {
   const [location] = useLocation();
-  
+  useScheduleNotifications();
+
   const navItems = [
     { href: "/", label: "Aperçu", icon: Home },
     { href: "/capture", label: "Capture", icon: Mic },
@@ -32,6 +51,7 @@ function AppSidebar() {
     { href: "/evening", label: "Revue", icon: MoonStar },
     { href: "/overload", label: "Bien-être", icon: Activity },
     { href: "/weekly", label: "Bilan", icon: BarChart2 },
+    { href: "/settings", label: "Paramètres", icon: Settings2 },
   ];
 
   return (
@@ -102,6 +122,7 @@ function Router() {
           <Route path="/evening" component={Evening} />
           <Route path="/overload" component={Overload} />
           <Route path="/weekly" component={Weekly} />
+          <Route path="/settings" component={SettingsPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
