@@ -1,0 +1,6 @@
+# Override the Nixpacks install phase so the build does not fail on a frozen
+# lockfile config mismatch (Nixpacks uses its own pnpm and runs a frozen
+# install by default). --prod=false guarantees devDependencies (vite, esbuild)
+# are present for the build.
+[phases.install]
+cmds = ["pnpm install --no-frozen-lockfile --prod=false"]
