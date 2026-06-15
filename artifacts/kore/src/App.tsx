@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Compass, CheckCircle2, BrainCircuit, Activity, MoonStar, Home, Mic } from "lucide-react";
+import { Compass, CheckCircle2, BrainCircuit, Activity, MoonStar, Home, Mic, BarChart2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
 
@@ -18,6 +18,7 @@ import Memory from "./pages/memory";
 import Decisions from "./pages/decisions";
 import Evening from "./pages/evening";
 import Overload from "./pages/overload";
+import Weekly from "./pages/weekly";
 
 function AppSidebar() {
   const [location] = useLocation();
@@ -30,6 +31,7 @@ function AppSidebar() {
     { href: "/decisions", label: "Décisions", icon: Compass },
     { href: "/evening", label: "Revue", icon: MoonStar },
     { href: "/overload", label: "Bien-être", icon: Activity },
+    { href: "/weekly", label: "Bilan", icon: BarChart2 },
   ];
 
   return (
@@ -99,6 +101,7 @@ function Router() {
           <Route path="/decisions" component={Decisions} />
           <Route path="/evening" component={Evening} />
           <Route path="/overload" component={Overload} />
+          <Route path="/weekly" component={Weekly} />
           <Route component={NotFound} />
         </Switch>
       </main>

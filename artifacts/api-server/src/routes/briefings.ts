@@ -1,13 +1,17 @@
 import { Router, type IRouter } from "express";
 import { db, tasksTable, eventsTable, eveningReviewsTable, energyLogsTable } from "@workspace/db";
 import { SubmitEveningReviewBody } from "@workspace/api-zod";
-import { eq, and, gte, lte, lt, avg, count, desc } from "drizzle-orm";
-import { generateMorningKoreMessage, generateEveningResponse } from "../lib/ai";
+import { eq, and, gte, lte, lt, avg, count, desc, min, max } from "drizzle-orm";
+import { generateMorningKoreMessage, generateEveningResponse, generateWeeklySummary } from "../lib/ai";
+import { capturesTable, decisionsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
 let briefingCache: { date: string; data: unknown; cachedAt: number } | null = null;
 const BRIEFING_CACHE_TTL = 3600_000;
+
+let weeklyCache: { weekStart: string; data: unknown; cachedAt: number } | null = null;
+const WEEKLY_CACHE_TTL = 3600_000;
 
 export function invalidateBriefingCache(): void {
   briefingCache = null;
@@ -132,6 +136,88 @@ router.post("/briefings/evening", async (req, res): Promise<void> => {
 
   invalidateBriefingCache();
   res.status(201).json(review);
+});
+
+router.get("/briefings/weekly", async (_req, res): Promise<void> => {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - 6);
+  const weekStartStr = weekStart.toISOString().split("T")[0];
+
+  if (weeklyCache && weeklyCache.weekStart === weekStartStr && Date.now() - weeklyCache.cachedAt < WEEKLY_CACHE_TTL) {
+    res.json(weeklyCache.data);
+    return;
+  }
+  const weekEndStr = today.toISOString().split("T")[0];
+
+  const [
+    energyResult,
+    tasksCompleted,
+    tasksPending,
+    tasksOverdue,
+    decisionsResult,
+    capturesResult,
+    reviewsResult,
+    topDomainResult,
+  ] = await Promise.all([
+    db.select({ avg: avg(energyLogsTable.level), min: min(energyLogsTable.level), max: max(energyLogsTable.level) })
+      .from(energyLogsTable)
+      .where(gte(energyLogsTable.logDate, weekStartStr)),
+
+    db.select({ count: count() }).from(tasksTable)
+      .where(and(eq(tasksTable.status, "done"), gte(tasksTable.updatedAt, weekStart))),
+
+    db.select({ count: count() }).from(tasksTable)
+      .where(eq(tasksTable.status, "pending")),
+
+    db.select({ count: count() }).from(tasksTable)
+      .where(and(eq(tasksTable.status, "pending"), lt(tasksTable.dueDate, weekEndStr))),
+
+    db.select({ count: count() }).from(decisionsTable)
+      .where(gte(decisionsTable.createdAt, weekStart)),
+
+    db.select({ count: count() }).from(capturesTable)
+      .where(gte(capturesTable.createdAt, weekStart)),
+
+    db.select({ count: count() }).from(eveningReviewsTable)
+      .where(gte(eveningReviewsTable.reviewDate, weekStartStr)),
+
+    db.select({ domain: tasksTable.priorityDomain, count: count() })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.status, "done"), gte(tasksTable.updatedAt, weekStart)))
+      .groupBy(tasksTable.priorityDomain)
+      .orderBy(desc(count()))
+      .limit(3),
+  ]);
+
+  const summary = await generateWeeklySummary({
+    energyAvg: energyResult[0]?.avg ? parseFloat(String(energyResult[0].avg)) : null,
+    energyMin: energyResult[0]?.min ?? null,
+    energyMax: energyResult[0]?.max ?? null,
+    tasksCompleted: tasksCompleted[0].count,
+    tasksPending: tasksPending[0].count,
+    tasksOverdue: tasksOverdue[0].count,
+    decisionsCount: decisionsResult[0].count,
+    capturesCount: capturesResult[0].count,
+    reviewsCount: reviewsResult[0].count,
+    topDomains: topDomainResult.map(r => r.domain ?? "").filter(Boolean),
+    weekDates: { start: weekStartStr, end: weekEndStr },
+  });
+
+  const weeklyData = {
+    ...summary,
+    tasksCompleted: tasksCompleted[0].count,
+    tasksPending: tasksPending[0].count,
+    tasksOverdue: tasksOverdue[0].count,
+    decisionsCount: decisionsResult[0].count,
+    capturesCount: capturesResult[0].count,
+    reviewsCount: reviewsResult[0].count,
+    energyAvg: energyResult[0]?.avg ? parseFloat(String(energyResult[0].avg)) : null,
+    weekDates: { start: weekStartStr, end: weekEndStr },
+  };
+
+  weeklyCache = { weekStart: weekStartStr, data: weeklyData, cachedAt: Date.now() };
+  res.json(weeklyData);
 });
 
 router.get("/briefings/evening/history", async (_req, res): Promise<void> => {

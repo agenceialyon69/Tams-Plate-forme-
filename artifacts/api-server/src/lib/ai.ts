@@ -226,6 +226,60 @@ export async function transcribeAudio(audioBase64: string, mimeType: string = "a
   }
 }
 
+export async function generateWeeklySummary(data: {
+  energyAvg: number | null;
+  energyMin: number | null;
+  energyMax: number | null;
+  tasksCompleted: number;
+  tasksPending: number;
+  tasksOverdue: number;
+  decisionsCount: number;
+  capturesCount: number;
+  reviewsCount: number;
+  topDomains: string[];
+  weekDates: { start: string; end: string };
+}): Promise<{ koreMessage: string; trend: string; recommendation: string }> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  const prompt = `${PRIORITY_COMPASS}
+
+Tu es KORE. Génère le bilan de semaine de l'utilisateur. Sois honnête, calme, sans flatterie.
+
+Données de la semaine (${data.weekDates.start} → ${data.weekDates.end}) :
+- Énergie moyenne : ${data.energyAvg !== null ? `${data.energyAvg.toFixed(1)}/10` : "non mesurée"}
+- Énergie min/max : ${data.energyMin ?? "?"} / ${data.energyMax ?? "?"}
+- Tâches terminées : ${data.tasksCompleted}
+- Tâches en attente : ${data.tasksPending}
+- Tâches en retard : ${data.tasksOverdue}
+- Décisions analysées : ${data.decisionsCount}
+- Captures faites : ${data.capturesCount}
+- Revues du soir complétées : ${data.reviewsCount}/7
+- Domaines principaux : ${data.topDomains.join(", ") || "non identifiés"}
+
+Réponds UNIQUEMENT en JSON :
+{
+  "koreMessage": "Message principal de KORE sur la semaine (3-4 phrases, honnête, ancré dans les données)",
+  "trend": "Tendance observée en 1-2 phrases (énergie, rythme, focus)",
+  "recommendation": "Une recommandation concrète et actionnable pour la semaine prochaine (1-2 phrases)"
+}
+
+RÈGLES : jamais flatteur, jamais culpabilisant. Si la semaine était difficile, dis-le calmement.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON");
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return {
+      koreMessage: "Semaine enregistrée. Prends un moment pour souffler avant de repartir.",
+      trend: "Données insuffisantes pour identifier une tendance claire.",
+      recommendation: "Commence la semaine prochaine par définir tes 3 priorités absolues.",
+    };
+  }
+}
+
 export async function detectOverload(data: {
   activeTasks: number;
   consecutiveWorkDays: number;
