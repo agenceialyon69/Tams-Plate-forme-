@@ -26,7 +26,7 @@ router.get("/learnings", async (req, res): Promise<void> => {
 
 router.post("/learnings", async (req, res): Promise<void> => {
   const parsed = CreateLearningBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const [learning] = await db.insert(learningsTable).values({
     subject: parsed.data.subject,
@@ -40,7 +40,7 @@ router.post("/learnings", async (req, res): Promise<void> => {
 
 router.delete("/learnings/:id", async (req, res): Promise<void> => {
   const params = DeleteLearningParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   await db.delete(learningsTable).where(eq(learningsTable.id, params.data.id));
   res.sendStatus(204);

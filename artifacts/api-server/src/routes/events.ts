@@ -28,7 +28,7 @@ router.get("/events", async (req, res): Promise<void> => {
 
 router.post("/events", async (req, res): Promise<void> => {
   const parsed = CreateEventBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const [event] = await db.insert(eventsTable).values({
     title: parsed.data.title,
@@ -43,10 +43,10 @@ router.post("/events", async (req, res): Promise<void> => {
 
 router.patch("/events/:id", async (req, res): Promise<void> => {
   const params = UpdateEventParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const parsed = UpdateEventBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const updates: Record<string, unknown> = {};
   if (parsed.data.title !== undefined) updates.title = parsed.data.title;
@@ -61,7 +61,7 @@ router.patch("/events/:id", async (req, res): Promise<void> => {
 
 router.delete("/events/:id", async (req, res): Promise<void> => {
   const params = DeleteEventParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   await db.delete(eventsTable).where(eq(eventsTable.id, params.data.id));
   res.sendStatus(204);

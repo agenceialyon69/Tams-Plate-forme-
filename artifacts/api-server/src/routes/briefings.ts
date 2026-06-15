@@ -106,7 +106,7 @@ router.get("/briefings/morning", async (_req, res): Promise<void> => {
 
 router.post("/briefings/evening", async (req, res): Promise<void> => {
   const parsed = SubmitEveningReviewBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const today = new Date().toISOString().split("T")[0];
 

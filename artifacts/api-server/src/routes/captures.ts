@@ -7,9 +7,13 @@ import {
   ListCapturesQueryParams,
 } from "@workspace/api-zod";
 import { extractFromCapture } from "../lib/ai";
+import { rateLimit } from "../middlewares/rate-limit";
 import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// Dedicated limiter for the LLM-backed capture creation endpoint.
+const captureLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 
 router.get("/captures", async (req, res): Promise<void> => {
   const q = ListCapturesQueryParams.safeParse(req.query);
@@ -28,16 +32,16 @@ router.get("/captures", async (req, res): Promise<void> => {
 
 router.get("/captures/:id", async (req, res): Promise<void> => {
   const params = GetCaptureParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const [capture] = await db.select().from(capturesTable).where(eq(capturesTable.id, params.data.id));
   if (!capture) { res.status(404).json({ error: "Capture not found" }); return; }
   res.json(capture);
 });
 
-router.post("/captures", async (req, res): Promise<void> => {
+router.post("/captures", captureLimiter, async (req, res): Promise<void> => {
   const parsed = CreateCaptureBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   const extracted = await extractFromCapture(parsed.data.content);
 
@@ -95,7 +99,7 @@ router.post("/captures", async (req, res): Promise<void> => {
 
 router.delete("/captures/:id", async (req, res): Promise<void> => {
   const params = DeleteCaptureParams.safeParse(req.params);
-  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
   await db.delete(capturesTable).where(eq(capturesTable.id, params.data.id));
   res.sendStatus(204);

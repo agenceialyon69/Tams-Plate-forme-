@@ -9,10 +9,20 @@ import memoryRouter from "./memory";
 import briefingsRouter from "./briefings";
 import overloadRouter from "./overload";
 import aiRouter from "./ai";
+import { requireAuth } from "../middlewares/auth";
+import { rateLimit } from "../middlewares/rate-limit";
 
 const router: IRouter = Router();
 
+// Public, unauthenticated health check (used by platform probes).
 router.use(healthRouter);
+
+// Everything below requires authentication (default-deny).
+router.use(requireAuth);
+
+// Tighter limit for expensive LLM-backed endpoints (Gemini / Groq).
+const aiLimiter = rateLimit({ windowMs: 60_000, max: 20 });
+
 router.use(capturesRouter);
 router.use(tasksRouter);
 router.use(eventsRouter);
@@ -21,6 +31,6 @@ router.use(decisionsRouter);
 router.use(memoryRouter);
 router.use(briefingsRouter);
 router.use(overloadRouter);
-router.use(aiRouter);
+router.use(aiLimiter, aiRouter);
 
 export default router;
