@@ -85,7 +85,27 @@ const STATEMENTS = [
   )`,
 ];
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Wait for the database to accept connections. On hosts like Railway/Render the
+ * Postgres service may start a few seconds after the app, so we retry instead
+ * of crashing the deploy on a transient connection error.
+ */
+async function waitForDatabase(attempts = 20, delayMs = 2000): Promise<void> {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await pool.query("SELECT 1");
+      return;
+    } catch (err) {
+      if (i === attempts) throw err;
+      await sleep(delayMs);
+    }
+  }
+}
+
 export async function ensureSchema(): Promise<void> {
+  await waitForDatabase();
   for (const sql of STATEMENTS) {
     await pool.query(sql);
   }
