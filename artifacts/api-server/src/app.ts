@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, {
@@ -99,7 +99,7 @@ const clientDir = clientDirCandidates.find((d) =>
 // Public diagnostic endpoint: reveals how the server is serving the web app.
 // Registered before the router so it bypasses auth.
 app.get("/api/_debug", (_req, res) => {
-  res.json({
+  const info: Record<string, unknown> = {
     ok: true,
     cwd: process.cwd(),
     here,
@@ -110,7 +110,27 @@ app.get("/api/_debug", (_req, res) => {
       path: d,
       indexExists: existsSync(path.join(d, "index.html")),
     })),
-  });
+  };
+
+  if (clientDir) {
+    try {
+      info.clientDirFiles = readdirSync(clientDir);
+      const assetsDir = path.join(clientDir, "assets");
+      info.assetsFiles = existsSync(assetsDir) ? readdirSync(assetsDir) : null;
+      const html = readFileSync(path.join(clientDir, "index.html"), "utf8");
+      const refs = Array.from(html.matchAll(/\/assets\/[^"')]+/g)).map(
+        (m) => m[0],
+      );
+      info.referencedAssets = refs.map((r) => ({
+        ref: r,
+        exists: existsSync(path.join(clientDir, r)),
+      }));
+    } catch (e) {
+      info.readError = String(e);
+    }
+  }
+
+  res.json(info);
 });
 
 app.use("/api", router);
