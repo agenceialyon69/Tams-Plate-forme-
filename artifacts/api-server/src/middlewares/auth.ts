@@ -191,7 +191,6 @@ async function checkAuthRateLimit(ip: string, endpoint: string): Promise<{ ok: b
   const ttlSeconds = Math.ceil(windowMs / 1000);
 
   if (!redisReady) {
-    // Fallback mémoire robuste
     return memoryRateLimit(ip, endpoint, windowMs, config.maxAuthRequestsPerMinute);
   }
 
@@ -222,7 +221,6 @@ async function checkAndRecordAuthFailure(ip: string): Promise<{ ok: boolean; rem
   const ttlSeconds = Math.ceil(windowMs / 1000);
 
   if (!redisReady) {
-    // Fallback mémoire robuste
     return memoryAuthFailure(ip, windowMs, config.maxAuthFailuresPerHour);
   }
 
