@@ -2,7 +2,7 @@
 builder = "nixpacks"
 # Install is handled by nixpacks.toml (non-frozen). Here we only build BOTH the
 # web app and the API; the API serves the web app from the same origin.
-buildCommand = "PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build && pnpm --filter @workspace/api-server run build"
+buildCommand = "PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build && pnpm --filter @workspace/api-server run build && CI=true pnpm prune --prod"
 
 [deploy]
 startCommand = "node --enable-source-maps artifacts/api-server/dist/index.mjs"

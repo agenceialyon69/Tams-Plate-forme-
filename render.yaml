@@ -14,7 +14,8 @@ services:
     buildCommand: >-
       pnpm install --no-frozen-lockfile --prod=false &&
       PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build &&
-      pnpm --filter @workspace/api-server run build
+      pnpm --filter @workspace/api-server run build &&
+      CI=true pnpm prune --prod
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     envVars:
       - key: NODE_VERSION
