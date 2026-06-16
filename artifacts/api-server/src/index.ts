@@ -16,22 +16,23 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-async function main(): Promise<void> {
-  // Create any missing tables so a fresh database works with zero manual steps.
-  await ensureSchema();
-  logger.info("Database schema ready");
+// Start listening immediately so the platform health check (/api/healthz, which
+// does not touch the database) passes right away. Schema creation runs in the
+// background and retries until the database is reachable — a slow-starting
+// Postgres must not fail the deploy.
+app.listen(port, (err) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
+  }
 
-  app.listen(port, (err) => {
-    if (err) {
-      logger.error({ err }, "Error listening on port");
+  logger.info({ port }, "Server listening");
+
+  ensureSchema()
+    .then(() => logger.info("Database schema ready"))
+    .catch((schemaErr) => {
+      logger.error({ err: schemaErr }, "Failed to prepare database schema");
+      // Exit so the platform restarts us; the DB may come up on the next try.
       process.exit(1);
-    }
-
-    logger.info({ port }, "Server listening");
-  });
-}
-
-main().catch((err) => {
-  logger.error({ err }, "Failed to start server");
-  process.exit(1);
+    });
 });
