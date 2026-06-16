@@ -1,53 +1,122 @@
 import type { Request, Response, NextFunction } from "express";
+import { createClient } from "redis";
+import { logger } from "../lib/logger";
 
-interface Bucket {
-  count: number;
-  resetAt: number;
+const redis = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+  socket: {
+    reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
+  },
+});
+
+let redisReady = false;
+redis.connect()
+  .then(() => {
+    redisReady = true;
+    logger.info("Redis connected");
+  })
+  .catch((err) => {
+    logger.error({ err }, "Redis connection failed");
+  });
+
+// Fallback mémoire (si Redis hors ligne)
+const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function memoryRateLimit(key: string, windowMs: number, max: number): boolean {
+  const now = Date.now();
+  let bucket = memoryBuckets.get(key);
+
+  if (!bucket || bucket.resetAt <= now) {
+    bucket = { count: 0, resetAt: now + windowMs };
+    memoryBuckets.set(key, bucket);
+  }
+
+  bucket.count += 1;
+  if (bucket.count > max) {
+    return false;
+  }
+
+  return true;
 }
 
-/**
- * Minimal in-memory fixed-window rate limiter. No external dependency.
- * Suitable for a single-instance, single-user deployment. For multi-instance
- * deployments, replace the store with a shared backend (e.g. Redis).
- */
-export function rateLimit(opts: {
+interface RateOptions {
   windowMs: number;
   max: number;
   key?: (req: Request) => string;
-}): (req: Request, res: Response, next: NextFunction) => void {
-  const buckets = new Map<string, Bucket>();
-  const keyFn = opts.key ?? ((req) => req.ip ?? "unknown");
+}
 
-  // Opportunistic cleanup to avoid unbounded growth.
-  function sweep(now: number): void {
-    for (const [k, b] of buckets) {
-      if (b.resetAt <= now) buckets.delete(k);
-    }
-  }
+export function rateLimitRedis(opts: RateOptions) {
+  const keyFn = opts.key ?? ((req: Request) => req.ip ?? "unknown");
 
-  return (req, res, next) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const key = `ratelimit:${keyFn(req)}`;
     const now = Date.now();
-    if (buckets.size > 10_000) sweep(now);
+    const windowSeconds = Math.ceil(opts.windowMs / 1000);
 
-    const key = keyFn(req);
-    let bucket = buckets.get(key);
-    if (!bucket || bucket.resetAt <= now) {
-      bucket = { count: 0, resetAt: now + opts.windowMs };
-      buckets.set(key, bucket);
+    if (!redisReady) {
+      // Fallback mémoire
+      const ok = memoryRateLimit(key, opts.windowMs, opts.max);
+      const remaining = ok ? opts.max - memoryBuckets.get(key)?.count ?? opts.max : 0;
+
+      res.setHeader("X-RateLimit-Limit", String(opts.max));
+      res.setHeader("X-RateLimit-Remaining", String(remaining));
+
+      if (!ok) {
+        logger.warn(
+          { ip: keyFn(req), url: req.url, method: req.method },
+          "Rate limit exceeded (memory fallback)",
+        );
+        res.status(429).json({ error: "Too many requests" });
+        return;
+      }
+
+      return next();
     }
 
-    bucket.count += 1;
-    const remaining = Math.max(0, opts.max - bucket.count);
-    res.setHeader("X-RateLimit-Limit", String(opts.max));
-    res.setHeader("X-RateLimit-Remaining", String(remaining));
+    try {
+      const multi = redis.multi();
+      multi.incr(key);
+      multi.expire(key, windowSeconds);
 
-    if (bucket.count > opts.max) {
-      const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
-      res.setHeader("Retry-After", String(retryAfter));
-      res.status(429).json({ error: "Too many requests" });
-      return;
+      const [count] = await multi.exec();
+      const current = (count as number) ?? 1;
+      const remaining = Math.max(0, opts.max - current);
+
+      res.setHeader("X-RateLimit-Limit", String(opts.max));
+      res.setHeader("X-RateLimit-Remaining", String(remaining));
+
+      if (current > opts.max) {
+        logger.warn(
+          {
+            ip: keyFn(req),
+            url: req.url,
+            method: req.method,
+            count: current,
+            max: opts.max,
+          },
+          "Rate limit exceeded (Redis)",
+        );
+        res.status(429).json({ error: "Too many requests" });
+        return;
+      }
+
+      next();
+    } catch (err) {
+      logger.error({ err }, "Redis rate limit error, using memory fallback");
+
+      // Fallback mémoire
+      const ok = memoryRateLimit(key, opts.windowMs, opts.max);
+      const remaining = ok ? opts.max - memoryBuckets.get(key)?.count ?? opts.max : 0;
+
+      res.setHeader("X-RateLimit-Limit", String(opts.max));
+      res.setHeader("X-RateLimit-Remaining", String(remaining));
+
+      if (!ok) {
+        res.status(429).json({ error: "Too many requests" });
+        return;
+      }
+
+      next();
     }
-
-    next();
   };
 }
