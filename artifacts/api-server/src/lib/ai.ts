@@ -16,6 +16,11 @@ function getGroq(): Groq {
   return groqClient;
 }
 
+if (!process.env.GEMINI_API_KEY) {
+  // Non-fatal: server boots, but all Gemini-powered endpoints will fail at
+  // request time with a clear error rather than a cryptic SDK crash.
+  console.warn("[KORE] GEMINI_API_KEY is not set — AI features will be unavailable.");
+}
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
 export interface ExtractedData {
@@ -224,7 +229,13 @@ Réponds en JSON :
     const text = result.response.text().trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON found");
-    return JSON.parse(jsonMatch[0]);
+    const raw = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+    return {
+      analysis:          asString(raw.analysis,          8000),
+      priorityConflicts: asString(raw.priorityConflicts, 4000),
+      alternatives:      asString(raw.alternatives,      4000),
+      blindSpots:        asString(raw.blindSpots,        4000),
+    };
   } catch (err) {
     logger.error({ err }, "Failed to analyze decision");
     return {
@@ -365,7 +376,12 @@ RÈGLES : jamais flatteur, jamais culpabilisant. Si la semaine était difficile,
     const text = result.response.text().trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON");
-    return JSON.parse(jsonMatch[0]);
+    const raw = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+    return {
+      koreMessage:    asString(raw.koreMessage,    4000),
+      trend:          asString(raw.trend,          2000),
+      recommendation: asString(raw.recommendation, 2000),
+    };
   } catch {
     return {
       koreMessage: "Semaine enregistrée. Prends un moment pour souffler avant de repartir.",
