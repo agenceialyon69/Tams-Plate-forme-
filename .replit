@@ -33,3 +33,8 @@ externalPort = 3000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+API_AUTH_TOKEN = "afe340b40b4748379b22f1c782dd1f0a48efaf93b7803229b71c27d929e17efb"
