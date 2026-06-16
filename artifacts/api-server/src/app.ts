@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, {
   type Express,
   type Request,
@@ -80,6 +81,38 @@ app.use((req, res, next) =>
 );
 app.use(express.urlencoded({ extended: true, limit: "64kb" }));
 
+// Locate the built web app. Try several candidates so it works regardless of
+// the working directory the start command runs from.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const clientDirCandidates = [
+  process.env.CLIENT_DIR,
+  path.resolve(process.cwd(), "artifacts/kore/dist/public"),
+  path.resolve(here, "../../kore/dist/public"),
+  path.resolve(here, "../../../kore/dist/public"),
+  path.resolve(here, "public"),
+].filter((d): d is string => Boolean(d));
+
+const clientDir = clientDirCandidates.find((d) =>
+  existsSync(path.join(d, "index.html")),
+);
+
+// Public diagnostic endpoint: reveals how the server is serving the web app.
+// Registered before the router so it bypasses auth.
+app.get("/api/_debug", (_req, res) => {
+  res.json({
+    ok: true,
+    cwd: process.cwd(),
+    here,
+    nodeVersion: process.version,
+    frontendServed: Boolean(clientDir),
+    clientDir: clientDir ?? null,
+    candidates: clientDirCandidates.map((d) => ({
+      path: d,
+      indexExists: existsSync(path.join(d, "index.html")),
+    })),
+  });
+});
+
 app.use("/api", router);
 
 // Unknown API routes get a generic JSON 404 (no Express HTML default).
@@ -89,12 +122,7 @@ app.use("/api", (_req, res) => {
 
 // Single-service mode: when the built web app is present, serve it from the
 // same origin as the API. One URL, no CORS, no separate frontend host.
-// Falls back to API-only when the build is absent (e.g. separate deploys).
-const clientDir =
-  process.env.CLIENT_DIR ??
-  path.resolve(process.cwd(), "artifacts/kore/dist/public");
-
-if (existsSync(path.join(clientDir, "index.html"))) {
+if (clientDir) {
   logger.info({ clientDir }, "Serving web app");
   app.use(
     express.static(clientDir, {
@@ -117,6 +145,11 @@ if (existsSync(path.join(clientDir, "index.html"))) {
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(clientDir, "index.html"));
   });
+} else {
+  logger.warn(
+    { candidates: clientDirCandidates },
+    "Web app build not found — serving API only",
+  );
 }
 
 // Centralized error handler: generic message to the client, full detail to
