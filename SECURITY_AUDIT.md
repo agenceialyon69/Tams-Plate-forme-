@@ -188,3 +188,39 @@ Modèle retenu : **mono-utilisateur par token unique** (les comptes multi-utilis
 **Validation** : `pnpm run typecheck` OK sur tous les packages, `pnpm run build` OK, et test fumée confirmant 401 sans/avec mauvais token, accès public à `/healthz`, et présence des en-têtes de sécurité.
 
 **Non traité volontairement** : multi-tenant (`userId`) — hors périmètre d'une app mono-utilisateur.
+
+---
+
+## Scan Red Team complémentaire — 2026-06-16
+
+**Scanners utilisés :** osv-scanner (dépendances), Semgrep SAST, HoundDog (dataflow).
+
+### Vulnérabilités de dépendances détectées et corrigées
+
+| Sévérité | Package | CVE/Advisory | Fix |
+|----------|---------|--------------|-----|
+| HIGH | `esbuild@0.27.3` | GHSA — Missing binary integrity verification in Deno module (RCE via NPM_CONFIG_REGISTRY) | → `0.28.1` dans `pnpm-workspace.yaml` overrides |
+| HIGH | `vite@7.3.3` | `server.fs.deny` bypass sur Windows alternate paths | → `^7.3.5` dans catalog |
+| MODERATE | `qs@6.15.1` | DoS via `qs.stringify` avec entrées null/undefined | Override `>=6.15.2` |
+| MODERATE | `markdown-it@14.1.1` | DoS quadratique (smartquotes) | Override `>=14.2.0` |
+| MODERATE | `vite@7.3.3` | NTLMv2 hash disclosure via UNC path (launch-editor) | → `^7.3.5` |
+| LOW | `@babel/core@7.29.0` | Arbitrary file read via sourceMappingURL | Override `>=7.29.6` |
+| LOW | `esbuild@0.27.3` | Path traversal sur Windows (servedir) | → `0.28.1` |
+
+### Bugs structurels découverts et corrigés
+
+| # | Sévérité | Constat | Correctif | Fichier |
+|---|----------|---------|-----------|---------|
+| A | **Critique** | `rate-limit.ts` exportait `rateLimitRedis` mais tous les imports utilisaient `rateLimit` → **rate limiting entièrement inopérant** | Renommage de la fonction en `rateLimit` + réécriture pure mémoire (sans Redis) | `middlewares/rate-limit.ts` |
+| B | **Haute** | `app.ts` importait `requireAuth` depuis `./middlewares/requireAuth` (fichier inexistant) → crash serveur au démarrage | Correction de l'import vers `./middlewares/auth` | `app.ts` |
+| C | **Haute** | `redis` et `helmet` importés mais absents de `package.json` → build cassé en environnement propre | Suppression de `helmet` (remplacé par `securityHeaders` qui couvre les mêmes en-têtes) ; suppression de Redis (fallback mémoire activé) | `app.ts`, `middlewares/auth.ts`, `middlewares/rate-limit.ts`, `package.json` |
+| D | **Moyenne** | Double application de `requireAuth` dans `routes/index.ts` (déjà appliqué dans `app.ts`) ; la copie dans le router était inopérante car `req.path` relatif ne matchait pas les checks `/api/*` | Suppression du `requireAuth` redondant dans `routes/index.ts` | `routes/index.ts` |
+| E | **Moyenne** | SAST : `modules[key]` dans `mockup-sandbox/App.tsx` avec `key` dérivé de l'URL — injection de clé dynamique possible | Validation par regex allowlist `^[a-zA-Z0-9/_-]+$` avant utilisation | `artifacts/mockup-sandbox/src/App.tsx` |
+
+### État post-correctifs
+
+- Rate limiting global (120 req/min) et LLM (20 req/min) : **opérationnel** ✓
+- Anti-brute-force (mémoire, configurable via env) : **opérationnel** ✓
+- En-têtes de sécurité (CSP, HSTS, nosniff, X-Frame, Referrer, CORP, COOP, Permissions-Policy) : **opérationnel** ✓
+- Auth bearer token SHA-256 + timing-safe : **opérationnel** ✓
+- Vulnérabilités de dépendances critiques/hautes : **corrigées via overrides** ✓

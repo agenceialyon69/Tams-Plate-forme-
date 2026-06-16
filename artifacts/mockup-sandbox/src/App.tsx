@@ -19,6 +19,10 @@ function _resolveComponent(
   );
 }
 
+// Allowlist: only alphanumeric, hyphens, underscores, and forward-slashes.
+// Prevents path traversal and dynamic key injection via the URL.
+const SAFE_PATH_RE = /^[a-zA-Z0-9/_-]+$/;
+
 function PreviewRenderer({
   componentPath,
   modules,
@@ -36,6 +40,12 @@ function PreviewRenderer({
     setError(null);
 
     async function loadComponent(): Promise<void> {
+      // Validate path before using it as a module map key (SAST: unsafe-dynamic-method).
+      if (!SAFE_PATH_RE.test(componentPath)) {
+        setError(`Invalid component path: ${componentPath}`);
+        return;
+      }
+
       const key = `./components/mockups/${componentPath}.tsx`;
       const loader = modules[key];
       if (!loader) {

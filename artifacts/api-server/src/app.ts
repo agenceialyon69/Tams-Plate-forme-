@@ -9,13 +9,12 @@ import express, {
 } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import helmet from "helmet";
 import { getDbStatus } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { rateLimit } from "./middlewares/rate-limit";
-import { requireAuth } from "./middlewares/requireAuth";
+import { requireAuth } from "./middlewares/auth";
 
 const app: Express = express();
 
@@ -44,27 +43,8 @@ app.use(
   }),
 );
 
-// --- Helmet security headers (global) ---
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: true,
-    crossOriginOpenerPolicy: true,
-    crossOriginResourcePolicy: true,
-    dnsPrefetchControl: true,
-    frameGuard: true,
-    hidePoweredBy: true,
-    hsts: true,
-    ieNoOpen: true,
-    noSniff: true,
-    originAgentCluster: true,
-    permittedCrossDomainPolicies: true,
-    referrerPolicy: true,
-    xssFilter: true,
-  }),
-);
-
-// --- Custom security headers (si tu veux compléter Helmet) ---
+// --- Security headers (CSP, HSTS, nosniff, frame-deny, referrer, CORP, COOP) ---
+// Covers everything helmet would add; no third-party dep required.
 app.use(securityHeaders);
 
 // --- CORS strict (Frontend_URL only) ---
