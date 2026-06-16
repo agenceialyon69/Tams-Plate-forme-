@@ -1,6 +1,79 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
+import { createClient } from "redis";
 import { logger } from "../lib/logger";
+
+const redis = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+  socket: {
+    reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
+  },
+});
+
+let redisReady = false;
+redis.connect()
+  .then(() => {
+    redisReady = true;
+    logger.info("Redis connected for auth rate limiting");
+  })
+  .catch((err) => {
+    logger.error({ err }, "Redis connection failed for auth — using memory fallback");
+  });
+
+// --- Mémoire de fallback (rate limit + anti-brute-force) ---
+
+interface MemoryRateEntry {
+  count: number;
+  resetAt: number;
+}
+
+interface MemoryFailureEntry {
+  failures: number;
+  resetAt: number;
+}
+
+const memoryRateStore = new Map<string, MemoryRateEntry>();
+const memoryFailureStore = new Map<string, MemoryFailureEntry>();
+
+function memoryRateLimit(ip: string, endpoint: string, windowMs: number, max: number): { ok: boolean; remaining: number } {
+  const key = `mratelimit:${ip}:${endpoint}`;
+  const now = Date.now();
+
+  let entry = memoryRateStore.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: now + windowMs };
+    memoryRateStore.set(key, entry);
+  }
+
+  entry.count += 1;
+  const remaining = Math.max(0, max - entry.count);
+
+  if (entry.count > max) {
+    return { ok: false, remaining: 0 };
+  }
+
+  return { ok: true, remaining };
+}
+
+function memoryAuthFailure(ip: string, windowMs: number, max: number): { ok: boolean; remaining: number } {
+  const key = `mauthfail:${ip}`;
+  const now = Date.now();
+
+  let entry = memoryFailureStore.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { failures: 0, resetAt: now + windowMs };
+    memoryFailureStore.set(key, entry);
+  }
+
+  entry.failures += 1;
+  const remaining = Math.max(0, max - entry.failures);
+
+  if (entry.failures >= max) {
+    return { ok: false, remaining: 0 };
+  }
+
+  return { ok: true, remaining };
+}
 
 // --- Configuration ---
 
@@ -10,7 +83,7 @@ interface AuthConfig {
   maxAuthRequestsPerMinute: number;
   maxAuthFailuresPerHour: number;
   blockWindowMinutes: number;
-  enableJwt: boolean;
+  maxTokenLength: number;
 }
 
 function loadConfig(): AuthConfig {
@@ -30,7 +103,8 @@ function loadConfig(): AuthConfig {
     parseInt(process.env.API_MAX_AUTH_FAILURES_PER_HOUR || "100", 10);
   const blockWindowMinutes =
     parseInt(process.env.API_BLOCK_WINDOW_MIN || "10", 10);
-  const enableJwt = process.env.API_ENABLE_JWT === "true";
+  const maxTokenLength =
+    parseInt(process.env.API_MAX_TOKEN_LENGTH || "1024", 10);
 
   if (maxAuthRequestsPerMinute <= 0 || maxAuthRequestsPerMinute > 1000) {
     throw new Error("API_MAX_AUTH_REQUESTS_PER_MIN must be between 1 and 1000.");
@@ -41,6 +115,9 @@ function loadConfig(): AuthConfig {
   if (blockWindowMinutes <= 0 || blockWindowMinutes > 60) {
     throw new Error("API_BLOCK_WINDOW_MIN must be between 1 and 60.");
   }
+  if (maxTokenLength <= 0 || maxTokenLength > 10_000) {
+    throw new Error("API_MAX_TOKEN_LENGTH must be between 1 and 10000.");
+  }
 
   return {
     currentToken,
@@ -48,7 +125,7 @@ function loadConfig(): AuthConfig {
     maxAuthRequestsPerMinute,
     maxAuthFailuresPerHour,
     blockWindowMinutes,
-    enableJwt,
+    maxTokenLength,
   };
 }
 
@@ -58,105 +135,28 @@ const previousDigest = config.previousToken
   ? createHash("sha256").update(config.previousToken).digest()
   : null;
 
-// --- Rate limiting (par IP + par endpoint) ---
-
-interface RateEntry {
-  count: number;
-  windowStart: number;
-}
-
-interface FailureEntry {
-  failures: number;
-  windowStart: number;
-  blocked: boolean;
-  blockUntil?: number;
-}
-
-const rateStore = new Map<string, RateEntry>();
-const failureStore = new Map<string, FailureEntry>();
-
-function checkRateLimit(ip: string, endpoint: string): { ok: boolean; remaining: number } {
-  const windowMs = 60_000;
-  const now = Date.now();
-  const key = `${ip}:${endpoint}`;
-
-  const entry = rateStore.get(key);
-
-  if (!entry || now - entry.windowStart > windowMs) {
-    rateStore.set(key, { count: 1, windowStart: now });
-    return { ok: true, remaining: config.maxAuthRequestsPerMinute - 1 };
-  }
-
-  if (entry.count >= config.maxAuthRequestsPerMinute) {
-    return { ok: false, remaining: 0 };
-  }
-
-  entry.count += 1;
-  return { ok: true, remaining: config.maxAuthRequestsPerMinute - entry.count };
-}
-
-function checkAndRecordFailure(ip: string): { ok: boolean; remaining: number } {
-  const windowMs = config.blockWindowMinutes * 60_000;
-  const now = Date.now();
-
-  const entry = failureStore.get(ip) || { failures: 0, windowStart: now, blocked: false };
-
-  if (entry.blocked && entry.blockUntil && now < entry.blockUntil) {
-    return { ok: false, remaining: 0 };
-  }
-
-  if (entry.blocked && now >= entry.blockUntil) {
-    entry.blocked = false;
-    entry.failures = 0;
-    entry.windowStart = now;
-  }
-
-  if (entry.failures >= config.maxAuthFailuresPerHour) {
-    entry.blocked = true;
-    entry.blockUntil = now + config.blockWindowMinutes * 60_000;
-    failureStore.set(ip, entry);
-    return { ok: false, remaining: 0 };
-  }
-
-  entry.failures += 1;
-  failureStore.set(ip, entry);
-
-  return { ok: true, remaining: config.maxAuthFailuresPerHour - entry.failures };
-}
-
-function resetSuccess(ip: string) {
-  const entry = failureStore.get(ip);
-  if (entry) {
-    entry.failures = Math.floor(entry.failures / 2);
-    failureStore.set(ip, entry);
-  }
-}
-
-// --- Extraction IP ---
+// --- Extraction IP sécurisée (req.ip uniquement) ---
 
 function extractIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") {
-    const first = forwarded.split(",")[0].trim();
-    if (first) return first;
-  }
-  const realIp = req.headers["x-real-ip"];
-  if (typeof realIp === "string" && realIp) return realIp;
   return req.ip || req.socket.remoteAddress || "unknown";
 }
 
-// --- Extraction du token ---
+// --- Extraction du token (avec limite de longueur) ---
 
 function extractToken(req: Request): string | null {
   const header = req.headers.authorization;
   if (typeof header === "string" && header.startsWith("Bearer ")) {
     const token = header.slice("Bearer ".length).trim();
-    if (token.length > 0) return token;
+    if (token.length > 0 && token.length <= config.maxTokenLength) {
+      return token;
+    }
   }
+
   const apiKey = req.headers["x-api-key"];
-  if (typeof apiKey === "string" && apiKey.length > 0) {
+  if (typeof apiKey === "string" && apiKey.length > 0 && apiKey.length <= config.maxTokenLength) {
     return apiKey;
   }
+
   return null;
 }
 
@@ -183,21 +183,74 @@ function isValid(token: string): { valid: boolean; type: "current" | "previous" 
   return { valid: false, type: null };
 }
 
-// --- Middleware principal ---
+// --- Rate limiting Redis (CORRECT : expire + TTL en secondes) ---
 
-/**
- * Middleware d'authentification Red Team 10/10.
- *
- * Règles :
- * 1. /api/healthz → public (pour Railway / healthcheck)
- * 2. /api ou /api/* → privé (token requis + rate limit + anti-brute-force)
- * 3. Tout le reste (/, /dashboard, /assets/*, etc.) → public (SPA)
- */
-export function requireAuth(
+async function checkAuthRateLimit(ip: string, endpoint: string): Promise<{ ok: boolean; remaining: number }> {
+  const key = `authratelimit:${ip}:${endpoint}`;
+  const windowMs = 60_000;
+  const ttlSeconds = Math.ceil(windowMs / 1000);
+
+  if (!redisReady) {
+    // Fallback mémoire robuste
+    return memoryRateLimit(ip, endpoint, windowMs, config.maxAuthRequestsPerMinute);
+  }
+
+  try {
+    const [count] = await redis.multi()
+      .incr(key)
+      .expire(key, ttlSeconds)
+      .exec();
+    const current = (count as number) ?? 1;
+    const remaining = Math.max(0, config.maxAuthRequestsPerMinute - current);
+
+    if (current > config.maxAuthRequestsPerMinute) {
+      return { ok: false, remaining: 0 };
+    }
+
+    return { ok: true, remaining };
+  } catch (err) {
+    logger.error({ err }, "Redis auth rate limit error, using memory fallback");
+    return memoryRateLimit(ip, endpoint, windowMs, config.maxAuthRequestsPerMinute);
+  }
+}
+
+// --- Anti-brute-force Redis (CORRECT : expire + TTL en secondes) ---
+
+async function checkAndRecordAuthFailure(ip: string): Promise<{ ok: boolean; remaining: number }> {
+  const key = `authfail:${ip}`;
+  const windowMs = config.blockWindowMinutes * 60_000;
+  const ttlSeconds = Math.ceil(windowMs / 1000);
+
+  if (!redisReady) {
+    // Fallback mémoire robuste
+    return memoryAuthFailure(ip, windowMs, config.maxAuthFailuresPerHour);
+  }
+
+  try {
+    const multi = redis.multi();
+    multi.incr(key);
+    multi.expire(key, ttlSeconds);
+    const [count] = await multi.exec();
+    const failures = (count as number) ?? 1;
+
+    if (failures >= config.maxAuthFailuresPerHour) {
+      return { ok: false, remaining: 0 };
+    }
+
+    return { ok: true, remaining: config.maxAuthFailuresPerHour - failures };
+  } catch (err) {
+    logger.error({ err }, "Redis auth failure error, using memory fallback");
+    return memoryAuthFailure(ip, windowMs, config.maxAuthFailuresPerHour);
+  }
+}
+
+// --- Middleware principal (async + await linéaire) ---
+
+export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
-): void {
+): Promise<void> {
   const path = req.path;
   const ip = extractIp(req);
   const endpoint = path;
@@ -207,81 +260,60 @@ export function requireAuth(
     return next();
   }
 
-  // 2. Routes API
-  const isApiRoute = path === "/api" || path.startsWith("/api/");
-
-  if (isApiRoute) {
-    // Rate limiting
-    const { ok: rateOk, remaining: rateRemaining } = checkRateLimit(ip, endpoint);
-    if (!rateOk) {
-      logger.warn(
-        { url: req.url, method: req.method, ip, endpoint },
-        "Rate limit exceeded for IP",
-      );
-
-      res.setHeader("X-RateLimit-Remaining", "0");
-      res.setHeader("X-RateLimit-Limit", String(config.maxAuthRequestsPerMinute));
-      res.status(429).json({ error: "Too many requests" });
-      return;
-    }
-
-    res.setHeader("X-RateLimit-Remaining", String(rateRemaining));
-    res.setHeader("X-RateLimit-Limit", String(config.maxAuthRequestsPerMinute));
-
-    // Anti-brute-force
-    const { ok: failOk, remaining: failRemaining } = checkAndRecordFailure(ip);
-    if (!failOk) {
-      logger.warn(
-        { url: req.url, method: req.method, ip, endpoint },
-        "IP blocked for excessive auth failures",
-      );
-
-      res.setHeader("X-Auth-Failures-Remaining", "0");
-      res.status(403).json({ error: "Access blocked. Contact support." });
-      return;
-    }
-
-    res.setHeader("X-Auth-Failures-Remaining", String(failRemaining));
-
-    // Token
-    const token = extractToken(req);
-    if (!token) {
-      logger.warn(
-        { url: req.url, method: req.method, ip, endpoint },
-        "Missing auth token",
-      );
-
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
-    const { valid, type } = isValid(token);
-    if (!valid) {
-      logger.warn(
-        { url: req.url, method: req.method, ip, endpoint },
-        "Invalid auth token",
-      );
-
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
-    // Succès → on reset un peu les failures
-    resetSuccess(ip);
-
-    if (type === "previous") {
-      logger.info(
-        { url: req.url, method: req.method, ip, endpoint },
-        "Client using previous token (rotation in progress)",
-      );
-    }
-
-    // Attache contexte d'auth
-    req.headers["x-auth-token-type"] = type;
-
+  // 2. Debug public (protégé par token ou NODE_ENV dans app.ts)
+  if (path === "/api/_debug") {
     return next();
   }
 
-  // 3. Frontend public
-  next();
+  const isApiRoute = path === "/api" || path.startsWith("/api/");
+
+  if (!isApiRoute) {
+    return next();
+  }
+
+  // Rate limiting
+  const rate = await checkAuthRateLimit(ip, endpoint);
+  if (!rate.ok) {
+    logger.warn({ path: req.path, method: req.method, ip }, "Rate limit exceeded for IP");
+    res.setHeader("X-RateLimit-Remaining", "0");
+    res.setHeader("X-RateLimit-Limit", String(config.maxAuthRequestsPerMinute));
+    res.status(429).json({ error: "Too many requests" });
+    return;
+  }
+
+  res.setHeader("X-RateLimit-Remaining", String(rate.remaining));
+  res.setHeader("X-RateLimit-Limit", String(config.maxAuthRequestsPerMinute));
+
+  // Anti-brute-force
+  const fail = await checkAndRecordAuthFailure(ip);
+  if (!fail.ok) {
+    logger.warn({ path: req.path, method: req.method, ip }, "IP blocked for excessive auth failures");
+    res.setHeader("X-Auth-Failures-Remaining", "0");
+    res.status(403).json({ error: "Access blocked. Contact support." });
+    return;
+  }
+
+  res.setHeader("X-Auth-Failures-Remaining", String(fail.remaining));
+
+  // Token
+  const token = extractToken(req);
+  if (!token) {
+    logger.warn({ path: req.path, method: req.method, ip }, "Missing auth token");
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { valid, type } = isValid(token);
+  if (!valid) {
+    logger.warn({ path: req.path, method: req.method, ip }, "Invalid auth token");
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  if (type === "previous") {
+    logger.info({ path: req.path, method: req.method, ip }, "Client using previous token");
+  }
+
+  req.headers["x-auth-token-type"] = type;
+  return next();
 }
