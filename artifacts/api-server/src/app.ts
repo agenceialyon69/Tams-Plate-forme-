@@ -15,13 +15,15 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { rateLimit } from "./middlewares/rate-limit";
-import { requireAuth } from "./middleware/requireAuth";
+import { requireAuth } from "./middlewares/requireAuth";
 
 const app: Express = express();
 
+// --- Trust proxy & security basics ---
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
+// --- Logging middleware (pino-http) ---
 app.use(
   pinoHttp({
     logger,
@@ -42,6 +44,7 @@ app.use(
   }),
 );
 
+// --- Helmet security headers (global) ---
 app.use(
   helmet({
     contentSecurityPolicy: false,
@@ -61,8 +64,10 @@ app.use(
   }),
 );
 
+// --- Custom security headers (si tu veux compléter Helmet) ---
 app.use(securityHeaders);
 
+// --- CORS strict (Frontend_URL only) ---
 const allowedOrigins = (process.env.FRONTEND_URL ?? "")
   .split(",")
   .map((o) => o.trim().replace(/\/+$/, ""))
@@ -84,8 +89,10 @@ app.use(
   }),
 );
 
+// --- Global baseline rate limit (per IP) ---
 app.use(rateLimit({ windowMs: 60_000, max: 120 }));
 
+// --- Body size caps ---
 const audioJson = express.json({ limit: "10mb" });
 const textJson = express.json({ limit: "512kb" });
 app.use((req, res, next) =>
@@ -95,6 +102,7 @@ app.use((req, res, next) =>
 );
 app.use(express.urlencoded({ extended: true, limit: "64kb" }));
 
+// --- Locate the built web app ---
 const here = path.dirname(fileURLToPath(import.meta.url));
 const clientDirCandidates = [
   process.env.CLIENT_DIR,
@@ -108,12 +116,12 @@ const clientDir = clientDirCandidates.find((d) =>
   existsSync(path.join(d, "index.html")),
 );
 
-// Healthcheck public
+// --- Healthcheck public ---
 app.get("/api/healthz", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Debug endpoint protégé
+// --- Debug endpoint protégé ---
 app.get("/api/_debug", (_req, res) => {
   // Option 1 : désactiver en production
   if (process.env.NODE_ENV === "production") {
@@ -163,15 +171,18 @@ app.get("/api/_debug", (_req, res) => {
   res.json(info);
 });
 
-// Auth sur toutes les routes API moins healthz / _debug
+// --- Auth sur toutes les routes API moins healthz / _debug ---
 app.use("/api", requireAuth);
 
+// --- API router (protégé) ---
 app.use("/api", router);
 
+// --- Unknown API routes → 404 JSON ---
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
+// --- Single-service mode: serve web app ---
 if (clientDir) {
   logger.info({ clientDir }, "Serving web app");
   app.use(
@@ -200,6 +211,7 @@ if (clientDir) {
   );
 }
 
+// --- Centralized error handler ---
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof Error && err.message === "Not allowed by CORS") {
     res.status(403).json({ error: "Origin not allowed" });
