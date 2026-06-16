@@ -7,7 +7,7 @@ buildCommand = "PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build &&
 [deploy]
 startCommand = "node --enable-source-maps artifacts/api-server/dist/index.mjs"
 healthcheckPath = "/api/healthz"
-healthcheckTimeout = 30
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 
 [deploy.envVars]
