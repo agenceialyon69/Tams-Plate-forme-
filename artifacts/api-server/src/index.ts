@@ -28,11 +28,10 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
-  ensureSchema()
-    .then(() => logger.info("Database schema ready"))
-    .catch((schemaErr) => {
-      logger.error({ err: schemaErr }, "Failed to prepare database schema");
-      // Exit so the platform restarts us; the DB may come up on the next try.
-      process.exit(1);
-    });
+  // Prepare the schema in the background. ensureSchema never throws, so a
+  // database issue degrades DB-backed routes but never crashes the process
+  // (no restart loop). The server keeps serving the web app and /api/healthz.
+  void ensureSchema().then((ok) => {
+    if (ok) logger.info("Database schema ready");
+  });
 });

@@ -88,25 +88,43 @@ const STATEMENTS = [
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Wait for the database to accept connections. On hosts like Railway/Render the
- * Postgres service may start a few seconds after the app, so we retry instead
- * of crashing the deploy on a transient connection error.
+ * Wait for the database to accept connections, logging progress. On hosts like
+ * Railway/Render the Postgres service may start after the app, so we retry.
  */
-async function waitForDatabase(attempts = 20, delayMs = 2000): Promise<void> {
+async function waitForDatabase(attempts = 30, delayMs = 2000): Promise<void> {
   for (let i = 1; i <= attempts; i++) {
     try {
       await pool.query("SELECT 1");
       return;
     } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[db] not reachable yet (attempt ${i}/${attempts}): ${detail}`,
+      );
       if (i === attempts) throw err;
       await sleep(delayMs);
     }
   }
 }
 
-export async function ensureSchema(): Promise<void> {
-  await waitForDatabase();
-  for (const sql of STATEMENTS) {
-    await pool.query(sql);
+/**
+ * Ensure the schema exists. Never throws: the caller keeps the HTTP server
+ * running regardless, so a database problem degrades DB-backed routes but does
+ * not crash-loop the deploy. Returns true on success.
+ */
+export async function ensureSchema(): Promise<boolean> {
+  try {
+    await waitForDatabase();
+    for (const sql of STATEMENTS) {
+      await pool.query(sql);
+    }
+    return true;
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[db] Could not prepare schema — DB-backed routes will fail until the ` +
+        `database is reachable. Check DATABASE_URL. Last error: ${detail}`,
+    );
+    return false;
   }
 }
