@@ -22,4 +22,4 @@ export const pool = new Pool(connectionString ? { connectionString } : {});
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
-export { ensureSchema } from "./ensure-schema";
+export { ensureSchema, getDbStatus } from "./ensure-schema";

@@ -9,6 +9,7 @@ import express, {
 } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { getDbStatus } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
@@ -104,6 +105,7 @@ app.get("/api/_debug", (_req, res) => {
     cwd: process.cwd(),
     here,
     nodeVersion: process.version,
+    db: getDbStatus(),
     frontendServed: Boolean(clientDir),
     clientDir: clientDir ?? null,
     candidates: clientDirCandidates.map((d) => ({

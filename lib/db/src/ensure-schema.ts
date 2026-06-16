@@ -87,6 +87,53 @@ const STATEMENTS = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+let dbReady = false;
+let lastDbError: string | null = null;
+
+// Postgres connection errors often carry the useful detail in code/errno/
+// syscall/address rather than message. Surface all of it.
+function formatErr(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    const parts = [e.code, e.errno, e.syscall, e.address, e.port, e.message]
+      .filter((x) => x !== undefined && x !== null && x !== "")
+      .map(String);
+    if (parts.length) return parts.join(" ");
+  }
+  return String(err);
+}
+
+/** Connection target + status, for diagnostics. Never exposes credentials. */
+export function getDbStatus(): {
+  dbReady: boolean;
+  lastDbError: string | null;
+  target: string | null;
+  hasDatabaseUrl: boolean;
+  databaseUrlLength: number;
+  hasPgHost: boolean;
+} {
+  const cs = process.env.DATABASE_URL;
+  let target: string | null = null;
+  try {
+    if (cs) {
+      const u = new URL(cs);
+      target = `${u.hostname}:${u.port || "5432"}${u.pathname}`;
+    } else if (process.env.PGHOST) {
+      target = `${process.env.PGHOST}:${process.env.PGPORT || "5432"}/${process.env.PGDATABASE || ""}`;
+    }
+  } catch {
+    target = "(unparseable DATABASE_URL)";
+  }
+  return {
+    dbReady,
+    lastDbError,
+    target,
+    hasDatabaseUrl: Boolean(cs),
+    databaseUrlLength: cs ? cs.length : 0,
+    hasPgHost: Boolean(process.env.PGHOST),
+  };
+}
+
 /**
  * Wait for the database to accept connections, logging progress. On hosts like
  * Railway/Render the Postgres service may start after the app, so we retry.
@@ -97,9 +144,9 @@ async function waitForDatabase(attempts = 30, delayMs = 2000): Promise<void> {
       await pool.query("SELECT 1");
       return;
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
+      lastDbError = formatErr(err);
       console.error(
-        `[db] not reachable yet (attempt ${i}/${attempts}): ${detail}`,
+        `[db] not reachable yet (attempt ${i}/${attempts}): ${lastDbError}`,
       );
       if (i === attempts) throw err;
       await sleep(delayMs);
@@ -118,12 +165,14 @@ export async function ensureSchema(): Promise<boolean> {
     for (const sql of STATEMENTS) {
       await pool.query(sql);
     }
+    dbReady = true;
+    lastDbError = null;
     return true;
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    lastDbError = formatErr(err);
     console.error(
       `[db] Could not prepare schema — DB-backed routes will fail until the ` +
-        `database is reachable. Check DATABASE_URL. Last error: ${detail}`,
+        `database is reachable. Check DATABASE_URL. Last error: ${lastDbError}`,
     );
     return false;
   }
