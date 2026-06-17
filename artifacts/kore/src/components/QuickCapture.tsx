@@ -44,9 +44,7 @@ export function QuickCapture() {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => textareaRef.current?.focus(), 50);
-    }
+    if (open) setTimeout(() => textareaRef.current?.focus(), 50);
   }, [open]);
 
   const startRecording = async () => {
@@ -103,7 +101,7 @@ export function QuickCapture() {
       queryClient.invalidateQueries({ queryKey: getListCapturesQueryKey() });
       setContent("");
       setOpen(false);
-      toast({ description: "Capture enregistrée." });
+      toast({ description: "Capture enregistrée. TAMS organisera le reste." });
     } catch {
       toast({ variant: "destructive", description: "Échec de la capture." });
     }
@@ -143,7 +141,7 @@ export function QuickCapture() {
           <DialogHeader>
             <DialogTitle className="font-serif">Capture rapide</DialogTitle>
             <DialogDescription>
-              Videz votre esprit. KORE organisera le reste.
+              Videz votre esprit. TAMS organisera le reste.
             </DialogDescription>
           </DialogHeader>
           <div className="relative mt-2">
@@ -152,7 +150,7 @@ export function QuickCapture() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Saisissez votre pensée, tâche ou idée..."
+              placeholder="Tâche, idée, rendez-vous, inquiétude... tout va ici."
               className="min-h-[150px] resize-none pb-14 bg-background/50 border-input"
               disabled={busy}
             />
@@ -166,7 +164,7 @@ export function QuickCapture() {
                 className={`rounded-full h-8 w-8 ${isRecording ? "animate-pulse" : ""}`}
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isTranscribing || createCapture.isPending}
-                title={isRecording ? "Arrêter l'enregistrement" : "Enregistrer un audio"}
+                title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
               >
                 {isRecording ? (
                   <Square className="h-4 w-4" fill="currentColor" />
@@ -189,9 +187,7 @@ export function QuickCapture() {
               </Button>
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground/50 text-right -mt-1">
-            ⌘↵ pour envoyer
-          </p>
+          <p className="text-[10px] text-muted-foreground/50 text-right -mt-1">⌘↵ pour envoyer</p>
         </DialogContent>
       </Dialog>
     </>
