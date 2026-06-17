@@ -1,9 +1,15 @@
-const STORAGE_KEY = "kore_api_token";
+const STORAGE_KEY = "tams_api_token";
 
 let listeners: Array<() => void> = [];
 
 export function getToken(): string | null {
   try {
+    // Migrate from old key if needed
+    const old = localStorage.getItem("kore_api_token");
+    if (old) {
+      localStorage.setItem(STORAGE_KEY, old);
+      localStorage.removeItem("kore_api_token");
+    }
     return localStorage.getItem(STORAGE_KEY);
   } catch {
     return null;
@@ -22,6 +28,7 @@ export function setToken(token: string): void {
 export function clearToken(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("kore_api_token"); // cleanup legacy key
   } catch {
     /* ignore storage errors */
   }
