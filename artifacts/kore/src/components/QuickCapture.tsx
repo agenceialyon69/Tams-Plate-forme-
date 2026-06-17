@@ -1,11 +1,22 @@
 import { useState, useEffect, useRef } from "react";
-import { useCreateCapture, useTranscribeAudio, getListCapturesQueryKey } from "@workspace/api-client-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  useCreateCapture,
+  useTranscribeAudio,
+  getListCapturesQueryKey,
+} from "@workspace/api-client-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Mic, Square, Send, Loader2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function QuickCapture() {
   const [open, setOpen] = useState(false);
@@ -14,6 +25,7 @@ export function QuickCapture() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -24,37 +36,44 @@ export function QuickCapture() {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setOpen((prev) => !prev);
       }
     };
-
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [open]);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
       mediaRecorderRef.current.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         chunksRef.current = [];
         setIsTranscribing(true);
 
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = async () => {
-          const base64data = (reader.result as string).split(',')[1];
+          const base64data = (reader.result as string).split(",")[1];
           try {
-            const res = await transcribeAudio.mutateAsync({ data: { audioBase64: base64data, mimeType: 'audio/webm' } });
+            const res = await transcribeAudio.mutateAsync({
+              data: { audioBase64: base64data, mimeType: "audio/webm" },
+            });
             setContent((prev) => (prev ? prev + " " + res.transcript : res.transcript));
             toast({ description: "Transcription terminée." });
-          } catch (error) {
+          } catch {
             toast({ variant: "destructive", description: "Échec de la transcription." });
           } finally {
             setIsTranscribing(false);
@@ -64,7 +83,7 @@ export function QuickCapture() {
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
-    } catch (err) {
+    } catch {
       toast({ variant: "destructive", description: "Microphone inaccessible." });
     }
   };
@@ -72,7 +91,7 @@ export function QuickCapture() {
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
       setIsRecording(false);
     }
   };
@@ -84,20 +103,40 @@ export function QuickCapture() {
       queryClient.invalidateQueries({ queryKey: getListCapturesQueryKey() });
       setContent("");
       setOpen(false);
-      toast({ description: "Capture enregistrée avec succès." });
-    } catch (error) {
+      toast({ description: "Capture enregistrée." });
+    } catch {
       toast({ variant: "destructive", description: "Échec de la capture." });
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const busy = isRecording || isTranscribing || createCapture.isPending;
+
   return (
     <>
-      <Button
-        className="fixed bottom-20 md:bottom-8 right-4 md:right-8 h-14 w-14 rounded-full shadow-lg z-50 bg-accent text-accent-foreground hover:bg-accent/90"
-        onClick={() => setOpen(true)}
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className="fixed bottom-20 md:bottom-8 right-4 md:right-8 h-14 w-14 rounded-full shadow-lg z-50 bg-accent text-accent-foreground hover:bg-accent/90"
+            onClick={() => setOpen(true)}
+            aria-label="Capture rapide (⌘K)"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="hidden md:flex items-center gap-2">
+          Capture rapide
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium">
+            ⌘K
+          </kbd>
+        </TooltipContent>
+      </Tooltip>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md bg-card border-card-border">
@@ -107,14 +146,19 @@ export function QuickCapture() {
               Videz votre esprit. KORE organisera le reste.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative mt-4">
+          <div className="relative mt-2">
             <Textarea
+              ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Saisissez votre pensée..."
+              onKeyDown={handleKeyDown}
+              placeholder="Saisissez votre pensée, tâche ou idée..."
               className="min-h-[150px] resize-none pb-14 bg-background/50 border-input"
-              disabled={isRecording || isTranscribing || createCapture.isPending}
+              disabled={busy}
             />
+            <div className="absolute bottom-3 left-3 text-[10px] text-muted-foreground/50 font-mono">
+              {content.length > 0 && `${content.length} car.`}
+            </div>
             <div className="absolute bottom-3 right-3 flex gap-2">
               <Button
                 size="icon"
@@ -122,14 +166,20 @@ export function QuickCapture() {
                 className={`rounded-full h-8 w-8 ${isRecording ? "animate-pulse" : ""}`}
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isTranscribing || createCapture.isPending}
+                title={isRecording ? "Arrêter l'enregistrement" : "Enregistrer un audio"}
               >
-                {isRecording ? <Square className="h-4 w-4" fill="currentColor" /> : <Mic className="h-4 w-4" />}
+                {isRecording ? (
+                  <Square className="h-4 w-4" fill="currentColor" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
               </Button>
               <Button
                 size="icon"
                 className="rounded-full h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90"
                 onClick={handleSubmit}
-                disabled={!content.trim() || isRecording || isTranscribing || createCapture.isPending}
+                disabled={!content.trim() || busy}
+                title="Envoyer (⌘↵)"
               >
                 {createCapture.isPending || isTranscribing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -139,6 +189,9 @@ export function QuickCapture() {
               </Button>
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground/50 text-right -mt-1">
+            ⌘↵ pour envoyer
+          </p>
         </DialogContent>
       </Dialog>
     </>
