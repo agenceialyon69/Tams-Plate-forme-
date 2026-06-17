@@ -1,15 +1,46 @@
 {
-  "name": "KORE",
+  "name": "KORE — Copilote de vie",
   "short_name": "KORE",
+  "description": "Réduire la charge mentale. Prévenir le burn-out. Construire une vie qui vaut la peine d'être vécue.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0f1117",
   "theme_color": "#0f1117",
+  "lang": "fr",
+  "categories": ["productivity", "lifestyle"],
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Capture rapide",
+      "short_name": "Capture",
+      "description": "Vider l'esprit immédiatement",
+      "url": "/capture",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Tâches",
+      "short_name": "Tâches",
+      "description": "Voir les tâches en attente",
+      "url": "/tasks",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Revue du soir",
+      "short_name": "Revue",
+      "description": "Faire le bilan de la journée",
+      "url": "/evening",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
 }
