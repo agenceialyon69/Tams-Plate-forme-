@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Bell, BellOff, CheckCircle2, Copy, LogOut, Shield } from "lucide-react";
+import { Bell, BellOff, CheckCircle2, Copy, LogOut, Shield, Link as LinkIcon } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getToken } from "@/lib/auth";
 import { useLocation } from "wouter";
 
-const APP_TOKEN = "58efa4f1a12a1ad3fa1fc259a9530c782f72b3f15fecde10f26d37874e796a26";
 const APP_VERSION = "1.0.0";
 
 export default function Settings() {
@@ -34,11 +33,14 @@ export default function Settings() {
   }
 
   async function handleCopyLink() {
-    const url = `${window.location.origin}/?token=${APP_TOKEN}`;
+    // Build the link from the currently stored token — no hardcoding
+    const token = getToken();
+    if (!token) return;
+    const url = `${window.location.origin}/?token=${token}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     } catch {
       /* ignore */
     }
@@ -53,9 +55,10 @@ export default function Settings() {
     <div className="max-w-2xl mx-auto px-6 py-10 space-y-10">
       <div>
         <h1 className="text-2xl font-serif font-semibold text-foreground">Paramètres</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configuration de KORE</p>
+        <p className="text-sm text-muted-foreground mt-1">Configuration de TAMS</p>
       </div>
 
+      {/* Notifications */}
       <section className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Notifications
@@ -63,8 +66,8 @@ export default function Settings() {
 
         {!supported && (
           <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-            Les notifications ne sont pas supportées par ce navigateur. Installez KORE comme
-            application (PWA) sur votre téléphone ou utilisez Chrome/Edge.
+            Les notifications ne sont pas supportées par ce navigateur. Installe TAMS comme
+            application (PWA) sur ton téléphone ou utilise Chrome/Edge.
           </div>
         )}
 
@@ -83,12 +86,12 @@ export default function Settings() {
                   </p>
                   {permission === "denied" && (
                     <p className="text-xs text-red-400 mt-0.5">
-                      Bloquées par le navigateur — autorisez dans les paramètres du site.
+                      Bloquées par le navigateur — autorise dans les paramètres du site.
                     </p>
                   )}
                   {!prefs.enabled && permission !== "denied" && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Rappels matin &amp; soir pour rester en contact avec KORE
+                      Rappels matin &amp; soir pour rester aligné avec TAMS
                     </p>
                   )}
                 </div>
@@ -122,7 +125,7 @@ export default function Settings() {
                       className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Rappel pour consulter tes priorités du jour
+                      Rappel pour consulter tes priorités
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -136,7 +139,7 @@ export default function Settings() {
                       className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Rappel pour faire le bilan de ta journée
+                      Rappel pour faire le bilan
                     </p>
                   </div>
                 </div>
@@ -157,9 +160,8 @@ export default function Settings() {
                 </div>
 
                 <p className="text-xs text-muted-foreground border-t border-border pt-4">
-                  Les notifications fonctionnent quand l&apos;application est ouverte ou installée en
-                  tant qu&apos;application sur ton appareil (PWA). Sur iOS, installez d&apos;abord via
-                  Safari → &quot;Sur l&apos;écran d&apos;accueil&quot;.
+                  Les notifications fonctionnent quand l&apos;application est ouverte ou installée
+                  en PWA. Sur iOS : Safari → &quot;Sur l&apos;écran d&apos;accueil&quot;.
                 </p>
               </div>
             )}
@@ -167,6 +169,7 @@ export default function Settings() {
         )}
       </section>
 
+      {/* Accès & Sécurité */}
       <section className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
           <Shield className="w-3.5 h-3.5" />
@@ -176,9 +179,13 @@ export default function Settings() {
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
           <div className="p-5 space-y-3">
             <div>
-              <p className="text-sm font-medium text-foreground">Lien de connexion rapide</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Partage ce lien pour te connecter instantanément depuis n'importe quel appareil.
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                Lien de connexion rapide
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Copie ce lien pour te connecter instantanément depuis un autre appareil — téléphone,
+                tablette, ordinateur.
               </p>
             </div>
             <button
@@ -188,7 +195,7 @@ export default function Settings() {
               {copied ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-green-500">Lien copié !</span>
+                  <span className="text-green-500 font-medium">Lien copié !</span>
                 </>
               ) : (
                 <>
@@ -197,13 +204,16 @@ export default function Settings() {
                 </>
               )}
             </button>
+            <p className="text-[11px] text-muted-foreground/50">
+              ⚠️ Ne partage ce lien qu'avec toi-même — il donne accès complet à TAMS.
+            </p>
           </div>
 
           <div className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">Session active</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Déconnecte-toi de cet appareil
+                Se déconnecter de cet appareil
               </p>
             </div>
             <button
@@ -217,26 +227,28 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* À propos */}
       <section className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           À propos
         </h2>
-        <div className="rounded-xl border border-border bg-card p-5 space-y-2 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3 text-sm text-muted-foreground">
           <div className="flex items-center justify-between">
             <p>
-              <span className="text-foreground font-medium">KORE</span> — Copilote personnel de vie
+              <span className="text-foreground font-medium">TAMS</span> — Copilote personnel de vie
             </p>
-            <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-mono">
+            <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-mono text-muted-foreground">
               v{APP_VERSION}
             </span>
           </div>
-          <p>
-            Réduire la charge mentale. Prévenir le burn-out. Construire une vie qui vaut la peine
-            d&apos;être vécue.
+          <p className="leading-relaxed">
+            Réduire la charge mentale. Prévenir le burn-out. Construire une vie alignée avec ce qui
+            compte vraiment — boulot, projets, famille, toi.
           </p>
-          <p className="text-xs opacity-60 pt-1 border-t border-border/50">
-            Mode Red Team actif — honnête, jamais flatteur.
-          </p>
+          <div className="pt-2 border-t border-border/50 space-y-1">
+            <p className="text-xs opacity-60">Mode Red Team actif — honnête, jamais flatteur.</p>
+            <p className="text-xs opacity-60">Données stockées en sécurité sur ton serveur privé.</p>
+          </div>
         </div>
       </section>
     </div>
