@@ -47,27 +47,32 @@ app.use(
 // Covers everything helmet would add; no third-party dep required.
 app.use(securityHeaders);
 
-// --- CORS strict (Frontend_URL only) ---
+// --- CORS (API routes only) ---
+// Static files must NOT go through CORS: Vite production builds add the
+// `crossorigin` attribute to <script> and <link> tags, which causes the
+// browser to send an Origin header even for same-origin loads. Applying CORS
+// globally would block those resources when FRONTEND_URL is not set.
 const allowedOrigins = (process.env.FRONTEND_URL ?? "")
   .split(",")
   .map((o) => o.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Api-Key"],
-    credentials: false,
-    maxAge: 600,
-  }),
-);
+const corsMiddleware = cors({
+  origin(origin, callback) {
+    // No Origin header = server-to-server or same-origin simple request → allow.
+    if (!origin) { callback(null, true); return; }
+    // Explicit allowlist (FRONTEND_URL) → allow.
+    if (allowedOrigins.includes(origin)) { callback(null, true); return; }
+    // In single-service mode (no FRONTEND_URL) every browser request comes
+    // from the same origin as the API — allow it.
+    if (allowedOrigins.length === 0) { callback(null, true); return; }
+    callback(new Error("Not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Api-Key"],
+  credentials: false,
+  maxAge: 600,
+});
 
 // --- Global baseline rate limit (per IP) ---
 app.use(rateLimit({ windowMs: 60_000, max: 120 }));
@@ -150,6 +155,9 @@ app.get("/api/_debug", (_req, res) => {
 
   res.json(info);
 });
+
+// --- CORS sur les routes API uniquement ---
+app.use("/api", corsMiddleware);
 
 // --- Auth sur toutes les routes API moins healthz / _debug ---
 app.use("/api", requireAuth);
