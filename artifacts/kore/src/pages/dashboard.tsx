@@ -39,9 +39,7 @@ export default function Dashboard() {
     const lastLogStr = localStorage.getItem("lastEnergyLogTime");
     if (lastLogStr) {
       const lastLog = parseInt(lastLogStr, 10);
-      if (Date.now() - lastLog < 3_600_000) {
-        setHideEnergyWidget(true);
-      }
+      if (Date.now() - lastLog < 3_600_000) setHideEnergyWidget(true);
     }
   }, []);
 
@@ -76,7 +74,8 @@ export default function Dashboard() {
     return (
       <div className="p-8 max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <Skeleton className="h-9 w-72" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-9 w-48" />
           <Skeleton className="h-5 w-96" />
         </div>
         <Skeleton className="h-24 w-full" />
@@ -90,7 +89,6 @@ export default function Dashboard() {
 
   const isOverloaded =
     briefing?.estimatedLoad === "critical" || briefing?.estimatedLoad === "heavy";
-
   const dateStr = format(new Date(), "EEEE d MMMM", { locale: fr });
   const capitalizedDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
@@ -105,7 +103,8 @@ export default function Dashboard() {
           <p className="text-sm text-muted-foreground mb-1 font-medium">{capitalizedDate}</p>
           <h1 className="text-3xl font-serif mb-2 text-foreground">{greeting}.</h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
-            {briefing?.koreMessage || "Prenons le temps de nous recentrer sur ce qui compte vraiment."}
+            {briefing?.koreMessage ||
+              "Prenons le temps de nous recentrer sur ce qui compte vraiment."}
           </p>
         </motion.div>
       </header>
@@ -231,7 +230,7 @@ export default function Dashboard() {
                 </ul>
               ) : (
                 <p className="text-muted-foreground italic text-sm">
-                  Aucune priorité définie pour aujourd'hui.
+                  Aucune priorité définie. Capture quelque chose pour commencer.
                 </p>
               )}
             </CardContent>
@@ -264,7 +263,7 @@ export default function Dashboard() {
                 </ul>
               ) : (
                 <p className="text-muted-foreground italic text-sm">
-                  Aucun événement prévu aujourd'hui.
+                  Aucun événement prévu. Ajoute-en via la Capture.
                 </p>
               )}
             </CardContent>
