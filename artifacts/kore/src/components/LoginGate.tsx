@@ -2,42 +2,40 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, CheckCircle2, Copy } from "lucide-react";
-import {
-  getToken,
-  setToken,
-  clearToken,
-  onAuthChange,
-} from "@/lib/auth";
+import { Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { getToken, setToken, clearToken, onAuthChange } from "@/lib/auth";
 
 /**
- * Single-user access gate. The API requires a bearer token; until one is
- * stored locally the app shows a token entry screen.
+ * Single-user access gate.
  *
- * Auto-setup: if the URL contains ?token=xxx the token is saved automatically
- * and the param is removed from the URL so it never appears in browser history.
+ * Security:
+ * - Token stored only in localStorage under `tams_api_token`
+ * - Auto-setup: ?token=xxx saves the token and removes it from URL history
+ * - 401 responses auto-clear the token
+ * - Token never hardcoded — reads only from storage or URL param
  */
 export function LoginGate({ children }: { children: ReactNode }): ReactNode {
   const [authed, setAuthed] = useState<boolean>(() => Boolean(getToken()));
   const [value, setValue] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  const [error, setError] = useState(false);
 
-  // Auto-fill token from URL: ?token=xxx
+  // Auto-login from URL: ?token=xxx
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get("token");
     if (urlToken && urlToken.trim().length >= 16) {
       setToken(urlToken.trim());
-      // Remove token from URL immediately so it's never in history
       params.delete("token");
-      const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+      const newUrl =
+        window.location.pathname + (params.toString() ? "?" + params.toString() : "");
       window.history.replaceState({}, "", newUrl);
     }
   }, []);
 
   useEffect(() => onAuthChange(() => setAuthed(Boolean(getToken()))), []);
 
-  // Global logout-on-401: any unauthorized API response clears the token.
+  // Auto-logout on 401
   useEffect(() => {
     const original = window.fetch;
     window.fetch = async (...args) => {
@@ -52,84 +50,78 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
 
   if (authed) return <>{children}</>;
 
-  const setupUrl = `${window.location.origin}/?token=58efa4f1a12a1ad3fa1fc259a9530c782f72b3f15fecde10f26d37874e796a26`;
-
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault();
-    if (value.trim().length === 0) return;
+    if (!value.trim()) return;
     setToken(value.trim());
     setValue("");
-  }
-
-  async function handleCopyLink(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(setupUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback: select text manually
-    }
+    setError(false);
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Lock className="h-6 w-6 text-primary" />
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center space-y-2">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-foreground flex items-center justify-center">
+            <span className="font-serif text-2xl font-semibold text-background">T</span>
           </div>
-          <CardTitle>KORE — Accès</CardTitle>
-          <CardDescription>
-            Entre ton jeton d'accès ou utilise le lien de configuration rapide.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <Input
-              type="password"
-              autoFocus
-              autoComplete="current-password"
-              placeholder="Jeton d'accès"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
-            <Button type="submit" className="w-full" disabled={!value.trim()}>
-              Déverrouiller
-            </Button>
-          </form>
+          <h1 className="font-serif text-2xl font-semibold text-foreground">TAMS</h1>
+          <p className="text-sm text-muted-foreground">Ton copilote de vie personnel</p>
+        </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">ou</span>
-            </div>
-          </div>
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="w-4 h-4 text-muted-foreground" />
+              Accès sécurisé
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Entre ton jeton d'accès pour déverrouiller l'application.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="relative">
+                <Input
+                  type={showToken ? "text" : "password"}
+                  autoFocus
+                  autoComplete="current-password"
+                  placeholder="Jeton d'accès"
+                  value={value}
+                  onChange={(e) => {
+                    setValue(e.target.value);
+                    setError(false);
+                  }}
+                  className={error ? "border-destructive" : ""}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full gap-2"
-            onClick={handleCopyLink}
-          >
-            {copied ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                Lien copié !
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4" />
-                Copier le lien de connexion rapide
-              </>
-            )}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Ouvre ce lien sur n'importe quel appareil pour te connecter automatiquement.
-          </p>
-        </CardContent>
-      </Card>
+              {error && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Jeton invalide — vérifie et réessaie.
+                </p>
+              )}
+
+              <Button type="submit" className="w-full" disabled={!value.trim()}>
+                Déverrouiller
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground/60">
+          Application personnelle — accès restreint.
+        </p>
+      </div>
     </div>
   );
 }
