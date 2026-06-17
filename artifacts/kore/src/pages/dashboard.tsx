@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { 
-  useGetMorningBriefing, 
-  useLogEnergyLevel, 
-  useListTasks, 
+import {
+  useGetMorningBriefing,
+  useLogEnergyLevel,
+  useListTasks,
   useUpdateTask,
-  getListTasksQueryKey 
+  getListTasksQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,21 +16,30 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 
+function getTimeGreeting(): string {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return "Bonjour";
+  if (h >= 12 && h < 18) return "Bon après-midi";
+  if (h >= 18 && h < 22) return "Bonsoir";
+  return "Bonne nuit";
+}
+
 export default function Dashboard() {
   const { data: briefing, isLoading } = useGetMorningBriefing();
-  const { data: pendingTasks } = useListTasks({ status: 'pending' });
+  const { data: pendingTasks } = useListTasks({ status: "pending" });
   const logEnergy = useLogEnergyLevel();
   const updateTask = useUpdateTask();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [hideEnergyWidget, setHideEnergyWidget] = useState(false);
+  const [greeting] = useState(getTimeGreeting);
 
   useEffect(() => {
     const lastLogStr = localStorage.getItem("lastEnergyLogTime");
     if (lastLogStr) {
       const lastLog = parseInt(lastLogStr, 10);
-      if (Date.now() - lastLog < 3600000) {
+      if (Date.now() - lastLog < 3_600_000) {
         setHideEnergyWidget(true);
       }
     }
@@ -42,31 +51,35 @@ export default function Dashboard() {
       localStorage.setItem("lastEnergyLogTime", Date.now().toString());
       setHideEnergyWidget(true);
       toast({ description: "Niveau d'énergie enregistré." });
-    } catch (error) {
+    } catch {
       toast({ variant: "destructive", description: "Erreur lors de l'enregistrement." });
     }
   };
 
   const handleMarkTaskDone = async (id: number) => {
     try {
-      await updateTask.mutateAsync({ id, data: { status: 'done' } });
+      await updateTask.mutateAsync({ id, data: { status: "done" } });
       queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-      toast({ description: "Tâche terminée." });
-    } catch (error) {
+      toast({ description: "Tâche terminée ✓" });
+    } catch {
       toast({ variant: "destructive", description: "Erreur lors de la mise à jour." });
     }
   };
 
-  const overdueTasks = pendingTasks?.filter(task => {
-    if (!task.dueDate) return false;
-    return isBefore(startOfDay(new Date(task.dueDate)), startOfDay(new Date()));
-  }) || [];
+  const overdueTasks =
+    pendingTasks?.filter((task) => {
+      if (!task.dueDate) return false;
+      return isBefore(startOfDay(new Date(task.dueDate)), startOfDay(new Date()));
+    }) || [];
 
   if (isLoading) {
     return (
       <div className="p-8 max-w-4xl mx-auto space-y-8">
-        <Skeleton className="h-12 w-64" />
-        <Skeleton className="h-32 w-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-72" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <Skeleton className="h-24 w-full" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
@@ -75,47 +88,75 @@ export default function Dashboard() {
     );
   }
 
-  const isOverloaded = briefing?.estimatedLoad === 'critical' || briefing?.estimatedLoad === 'heavy';
+  const isOverloaded =
+    briefing?.estimatedLoad === "critical" || briefing?.estimatedLoad === "heavy";
+
+  const dateStr = format(new Date(), "EEEE d MMMM", { locale: fr });
+  const capitalizedDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
   return (
-    <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-12">
+    <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-10">
       <header>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <h1 className="text-3xl font-serif mb-2 text-foreground">
-            {format(new Date(), "EEEE d MMMM", { locale: fr })}
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            {briefing?.koreMessage || "Bonjour. Prenons le temps de nous recentrer."}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <p className="text-sm text-muted-foreground mb-1 font-medium">{capitalizedDate}</p>
+          <h1 className="text-3xl font-serif mb-2 text-foreground">{greeting}.</h1>
+          <p className="text-muted-foreground text-lg leading-relaxed">
+            {briefing?.koreMessage || "Prenons le temps de nous recentrer sur ce qui compte vraiment."}
           </p>
         </motion.div>
       </header>
 
       {briefing?.overloadAlert && isOverloaded && (
-        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 flex gap-4 items-start">
-            <AlertTriangle className="w-6 h-6 text-destructive shrink-0" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.15 }}
+        >
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 flex gap-4 items-start">
+            <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-destructive font-medium text-lg mb-1">Attention requise</h3>
-              <p className="text-destructive/80">{briefing.overloadAlert}</p>
+              <h3 className="text-destructive font-medium mb-1">Attention requise</h3>
+              <p className="text-destructive/80 text-sm">{briefing.overloadAlert}</p>
             </div>
           </div>
         </motion.div>
       )}
 
       {!hideEnergyWidget && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
           <Card className="bg-card/50 border-card-border">
             <CardContent className="p-6">
-              <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-4">
+              <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-5">
                 <Battery className="w-4 h-4" />
-                Comment tu te sens maintenant ?
+                Comment tu te sens en ce moment ?
               </h3>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(1)} disabled={logEnergy.isPending}>Épuisé</Button>
-                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(3)} disabled={logEnergy.isPending}>Fatigué</Button>
-                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(5)} disabled={logEnergy.isPending}>Correct</Button>
-                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(7)} disabled={logEnergy.isPending}>Bien</Button>
-                <Button variant="outline" size="sm" onClick={() => handleEnergySelect(9)} disabled={logEnergy.isPending}>En forme</Button>
+                {[
+                  { label: "Épuisé", level: 1 },
+                  { label: "Fatigué", level: 3 },
+                  { label: "Correct", level: 5 },
+                  { label: "Bien", level: 7 },
+                  { label: "En forme", level: 9 },
+                ].map(({ label, level }) => (
+                  <Button
+                    key={level}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEnergySelect(level)}
+                    disabled={logEnergy.isPending}
+                    className="rounded-full"
+                  >
+                    {label}
+                  </Button>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -123,27 +164,37 @@ export default function Dashboard() {
       )}
 
       {overdueTasks.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
           <Card className="bg-amber-500/5 border-amber-500/20">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 font-serif font-normal text-xl text-amber-500">
                 <ListTodo className="w-5 h-5" />
                 En retard
+                <span className="ml-auto text-sm font-sans font-normal bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">
+                  {overdueTasks.length}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {overdueTasks.map((task) => (
-                  <li key={task.id} className="flex items-center justify-between gap-4 bg-background/50 p-3 rounded-md border border-border/50">
+                  <li
+                    key={task.id}
+                    className="flex items-center justify-between gap-4 bg-background/50 p-3 rounded-lg border border-border/50"
+                  >
                     <span className="text-foreground/90 font-medium truncate">{task.title}</span>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="shrink-0 h-8"
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 h-8 text-xs"
                       onClick={() => handleMarkTaskDone(task.id)}
                       disabled={updateTask.isPending}
                     >
-                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fait
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Fait
                     </Button>
                   </li>
                 ))}
@@ -153,8 +204,12 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
           <Card className="bg-card border-card-border h-full shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-serif font-normal text-xl">
@@ -167,24 +222,32 @@ export default function Dashboard() {
                 <ul className="space-y-4">
                   {briefing.topPriorities.map((priority, i) => (
                     <li key={i} className="flex gap-3 text-foreground/90">
-                      <span className="text-accent text-sm mt-1">{i + 1}.</span>
-                      <span>{priority}</span>
+                      <span className="text-accent text-sm mt-0.5 font-mono font-medium shrink-0">
+                        {i + 1}.
+                      </span>
+                      <span className="leading-relaxed">{priority}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground italic">Aucune priorité définie pour aujourd'hui.</p>
+                <p className="text-muted-foreground italic text-sm">
+                  Aucune priorité définie pour aujourd'hui.
+                </p>
               )}
             </CardContent>
           </Card>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
           <Card className="bg-card border-card-border h-full shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-serif font-normal text-xl">
                 <Clock className="w-5 h-5 text-muted-foreground" />
-                Événements
+                Agenda du jour
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -192,13 +255,17 @@ export default function Dashboard() {
                 <ul className="space-y-4">
                   {briefing.todayEvents.map((event) => (
                     <li key={event.id} className="flex gap-4">
-                      <span className="text-muted-foreground w-12 shrink-0">{event.eventTime || "All"}</span>
-                      <span className="text-foreground/90">{event.title}</span>
+                      <span className="text-muted-foreground text-sm w-12 shrink-0 font-mono">
+                        {event.eventTime || "—"}
+                      </span>
+                      <span className="text-foreground/90 text-sm">{event.title}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground italic">Aucun événement prévu aujourd'hui.</p>
+                <p className="text-muted-foreground italic text-sm">
+                  Aucun événement prévu aujourd'hui.
+                </p>
               )}
             </CardContent>
           </Card>
