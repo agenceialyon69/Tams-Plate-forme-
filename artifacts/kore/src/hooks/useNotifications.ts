@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "kore-notification-prefs";
+const STORAGE_KEY = "tams-notification-prefs";
 
 interface NotificationPrefs {
   enabled: boolean;
@@ -16,6 +16,12 @@ const DEFAULT_PREFS: NotificationPrefs = {
 
 export function loadPrefs(): NotificationPrefs {
   try {
+    // Migrate from old key if needed
+    const old = localStorage.getItem("kore-notification-prefs");
+    if (old) {
+      localStorage.setItem(STORAGE_KEY, old);
+      localStorage.removeItem("kore-notification-prefs");
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
   } catch {}
