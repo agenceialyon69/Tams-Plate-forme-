@@ -62,7 +62,7 @@ function useScheduleNotifications() {
   }, []);
 }
 
-function KoreLogo() {
+function TamsLogo() {
   return (
     <svg
       width="28"
@@ -82,7 +82,7 @@ function KoreLogo() {
         fontWeight="600"
         fill="hsl(var(--background))"
       >
-        K
+        T
       </text>
     </svg>
   );
@@ -123,10 +123,10 @@ function AppSidebar() {
         <Sidebar>
           <SidebarHeader className="py-5 px-4 border-b border-border/40">
             <div className="flex items-center gap-2.5 px-1">
-              <KoreLogo />
+              <TamsLogo />
               <div>
                 <h1 className="font-serif text-lg tracking-tight text-foreground font-semibold leading-none">
-                  KORE
+                  TAMS
                 </h1>
                 <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{today}</p>
               </div>
@@ -142,12 +142,13 @@ function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className={isActive ? "border-l-2 border-accent rounded-l-none pl-3" : "pl-[calc(1rem+2px)]"}
+                      className={
+                        isActive
+                          ? "border-l-2 border-accent rounded-l-none pl-3"
+                          : "pl-[calc(1rem+2px)]"
+                      }
                     >
-                      <Link
-                        href={item.href}
-                        className="flex items-center gap-3 py-2"
-                      >
+                      <Link href={item.href} className="flex items-center gap-3 py-2">
                         <item.icon
                           className={`w-4 h-4 ${isActive ? "text-accent" : "opacity-50"}`}
                         />
@@ -179,13 +180,7 @@ function AppSidebar() {
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border flex items-center justify-around pb-safe">
-        {[
-          navItems[0],
-          navItems[1],
-          navItems[2],
-          navItems[5],
-          navItems[8],
-        ].map((item) => {
+        {[navItems[0], navItems[1], navItems[2], navItems[5], navItems[8]].map((item) => {
           const isActive = location === item.href;
           return (
             <Link
