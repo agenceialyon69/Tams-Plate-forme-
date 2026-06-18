@@ -83,6 +83,22 @@ const STATEMENTS = [
     review_date TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS recordings (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    context TEXT,
+    meeting_type TEXT NOT NULL DEFAULT 'meeting',
+    duration_seconds INTEGER,
+    transcript TEXT,
+    summary TEXT,
+    action_items TEXT,
+    commitments TEXT,
+    decisions TEXT,
+    blind_spots TEXT,
+    red_team_critique TEXT,
+    tams_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
