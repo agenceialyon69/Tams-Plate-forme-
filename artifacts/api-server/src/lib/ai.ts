@@ -391,6 +391,147 @@ RÈGLES : jamais flatteur, jamais culpabilisant. Si la semaine était difficile,
   }
 }
 
+export interface RecordingAnalysis {
+  summary: string;
+  actionItems: Array<{ title: string; owner?: string; deadline?: string; priority: string }>;
+  commitments: Array<{ who: string; what: string; deadline?: string }>;
+  decisions: Array<{ topic: string; decision: string; rationale?: string }>;
+  blindSpots: string;
+  redTeamCritique: string;
+  tamsMessage: string;
+}
+
+export async function analyzeRecording(
+  transcript: string,
+  title: string,
+  meetingType: string = "meeting",
+  context?: string | null
+): Promise<RecordingAnalysis> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  const safeTranscript = transcript.slice(0, 40_000);
+  const safeTitle = title.slice(0, 500);
+  const safeContext = context?.slice(0, 2000) ?? null;
+
+  const typeLabels: Record<string, string> = {
+    meeting: "réunion",
+    call: "appel téléphonique",
+    brainstorm: "brainstorming",
+    voice: "mémo vocal",
+  };
+
+  const prompt = `${INJECTION_GUARD}${PRIORITY_COMPASS}
+
+Tu es TAMS, copilote de vie en mode RED TEAM. Tu analyses la transcription d'un enregistrement.
+
+TYPE : ${typeLabels[meetingType] || meetingType}
+TITRE : "${safeTitle}"
+${safeContext ? `CONTEXTE FOURNI : "${safeContext}"` : ""}
+
+TRANSCRIPTION COMPLÈTE :
+---
+${safeTranscript}
+---
+
+ANALYSE RED TEAM COMPLÈTE — sois honnête, précis, ne flatte jamais.
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "summary": "Résumé factuel de ce qui s'est réellement dit (2-4 paragraphes). Pas d'interprétation positive automatique — décris ce qui a été dit, pas ce qu'on voulait dire.",
+  "actionItems": [
+    {
+      "title": "Action concrète à entreprendre",
+      "owner": "Qui doit le faire (moi, un collègue, personne mentionnée)",
+      "deadline": "Délai mentionné ou null",
+      "priority": "high|medium|low"
+    }
+  ],
+  "commitments": [
+    {
+      "who": "Qui a pris l'engagement",
+      "what": "Ce qui a été promis (même implicitement)",
+      "deadline": "Délai ou null"
+    }
+  ],
+  "decisions": [
+    {
+      "topic": "Sujet de la décision",
+      "decision": "Ce qui a été décidé",
+      "rationale": "Raison donnée ou null"
+    }
+  ],
+  "blindSpots": "Ce qui N'A PAS été dit mais aurait dû l'être. Questions importantes évitées. Sujets tabous. Éléphants dans la pièce. Sois direct.",
+  "redTeamCritique": "Critique honnête et sans complaisance : signaux d'alarme, incohérences entre ce qui est dit et ce qui est implicite, risques ignorés, dynamiques de groupe problématiques, engagements irréalistes, décisions précipitées. Ce que tu observes vraiment.",
+  "tamsMessage": "Message final de TAMS à l'utilisateur : évaluation globale honnête de cet enregistrement et une recommandation actionnable pour la suite. 2-3 phrases."
+}
+
+RÈGLES ABSOLUES :
+- Les engagements implicites comptent autant que les explicites
+- Si la transcription manque de clarté → dis-le dans redTeamCritique
+- Si des décisions importantes ont été évitées → dis-le dans blindSpots
+- Ne génère pas de faux positifs : s'il n'y a pas d'action items, dis-le
+- Priorise "high" uniquement pour les vraies urgences`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in response");
+    const raw = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+
+    return {
+      summary: asString(raw.summary, 8000),
+      actionItems: Array.isArray(raw.actionItems)
+        ? raw.actionItems.slice(0, 50).map((item: unknown) => {
+            const i = (item ?? {}) as Record<string, unknown>;
+            return {
+              title: asString(i.title, 500),
+              owner: typeof i.owner === "string" ? i.owner.slice(0, 200) : undefined,
+              deadline: typeof i.deadline === "string" ? i.deadline.slice(0, 100) : undefined,
+              priority: ["high", "medium", "low"].includes(i.priority as string)
+                ? (i.priority as string)
+                : "medium",
+            };
+          }).filter((i) => i.title)
+        : [],
+      commitments: Array.isArray(raw.commitments)
+        ? raw.commitments.slice(0, 30).map((item: unknown) => {
+            const c = (item ?? {}) as Record<string, unknown>;
+            return {
+              who: asString(c.who, 200),
+              what: asString(c.what, 500),
+              deadline: typeof c.deadline === "string" ? c.deadline.slice(0, 100) : undefined,
+            };
+          }).filter((c) => c.who && c.what)
+        : [],
+      decisions: Array.isArray(raw.decisions)
+        ? raw.decisions.slice(0, 20).map((item: unknown) => {
+            const d = (item ?? {}) as Record<string, unknown>;
+            return {
+              topic: asString(d.topic, 300),
+              decision: asString(d.decision, 1000),
+              rationale: typeof d.rationale === "string" ? d.rationale.slice(0, 500) : undefined,
+            };
+          }).filter((d) => d.topic && d.decision)
+        : [],
+      blindSpots: asString(raw.blindSpots, 4000),
+      redTeamCritique: asString(raw.redTeamCritique, 6000),
+      tamsMessage: asString(raw.tamsMessage, 2000),
+    };
+  } catch (err) {
+    logger.error({ err }, "Failed to analyze recording");
+    return {
+      summary: "Analyse non disponible. Réessaie.",
+      actionItems: [],
+      commitments: [],
+      decisions: [],
+      blindSpots: "Analyse indisponible.",
+      redTeamCritique: "Analyse indisponible.",
+      tamsMessage: "L'analyse n'a pas pu être générée. Vérifie ta connexion et réessaie.",
+    };
+  }
+}
+
 export async function detectOverload(data: {
   activeTasks: number;
   consecutiveWorkDays: number;
