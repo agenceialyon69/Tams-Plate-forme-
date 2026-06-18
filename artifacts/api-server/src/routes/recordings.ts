@@ -3,6 +3,8 @@ import { db, recordingsTable } from "@workspace/db";
 import { transcribeAudio, analyzeRecording } from "../lib/ai";
 import { desc, eq } from "drizzle-orm";
 import { rateLimit } from "../middlewares/rate-limit";
+import { checkAndIncrementAiCalls } from "./quotas";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -20,6 +22,22 @@ function asStr(v: unknown, max = 500): string | null {
   return v.trim().slice(0, max);
 }
 
+/** Shared quota guard — call before any LLM invocation. */
+async function checkQuota(tenantId: number | undefined, res: Parameters<typeof router.post>[1] extends (_: unknown, r: infer R, ..._a: unknown[]) => unknown ? R : never): Promise<boolean> {
+  if (!tenantId) return true; // legacy / no-tenant mode: allow
+  const guard = await checkAndIncrementAiCalls(tenantId);
+  if (!guard.allowed) {
+    logger.warn({ tenantId }, `AI quota exceeded on recordings: ${guard.reason}`);
+    (res as import("express").Response).status(429).json({
+      error: "Quota IA dépassé.",
+      detail: guard.reason,
+      code: "AI_QUOTA_EXCEEDED",
+    });
+    return false;
+  }
+  return true;
+}
+
 /** POST /api/recordings/analyze — transcribe audio + Red Team analysis */
 router.post("/recordings/analyze", recordingLimiter, async (req, res): Promise<void> => {
   const { audioBase64, mimeType, title, context, meetingType, durationSeconds } = req.body ?? {};
@@ -34,6 +52,11 @@ router.post("/recordings/analyze", recordingLimiter, async (req, res): Promise<v
   if (audioBase64.length > 100_000_000) {
     res.status(413).json({ error: "Audio trop volumineux. Maximum ~45 minutes." }); return;
   }
+
+  // ── Cost guardrail — transcribe (Groq) + analysis (Gemini) = 2 AI calls ──
+  // We gate on 1 call; recording analysis is expensive, so it counts once.
+  if (!await checkQuota(req.tenantId, res)) return;
+  // ─────────────────────────────────────────────────────────────────────────
 
   const safeMimeType = typeof mimeType === "string" ? mimeType : "audio/webm";
   const safeMeetingType: MeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
@@ -75,6 +98,10 @@ router.post("/recordings/analyze-text", recordingLimiter, async (req, res): Prom
   if (!safeTitle || !safeTranscript) {
     res.status(400).json({ error: "title et transcript requis" }); return;
   }
+
+  // ── Cost guardrail ──────────────────────────────────────────────────────────
+  if (!await checkQuota(req.tenantId, res)) return;
+  // ───────────────────────────────────────────────────────────────────────────
 
   const safeMeetingType: MeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
   const safeContext = asStr(context, 2000);

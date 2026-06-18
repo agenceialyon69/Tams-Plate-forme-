@@ -52,6 +52,10 @@ const PUBLIC_PATHS = new Set([
   "/api/auth/login",
   "/auth/register",
   "/api/auth/register",
+  "/auth/forgot-password",
+  "/api/auth/forgot-password",
+  "/auth/reset-password",
+  "/api/auth/reset-password",
 ]);
 
 export async function requireAuthJwt(

@@ -149,11 +149,26 @@ const STATEMENTS = [
   )`,
   `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_id INTEGER`,
   `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id INTEGER`,
+  /* ---------- Enum types (Drizzle pgEnum — must exist before tables) ----------
+     PostgreSQL has no IF NOT EXISTS for CREATE TYPE, so we use a DO block
+     that catches the "already exists" error and silently continues.          */
+  `DO $$ BEGIN
+     CREATE TYPE user_role AS ENUM ('owner', 'admin', 'member', 'viewer');
+   EXCEPTION WHEN duplicate_object THEN NULL;
+   END $$`,
+  `DO $$ BEGIN
+     CREATE TYPE user_status AS ENUM ('active', 'suspended', 'pending');
+   EXCEPTION WHEN duplicate_object THEN NULL;
+   END $$`,
+  `DO $$ BEGIN
+     CREATE TYPE tenant_status AS ENUM ('active', 'suspended', 'trial');
+   EXCEPTION WHEN duplicate_object THEN NULL;
+   END $$`,
   `CREATE TABLE IF NOT EXISTS tenants (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
-    status TEXT NOT NULL DEFAULT 'active',
+    status tenant_status NOT NULL DEFAULT 'active',
     self_service_enabled BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -164,8 +179,8 @@ const STATEMENTS = [
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'member',
-    status TEXT NOT NULL DEFAULT 'active',
+    role user_role NOT NULL DEFAULT 'member',
+    status user_status NOT NULL DEFAULT 'active',
     last_login_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

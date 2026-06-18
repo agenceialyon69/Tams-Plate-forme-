@@ -4,6 +4,9 @@ import { SubmitEveningReviewBody } from "@workspace/api-zod";
 import { eq, and, gte, lte, lt, avg, count, desc, min, max } from "drizzle-orm";
 import { generateMorningKoreMessage, generateEveningResponse, generateWeeklySummary } from "../lib/ai";
 import { capturesTable, decisionsTable } from "@workspace/db";
+import { checkAndIncrementAiCalls } from "./quotas";
+import { logger } from "../lib/logger";
+import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
@@ -17,13 +20,35 @@ export function invalidateBriefingCache(): void {
   briefingCache = null;
 }
 
-router.get("/briefings/morning", async (_req, res): Promise<void> => {
+/** Shared AI quota guard. Returns false and sends 429 if quota is exhausted. */
+async function checkQuota(req: Request, res: Response): Promise<boolean> {
+  const tenantId = req.tenantId;
+  if (!tenantId) return true; // legacy / no-tenant mode: allow
+  const guard = await checkAndIncrementAiCalls(tenantId);
+  if (!guard.allowed) {
+    logger.warn({ tenantId, path: req.path }, `AI quota exceeded on briefings: ${guard.reason}`);
+    res.status(429).json({
+      error: "Quota IA dépassé.",
+      detail: guard.reason,
+      code: "AI_QUOTA_EXCEEDED",
+    });
+    return false;
+  }
+  return true;
+}
+
+router.get("/briefings/morning", async (req, res): Promise<void> => {
   const today = new Date().toISOString().split("T")[0];
 
+  // Return from cache without consuming quota — LLM was already called earlier.
   if (briefingCache && briefingCache.date === today && Date.now() - briefingCache.cachedAt < BRIEFING_CACHE_TTL) {
     res.json(briefingCache.data);
     return;
   }
+
+  // ── Cost guardrail — only checked when cache miss forces a real LLM call ──
+  if (!await checkQuota(req, res)) return;
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [todayEvents, pendingHighPriorityTasks, upcomingDeadlines, overdueTasks] = await Promise.all([
     db.select().from(eventsTable).where(eq(eventsTable.eventDate, today)),
@@ -108,6 +133,10 @@ router.post("/briefings/evening", async (req, res): Promise<void> => {
   const parsed = SubmitEveningReviewBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
 
+  // ── Cost guardrail ──────────────────────────────────────────────────────────
+  if (!await checkQuota(req, res)) return;
+  // ───────────────────────────────────────────────────────────────────────────
+
   const today = new Date().toISOString().split("T")[0];
 
   const koreResponse = await generateEveningResponse({
@@ -138,16 +167,22 @@ router.post("/briefings/evening", async (req, res): Promise<void> => {
   res.status(201).json(review);
 });
 
-router.get("/briefings/weekly", async (_req, res): Promise<void> => {
+router.get("/briefings/weekly", async (req, res): Promise<void> => {
   const today = new Date();
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - 6);
   const weekStartStr = weekStart.toISOString().split("T")[0];
 
+  // Return from cache without consuming quota.
   if (weeklyCache && weeklyCache.weekStart === weekStartStr && Date.now() - weeklyCache.cachedAt < WEEKLY_CACHE_TTL) {
     res.json(weeklyCache.data);
     return;
   }
+
+  // ── Cost guardrail — only on cache miss ─────────────────────────────────────
+  if (!await checkQuota(req, res)) return;
+  // ───────────────────────────────────────────────────────────────────────────
+
   const weekEndStr = today.toISOString().split("T")[0];
 
   const [

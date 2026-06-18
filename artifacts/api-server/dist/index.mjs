@@ -39267,8 +39267,8 @@ var require_gt = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.4/node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
     var compare2 = require_compare();
-    var gt3 = (a, b, loose) => compare2(a, b, loose) > 0;
-    module.exports = gt3;
+    var gt2 = (a, b, loose) => compare2(a, b, loose) > 0;
+    module.exports = gt2;
   }
 });
 
@@ -39328,7 +39328,7 @@ var require_cmp = __commonJS({
     "use strict";
     var eq2 = require_eq();
     var neq = require_neq();
-    var gt3 = require_gt();
+    var gt2 = require_gt();
     var gte2 = require_gte();
     var lt2 = require_lt();
     var lte2 = require_lte();
@@ -39357,7 +39357,7 @@ var require_cmp = __commonJS({
         case "!=":
           return neq(a, b, loose);
         case ">":
-          return gt3(a, b, loose);
+          return gt2(a, b, loose);
         case ">=":
           return gte2(a, b, loose);
         case "<":
@@ -40085,7 +40085,7 @@ var require_min_version = __commonJS({
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
-    var gt3 = require_gt();
+    var gt2 = require_gt();
     var minVersion = (range, loose) => {
       range = new Range(range, loose);
       let minver = new SemVer("0.0.0");
@@ -40113,7 +40113,7 @@ var require_min_version = __commonJS({
             /* fallthrough */
             case "":
             case ">=":
-              if (!setMin || gt3(compver, setMin)) {
+              if (!setMin || gt2(compver, setMin)) {
                 setMin = compver;
               }
               break;
@@ -40125,7 +40125,7 @@ var require_min_version = __commonJS({
               throw new Error(`Unexpected operation: ${comparator.operator}`);
           }
         });
-        if (setMin && (!minver || gt3(minver, setMin))) {
+        if (setMin && (!minver || gt2(minver, setMin))) {
           minver = setMin;
         }
       }
@@ -40163,7 +40163,7 @@ var require_outside = __commonJS({
     var { ANY } = Comparator;
     var Range = require_range2();
     var satisfies = require_satisfies();
-    var gt3 = require_gt();
+    var gt2 = require_gt();
     var lt2 = require_lt();
     var lte2 = require_lte();
     var gte2 = require_gte();
@@ -40173,7 +40173,7 @@ var require_outside = __commonJS({
       let gtfn, ltefn, ltfn, comp, ecomp;
       switch (hilo) {
         case ">":
-          gtfn = gt3;
+          gtfn = gt2;
           ltefn = lte2;
           ltfn = lt2;
           comp = ">";
@@ -40182,7 +40182,7 @@ var require_outside = __commonJS({
         case "<":
           gtfn = lt2;
           ltefn = gte2;
-          ltfn = gt3;
+          ltfn = gt2;
           comp = "<";
           ecomp = "<=";
           break;
@@ -40360,10 +40360,10 @@ var require_subset = __commonJS({
         }
       }
       const eqSet = /* @__PURE__ */ new Set();
-      let gt3, lt2;
+      let gt2, lt2;
       for (const c of sub) {
         if (c.operator === ">" || c.operator === ">=") {
-          gt3 = higherGT(gt3, c, options);
+          gt2 = higherGT(gt2, c, options);
         } else if (c.operator === "<" || c.operator === "<=") {
           lt2 = lowerLT(lt2, c, options);
         } else {
@@ -40374,16 +40374,16 @@ var require_subset = __commonJS({
         return null;
       }
       let gtltComp;
-      if (gt3 && lt2) {
-        gtltComp = compare2(gt3.semver, lt2.semver, options);
+      if (gt2 && lt2) {
+        gtltComp = compare2(gt2.semver, lt2.semver, options);
         if (gtltComp > 0) {
           return null;
-        } else if (gtltComp === 0 && (gt3.operator !== ">=" || lt2.operator !== "<=")) {
+        } else if (gtltComp === 0 && (gt2.operator !== ">=" || lt2.operator !== "<=")) {
           return null;
         }
       }
       for (const eq2 of eqSet) {
-        if (gt3 && !satisfies(eq2, String(gt3), options)) {
+        if (gt2 && !satisfies(eq2, String(gt2), options)) {
           return null;
         }
         if (lt2 && !satisfies(eq2, String(lt2), options)) {
@@ -40399,25 +40399,25 @@ var require_subset = __commonJS({
       let higher, lower;
       let hasDomLT, hasDomGT;
       let needDomLTPre = lt2 && !options.includePrerelease && lt2.semver.prerelease.length ? lt2.semver : false;
-      let needDomGTPre = gt3 && !options.includePrerelease && gt3.semver.prerelease.length ? gt3.semver : false;
+      let needDomGTPre = gt2 && !options.includePrerelease && gt2.semver.prerelease.length ? gt2.semver : false;
       if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt2.operator === "<" && needDomLTPre.prerelease[0] === 0) {
         needDomLTPre = false;
       }
       for (const c of dom) {
         hasDomGT = hasDomGT || c.operator === ">" || c.operator === ">=";
         hasDomLT = hasDomLT || c.operator === "<" || c.operator === "<=";
-        if (gt3) {
+        if (gt2) {
           if (needDomGTPre) {
             if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomGTPre.major && c.semver.minor === needDomGTPre.minor && c.semver.patch === needDomGTPre.patch) {
               needDomGTPre = false;
             }
           }
           if (c.operator === ">" || c.operator === ">=") {
-            higher = higherGT(gt3, c, options);
-            if (higher === c && higher !== gt3) {
+            higher = higherGT(gt2, c, options);
+            if (higher === c && higher !== gt2) {
               return false;
             }
-          } else if (gt3.operator === ">=" && !c.test(gt3.semver)) {
+          } else if (gt2.operator === ">=" && !c.test(gt2.semver)) {
             return false;
           }
         }
@@ -40436,14 +40436,14 @@ var require_subset = __commonJS({
             return false;
           }
         }
-        if (!c.operator && (lt2 || gt3) && gtltComp !== 0) {
+        if (!c.operator && (lt2 || gt2) && gtltComp !== 0) {
           return false;
         }
       }
-      if (gt3 && hasDomLT && !lt2 && gtltComp !== 0) {
+      if (gt2 && hasDomLT && !lt2 && gtltComp !== 0) {
         return false;
       }
-      if (lt2 && hasDomGT && !gt3 && gtltComp !== 0) {
+      if (lt2 && hasDomGT && !gt2 && gtltComp !== 0) {
         return false;
       }
       if (needDomGTPre || needDomLTPre) {
@@ -40492,7 +40492,7 @@ var require_semver2 = __commonJS({
     var compareBuild = require_compare_build();
     var sort = require_sort();
     var rsort = require_rsort();
-    var gt3 = require_gt();
+    var gt2 = require_gt();
     var lt2 = require_lt();
     var eq2 = require_eq();
     var neq = require_neq();
@@ -40531,7 +40531,7 @@ var require_semver2 = __commonJS({
       compareBuild,
       sort,
       rsort,
-      gt: gt3,
+      gt: gt2,
       lt: lt2,
       eq: eq2,
       neq,
@@ -45376,7 +45376,7 @@ var userStatusEnum = pgEnum("user_status", [
 ]);
 var usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
-  tenantId: serial("tenant_id").notNull().references(() => tenantsTable.id),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
@@ -57223,11 +57223,26 @@ var STATEMENTS = [
   )`,
   `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_id INTEGER`,
   `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id INTEGER`,
+  /* ---------- Enum types (Drizzle pgEnum — must exist before tables) ----------
+     PostgreSQL has no IF NOT EXISTS for CREATE TYPE, so we use a DO block
+     that catches the "already exists" error and silently continues.          */
+  `DO $$ BEGIN
+     CREATE TYPE user_role AS ENUM ('owner', 'admin', 'member', 'viewer');
+   EXCEPTION WHEN duplicate_object THEN NULL;
+   END $$`,
+  `DO $$ BEGIN
+     CREATE TYPE user_status AS ENUM ('active', 'suspended', 'pending');
+   EXCEPTION WHEN duplicate_object THEN NULL;
+   END $$`,
+  `DO $$ BEGIN
+     CREATE TYPE tenant_status AS ENUM ('active', 'suspended', 'trial');
+   EXCEPTION WHEN duplicate_object THEN NULL;
+   END $$`,
   `CREATE TABLE IF NOT EXISTS tenants (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
-    status TEXT NOT NULL DEFAULT 'active',
+    status tenant_status NOT NULL DEFAULT 'active',
     self_service_enabled BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -57238,8 +57253,8 @@ var STATEMENTS = [
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'member',
-    status TEXT NOT NULL DEFAULT 'active',
+    role user_role NOT NULL DEFAULT 'member',
+    status user_status NOT NULL DEFAULT 'active',
     last_login_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -63487,7 +63502,7 @@ var bcryptjs_default = {
 
 // src/routes/auth.ts
 var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
-import crypto2 from "node:crypto";
+import crypto2, { createHash } from "node:crypto";
 init_drizzle_orm();
 
 // src/lib/logger.ts
@@ -63511,11 +63526,20 @@ var logger = (0, import_pino.default)({
 // src/routes/auth.ts
 var router2 = (0, import_express2.Router)();
 function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error("JWT_SECRET must be set and at least 32 chars long.");
+  const explicit = process.env.JWT_SECRET;
+  if (explicit && explicit.length >= 32) return explicit;
+  const legacy = process.env.API_AUTH_TOKEN;
+  if (legacy && legacy.length >= 16) {
+    if (!explicit) {
+      logger.warn(
+        "JWT_SECRET not set \u2014 deriving from API_AUTH_TOKEN. Set JWT_SECRET explicitly to invalidate old tokens on rotation."
+      );
+    }
+    return createHash("sha256").update("gandal-jwt:" + legacy).digest("hex");
   }
-  return secret;
+  throw new Error(
+    "Authentication misconfigured: set JWT_SECRET (>= 32 chars) or API_AUTH_TOKEN (>= 16 chars) environment variable."
+  );
 }
 var SESSION_DURATION = process.env.SESSION_DURATION ?? "8h";
 var loginSchema = external_exports2.object({
@@ -63751,7 +63775,7 @@ init_drizzle_orm();
 
 // src/middlewares/auth-jwt.ts
 var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash as createHash2, timingSafeEqual } from "node:crypto";
 function getJwtSecret2() {
   const s = process.env.JWT_SECRET;
   return s && s.length >= 32 ? s : null;
@@ -63779,7 +63803,11 @@ var PUBLIC_PATHS = /* @__PURE__ */ new Set([
   "/auth/login",
   "/api/auth/login",
   "/auth/register",
-  "/api/auth/register"
+  "/api/auth/register",
+  "/auth/forgot-password",
+  "/api/auth/forgot-password",
+  "/auth/reset-password",
+  "/api/auth/reset-password"
 ]);
 async function requireAuthJwt(req, res, next) {
   const path3 = req.path;
@@ -63810,8 +63838,8 @@ async function requireAuthJwt(req, res, next) {
   }
   const legacyToken = getLegacyToken();
   if (legacyToken && legacyToken.length >= 16) {
-    const candidateDigest = createHash("sha256").update(rawToken).digest();
-    const legacyDigest = createHash("sha256").update(legacyToken).digest();
+    const candidateDigest = createHash2("sha256").update(rawToken).digest();
+    const legacyDigest = createHash2("sha256").update(legacyToken).digest();
     if (candidateDigest.length === legacyDigest.length && timingSafeEqual(candidateDigest, legacyDigest)) {
       req.authUser = {
         id: 0,
@@ -67696,9 +67724,90 @@ router9.delete("/memory/:id", async (req, res) => {
 var memory_default = router9;
 
 // src/routes/briefings.ts
+var import_express11 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+
+// src/routes/quotas.ts
 var import_express10 = __toESM(require_express2(), 1);
 init_drizzle_orm();
 var router10 = (0, import_express10.Router)();
+var updateSchema = external_exports2.object({
+  maxAiCallsPerDay: external_exports2.number().int().min(0).optional(),
+  maxAiCallsPerMonth: external_exports2.number().int().min(0).optional(),
+  maxUsersCount: external_exports2.number().int().min(1).optional(),
+  maxStorageMb: external_exports2.number().int().min(0).optional(),
+  maxExportsPerDay: external_exports2.number().int().min(0).optional(),
+  costBudgetCentsPerMonth: external_exports2.number().int().min(0).optional()
+});
+async function getOrCreateQuota(tenantId) {
+  const [existing] = await db.select().from(tenantQuotasTable).where(eq(tenantQuotasTable.tenantId, tenantId)).limit(1);
+  if (existing) return existing;
+  const [created] = await db.insert(tenantQuotasTable).values({ tenantId }).returning();
+  return created;
+}
+router10.get("/quotas", async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  try {
+    const quota = await getOrCreateQuota(tenantId);
+    res.json(quota);
+  } catch (err) {
+    logger.error({ err }, "Failed to get quotas");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router10.patch("/quotas", requireRole("owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  const parse3 = updateSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    await getOrCreateQuota(tenantId);
+    const [updated] = await db.update(tenantQuotasTable).set({ ...parse3.data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenantQuotasTable.tenantId, tenantId)).returning();
+    logger.info({ tenantId, userId: req.authUser?.id }, "Tenant quotas updated");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to update quotas");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+async function checkAndIncrementAiCalls(tenantId) {
+  try {
+    const quota = await getOrCreateQuota(tenantId);
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    if (quota.lastResetDate !== today) {
+      await db.update(tenantQuotasTable).set({ aiCallsToday: 0, lastResetDate: today, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenantQuotasTable.tenantId, tenantId));
+      quota.aiCallsToday = 0;
+    }
+    if (quota.aiCallsToday >= quota.maxAiCallsPerDay) {
+      return { allowed: false, reason: `Quota journalier IA atteint (${quota.maxAiCallsPerDay} appels/jour).` };
+    }
+    if (quota.aiCallsThisMonth >= quota.maxAiCallsPerMonth) {
+      return { allowed: false, reason: `Quota mensuel IA atteint (${quota.maxAiCallsPerMonth} appels/mois).` };
+    }
+    await db.update(tenantQuotasTable).set({
+      aiCallsToday: quota.aiCallsToday + 1,
+      aiCallsThisMonth: quota.aiCallsThisMonth + 1,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(tenantQuotasTable.tenantId, tenantId));
+    return { allowed: true };
+  } catch {
+    return { allowed: true };
+  }
+}
+var quotas_default = router10;
+
+// src/routes/briefings.ts
+var router11 = (0, import_express11.Router)();
 var briefingCache = null;
 var BRIEFING_CACHE_TTL = 36e5;
 var weeklyCache = null;
@@ -67706,12 +67815,28 @@ var WEEKLY_CACHE_TTL = 36e5;
 function invalidateBriefingCache() {
   briefingCache = null;
 }
-router10.get("/briefings/morning", async (_req, res) => {
+async function checkQuota(req, res) {
+  const tenantId = req.tenantId;
+  if (!tenantId) return true;
+  const guard = await checkAndIncrementAiCalls(tenantId);
+  if (!guard.allowed) {
+    logger.warn({ tenantId, path: req.path }, `AI quota exceeded on briefings: ${guard.reason}`);
+    res.status(429).json({
+      error: "Quota IA d\xE9pass\xE9.",
+      detail: guard.reason,
+      code: "AI_QUOTA_EXCEEDED"
+    });
+    return false;
+  }
+  return true;
+}
+router11.get("/briefings/morning", async (req, res) => {
   const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
   if (briefingCache && briefingCache.date === today && Date.now() - briefingCache.cachedAt < BRIEFING_CACHE_TTL) {
     res.json(briefingCache.data);
     return;
   }
+  if (!await checkQuota(req, res)) return;
   const [todayEvents, pendingHighPriorityTasks, upcomingDeadlines, overdueTasks] = await Promise.all([
     db.select().from(eventsTable).where(eq(eventsTable.eventDate, today)),
     db.select().from(tasksTable).where(and(eq(tasksTable.status, "pending"), eq(tasksTable.priority, "high"))).orderBy(tasksTable.dueDate).limit(5),
@@ -67767,12 +67892,13 @@ router10.get("/briefings/morning", async (_req, res) => {
   briefingCache = { date: today, data: briefingData, cachedAt: Date.now() };
   res.json(briefingData);
 });
-router10.post("/briefings/evening", async (req, res) => {
+router11.post("/briefings/evening", async (req, res) => {
   const parsed = SubmitEveningReviewBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
     return;
   }
+  if (!await checkQuota(req, res)) return;
   const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
   const koreResponse = await generateEveningResponse({
     mostImportantThing: parsed.data.mostImportantThing,
@@ -67798,7 +67924,7 @@ router10.post("/briefings/evening", async (req, res) => {
   invalidateBriefingCache();
   res.status(201).json(review);
 });
-router10.get("/briefings/weekly", async (_req, res) => {
+router11.get("/briefings/weekly", async (req, res) => {
   const today = /* @__PURE__ */ new Date();
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - 6);
@@ -67807,6 +67933,7 @@ router10.get("/briefings/weekly", async (_req, res) => {
     res.json(weeklyCache.data);
     return;
   }
+  if (!await checkQuota(req, res)) return;
   const weekEndStr = today.toISOString().split("T")[0];
   const [
     energyResult,
@@ -67854,19 +67981,19 @@ router10.get("/briefings/weekly", async (_req, res) => {
   weeklyCache = { weekStart: weekStartStr, data: weeklyData, cachedAt: Date.now() };
   res.json(weeklyData);
 });
-router10.get("/briefings/evening/history", async (_req, res) => {
+router11.get("/briefings/evening/history", async (_req, res) => {
   const reviews = await db.select().from(eveningReviewsTable).orderBy(desc(eveningReviewsTable.createdAt)).limit(30);
   res.json(reviews);
 });
-var briefings_default = router10;
+var briefings_default = router11;
 
 // src/routes/overload.ts
-var import_express11 = __toESM(require_express2(), 1);
+var import_express12 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router11 = (0, import_express11.Router)();
+var router12 = (0, import_express12.Router)();
 var overloadCache = null;
 var OVERLOAD_CACHE_TTL = 18e5;
-router11.get("/overload/status", async (_req, res) => {
+router12.get("/overload/status", async (_req, res) => {
   if (overloadCache && Date.now() - overloadCache.cachedAt < OVERLOAD_CACHE_TTL) {
     res.json(overloadCache.data);
     return;
@@ -67900,7 +68027,7 @@ router11.get("/overload/status", async (_req, res) => {
   overloadCache = { data, cachedAt: Date.now() };
   res.json(data);
 });
-router11.post("/overload/energy", async (req, res) => {
+router12.post("/overload/energy", async (req, res) => {
   const parsed = LogEnergyLevelBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -67916,19 +68043,19 @@ router11.post("/overload/energy", async (req, res) => {
   invalidateBriefingCache();
   res.status(201).json(log);
 });
-router11.get("/overload/energy/history", async (_req, res) => {
+router12.get("/overload/energy/history", async (_req, res) => {
   const thirtyDaysAgo = /* @__PURE__ */ new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysStr = thirtyDaysAgo.toISOString().split("T")[0];
   const logs = await db.select().from(energyLogsTable).where(gte(energyLogsTable.logDate, thirtyDaysStr)).orderBy(desc(energyLogsTable.logDate));
   res.json(logs);
 });
-var overload_default = router11;
+var overload_default = router12;
 
 // src/routes/ai.ts
-var import_express12 = __toESM(require_express2(), 1);
-var router12 = (0, import_express12.Router)();
-router12.post("/ai/transcribe", async (req, res) => {
+var import_express13 = __toESM(require_express2(), 1);
+var router13 = (0, import_express13.Router)();
+router13.post("/ai/transcribe", async (req, res) => {
   const parsed = TranscribeAudioBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -67938,15 +68065,28 @@ router12.post("/ai/transcribe", async (req, res) => {
     res.status(413).json({ error: "Audio payload too large" });
     return;
   }
+  const tenantId = req.tenantId;
+  if (tenantId) {
+    const guard = await checkAndIncrementAiCalls(tenantId);
+    if (!guard.allowed) {
+      logger.warn({ tenantId, path: req.path }, `AI quota exceeded: ${guard.reason}`);
+      res.status(429).json({
+        error: "Quota IA d\xE9pass\xE9.",
+        detail: guard.reason,
+        code: "AI_QUOTA_EXCEEDED"
+      });
+      return;
+    }
+  }
   const transcript = await transcribeAudio(parsed.data.audioBase64, parsed.data.mimeType ?? "audio/webm");
   res.json({ transcript, language: "fr" });
 });
-var ai_default = router12;
+var ai_default = router13;
 
 // src/routes/recordings.ts
-var import_express13 = __toESM(require_express2(), 1);
+var import_express14 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router13 = (0, import_express13.Router)();
+var router14 = (0, import_express14.Router)();
 var recordingLimiter = rateLimit({ windowMs: 6e4, max: 10 });
 var VALID_MEETING_TYPES = ["meeting", "call", "brainstorm", "voice"];
 function isMeetingType(v) {
@@ -67956,7 +68096,21 @@ function asStr(v, max2 = 500) {
   if (typeof v !== "string" || !v.trim()) return null;
   return v.trim().slice(0, max2);
 }
-router13.post("/recordings/analyze", recordingLimiter, async (req, res) => {
+async function checkQuota2(tenantId, res) {
+  if (!tenantId) return true;
+  const guard = await checkAndIncrementAiCalls(tenantId);
+  if (!guard.allowed) {
+    logger.warn({ tenantId }, `AI quota exceeded on recordings: ${guard.reason}`);
+    res.status(429).json({
+      error: "Quota IA d\xE9pass\xE9.",
+      detail: guard.reason,
+      code: "AI_QUOTA_EXCEEDED"
+    });
+    return false;
+  }
+  return true;
+}
+router14.post("/recordings/analyze", recordingLimiter, async (req, res) => {
   const { audioBase64, mimeType, title, context, meetingType, durationSeconds } = req.body ?? {};
   const safeTitle = asStr(title, 500);
   if (!safeTitle) {
@@ -67971,6 +68125,7 @@ router13.post("/recordings/analyze", recordingLimiter, async (req, res) => {
     res.status(413).json({ error: "Audio trop volumineux. Maximum ~45 minutes." });
     return;
   }
+  if (!await checkQuota2(req.tenantId, res)) return;
   const safeMimeType = typeof mimeType === "string" ? mimeType : "audio/webm";
   const safeMeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
   const safeContext = asStr(context, 2e3);
@@ -67998,7 +68153,7 @@ router13.post("/recordings/analyze", recordingLimiter, async (req, res) => {
     res.status(500).json({ error: msg });
   }
 });
-router13.post("/recordings/analyze-text", recordingLimiter, async (req, res) => {
+router14.post("/recordings/analyze-text", recordingLimiter, async (req, res) => {
   const { transcript, title, context, meetingType, durationSeconds } = req.body ?? {};
   const safeTitle = asStr(title, 500);
   const safeTranscript = asStr(transcript, 6e4);
@@ -68006,6 +68161,7 @@ router13.post("/recordings/analyze-text", recordingLimiter, async (req, res) => 
     res.status(400).json({ error: "title et transcript requis" });
     return;
   }
+  if (!await checkQuota2(req.tenantId, res)) return;
   const safeMeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
   const safeContext = asStr(context, 2e3);
   const safeDuration = typeof durationSeconds === "number" && durationSeconds >= 0 ? Math.floor(durationSeconds) : null;
@@ -68031,7 +68187,7 @@ router13.post("/recordings/analyze-text", recordingLimiter, async (req, res) => 
     res.status(500).json({ error: msg });
   }
 });
-router13.get("/recordings", async (_req, res) => {
+router14.get("/recordings", async (_req, res) => {
   const rows = await db.select({
     id: recordingsTable.id,
     title: recordingsTable.title,
@@ -68042,7 +68198,7 @@ router13.get("/recordings", async (_req, res) => {
   }).from(recordingsTable).orderBy(desc(recordingsTable.createdAt)).limit(50);
   res.json(rows);
 });
-router13.get("/recordings/:id", async (req, res) => {
+router14.get("/recordings/:id", async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68068,7 +68224,7 @@ router13.get("/recordings/:id", async (req, res) => {
   }
   res.json({ ...row, actionItems, commitments, decisions });
 });
-router13.delete("/recordings/:id", async (req, res) => {
+router14.delete("/recordings/:id", async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68077,12 +68233,12 @@ router13.delete("/recordings/:id", async (req, res) => {
   await db.delete(recordingsTable).where(eq(recordingsTable.id, id));
   res.status(204).end();
 });
-var recordings_default = router13;
+var recordings_default = router14;
 
 // src/routes/leads.ts
-var import_express14 = __toESM(require_express2(), 1);
+var import_express15 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router14 = (0, import_express14.Router)();
+var router15 = (0, import_express15.Router)();
 var scoreLimiter = rateLimit({ windowMs: 6e4, max: 15 });
 var VALID_STATUSES = ["new", "contacted", "nurturing", "proposal", "won", "lost", "paused"];
 var VALID_PRIORITIES = ["high", "medium", "low"];
@@ -68096,14 +68252,14 @@ function isStatus(v) {
 function isPriority(v) {
   return typeof v === "string" && VALID_PRIORITIES.includes(v);
 }
-router14.get("/leads", async (req, res) => {
+router15.get("/leads", async (req, res) => {
   const leads = await db.select().from(leadsTable).orderBy(
     desc(leadsTable.score),
     desc(leadsTable.createdAt)
   ).limit(200);
   res.json(leads);
 });
-router14.get("/leads/:id", async (req, res) => {
+router15.get("/leads/:id", async (req, res) => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68117,7 +68273,7 @@ router14.get("/leads/:id", async (req, res) => {
   const activities = await db.select().from(leadActivitiesTable).where(eq(leadActivitiesTable.leadId, id)).orderBy(asc(leadActivitiesTable.createdAt));
   res.json({ ...lead, activities });
 });
-router14.post("/leads", async (req, res) => {
+router15.post("/leads", async (req, res) => {
   const b = req.body ?? {};
   const name2 = asStr2(b.name, 200);
   if (!name2) {
@@ -68152,7 +68308,7 @@ router14.post("/leads", async (req, res) => {
   });
   res.status(201).json(lead);
 });
-router14.patch("/leads/:id", async (req, res) => {
+router15.patch("/leads/:id", async (req, res) => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68196,7 +68352,7 @@ router14.patch("/leads/:id", async (req, res) => {
   const [updated] = await db.update(leadsTable).set(updates).where(eq(leadsTable.id, id)).returning();
   res.json(updated);
 });
-router14.post("/leads/:id/score", scoreLimiter, async (req, res) => {
+router15.post("/leads/:id/score", scoreLimiter, async (req, res) => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68229,7 +68385,7 @@ router14.post("/leads/:id/score", scoreLimiter, async (req, res) => {
     res.status(500).json({ error: msg });
   }
 });
-router14.post("/leads/:id/activities", async (req, res) => {
+router15.post("/leads/:id/activities", async (req, res) => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68250,7 +68406,7 @@ router14.post("/leads/:id/activities", async (req, res) => {
   await db.update(leadsTable).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(leadsTable.id, id));
   res.status(201).json(act);
 });
-router14.delete("/leads/:id", async (req, res) => {
+router15.delete("/leads/:id", async (req, res) => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -68260,7 +68416,7 @@ router14.delete("/leads/:id", async (req, res) => {
   await db.delete(leadsTable).where(eq(leadsTable.id, id));
   res.status(204).end();
 });
-router14.get("/leads/export.csv", async (_req, res) => {
+router15.get("/leads/export.csv", async (_req, res) => {
   const leads = await db.select().from(leadsTable).orderBy(desc(leadsTable.score), desc(leadsTable.createdAt));
   const headers = ["id", "name", "company", "role", "email", "phone", "industry", "source", "status", "priority", "score", "conversion_probability", "next_best_action", "red_team_warning", "budget", "decision_timeline", "company_size", "signals", "notes", "next_action_date", "created_at"];
   const escape2 = (v) => {
@@ -68274,13 +68430,13 @@ router14.get("/leads/export.csv", async (_req, res) => {
   res.setHeader("Content-Disposition", 'attachment; filename="leads-tams.csv"');
   res.send([headers.join(","), ...rows].join("\n"));
 });
-var leads_default = router14;
+var leads_default = router15;
 
 // src/routes/audit.ts
-var import_express15 = __toESM(require_express2(), 1);
+var import_express16 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router15 = (0, import_express15.Router)();
-router15.get("/audit", async (req, res) => {
+var router16 = (0, import_express16.Router)();
+router16.get("/audit", async (req, res) => {
   try {
     const limit = Math.min(parseInt(String(req.query.limit ?? "100"), 10), 500);
     const offset = parseInt(String(req.query.offset ?? "0"), 10);
@@ -68302,13 +68458,13 @@ router15.get("/audit", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch audit logs" });
   }
 });
-var audit_default = router15;
+var audit_default = router16;
 
 // src/routes/diagnostics.ts
-var import_express16 = __toESM(require_express2(), 1);
+var import_express17 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router16 = (0, import_express16.Router)();
-router16.get("/diagnostics", async (req, res) => {
+var router17 = (0, import_express17.Router)();
+router17.get("/diagnostics", async (req, res) => {
   const startTime = Date.now();
   const checks = {};
   try {
@@ -68349,13 +68505,13 @@ router16.get("/diagnostics", async (req, res) => {
     dbStatus: getDbStatus()
   });
 });
-var diagnostics_default = router16;
+var diagnostics_default = router17;
 
 // src/routes/export.ts
-var import_express17 = __toESM(require_express2(), 1);
+var import_express18 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router17 = (0, import_express17.Router)();
-router17.get("/export", async (req, res) => {
+var router18 = (0, import_express18.Router)();
+router18.get("/export", async (req, res) => {
   try {
     const [
       captures,
@@ -68412,13 +68568,13 @@ router17.get("/export", async (req, res) => {
     res.status(500).json({ error: "Export failed" });
   }
 });
-var export_default = router17;
+var export_default = router18;
 
 // src/routes/red-team.ts
-var import_express18 = __toESM(require_express2(), 1);
+var import_express19 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router18 = (0, import_express18.Router)();
-router18.post("/red-team/run", async (req, res) => {
+var router19 = (0, import_express19.Router)();
+router19.post("/red-team/run", async (req, res) => {
   const results = [];
   const baseUrl = `http://localhost:${process.env.PORT ?? 8080}`;
   try {
@@ -68618,12 +68774,12 @@ router18.post("/red-team/run", async (req, res) => {
   };
   res.json({ results, summary, runAt: (/* @__PURE__ */ new Date()).toISOString() });
 });
-var red_team_default = router18;
+var red_team_default = router19;
 
 // src/routes/registry.ts
-var import_express19 = __toESM(require_express2(), 1);
+var import_express20 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router19 = (0, import_express19.Router)();
+var router20 = (0, import_express20.Router)();
 var createSchema = external_exports2.object({
   type: external_exports2.enum(["agent", "prompt", "playbook", "policy", "workflow", "provider", "integration", "data_source"]),
   name: external_exports2.string().min(1).max(200),
@@ -68635,8 +68791,8 @@ var createSchema = external_exports2.object({
   scope: external_exports2.string().max(100).default("global"),
   config: external_exports2.string().optional()
 });
-var updateSchema = createSchema.partial();
-router19.get("/registry", async (req, res) => {
+var updateSchema2 = createSchema.partial();
+router20.get("/registry", async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68650,7 +68806,7 @@ router19.get("/registry", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router19.get("/registry/:id", async (req, res) => {
+router20.get("/registry/:id", async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
@@ -68669,7 +68825,7 @@ router19.get("/registry/:id", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router19.post("/registry", requireRole("admin", "owner"), async (req, res) => {
+router20.post("/registry", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68689,14 +68845,14 @@ router19.post("/registry", requireRole("admin", "owner"), async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router19.patch("/registry/:id", requireRole("admin", "owner"), async (req, res) => {
+router20.patch("/registry/:id", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
     res.status(400).json({ error: "Param\xE8tres invalides." });
     return;
   }
-  const parse3 = updateSchema.safeParse(req.body);
+  const parse3 = updateSchema2.safeParse(req.body);
   if (!parse3.success) {
     res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
     return;
@@ -68714,7 +68870,7 @@ router19.patch("/registry/:id", requireRole("admin", "owner"), async (req, res) 
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router19.delete("/registry/:id", requireRole("admin", "owner"), async (req, res) => {
+router20.delete("/registry/:id", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
@@ -68734,12 +68890,12 @@ router19.delete("/registry/:id", requireRole("admin", "owner"), async (req, res)
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-var registry_default = router19;
+var registry_default = router20;
 
 // src/routes/approvals.ts
-var import_express20 = __toESM(require_express2(), 1);
+var import_express21 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router20 = (0, import_express20.Router)();
+var router21 = (0, import_express21.Router)();
 var RISK_REQUIRED_ROLE = {
   low: "member",
   medium: "admin",
@@ -68757,7 +68913,7 @@ var reviewSchema = external_exports2.object({
   decision: external_exports2.enum(["approved", "rejected", "cancelled"]),
   note: external_exports2.string().max(500).optional()
 });
-router20.get("/approvals", async (req, res) => {
+router21.get("/approvals", async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68771,7 +68927,7 @@ router20.get("/approvals", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router20.post("/approvals", async (req, res) => {
+router21.post("/approvals", async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68802,7 +68958,7 @@ router20.post("/approvals", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router20.patch("/approvals/:id", async (req, res) => {
+router21.patch("/approvals/:id", async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
@@ -68851,18 +69007,18 @@ router20.patch("/approvals/:id", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-var approvals_default = router20;
+var approvals_default = router21;
 
 // src/routes/kill-switch.ts
-var import_express21 = __toESM(require_express2(), 1);
+var import_express22 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router21 = (0, import_express21.Router)();
+var router22 = (0, import_express22.Router)();
 var createSchema3 = external_exports2.object({
   target: external_exports2.enum(["agent", "provider", "workflow", "module"]),
   targetName: external_exports2.string().min(1).max(200),
   reason: external_exports2.string().max(500).optional()
 });
-router21.get("/kill-switches", requireRole("admin", "owner"), async (req, res) => {
+router22.get("/kill-switches", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68876,7 +69032,7 @@ router21.get("/kill-switches", requireRole("admin", "owner"), async (req, res) =
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router21.post("/kill-switches", requireRole("admin", "owner"), async (req, res) => {
+router22.post("/kill-switches", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68902,7 +69058,7 @@ router21.post("/kill-switches", requireRole("admin", "owner"), async (req, res) 
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router21.post("/kill-switches/:id/activate", requireRole("admin", "owner"), async (req, res) => {
+router22.post("/kill-switches/:id/activate", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
@@ -68937,7 +69093,7 @@ router21.post("/kill-switches/:id/activate", requireRole("admin", "owner"), asyn
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router21.post("/kill-switches/:id/deactivate", requireRole("admin", "owner"), async (req, res) => {
+router22.post("/kill-switches/:id/deactivate", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
@@ -68967,7 +69123,7 @@ router21.post("/kill-switches/:id/deactivate", requireRole("admin", "owner"), as
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router21.delete("/kill-switches/:id", requireRole("owner"), async (req, res) => {
+router22.delete("/kill-switches/:id", requireRole("owner"), async (req, res) => {
   const tenantId = req.tenantId;
   const id = Number(req.params.id);
   if (!tenantId || isNaN(id)) {
@@ -68986,12 +69142,12 @@ router21.delete("/kill-switches/:id", requireRole("owner"), async (req, res) => 
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-var kill_switch_default = router21;
+var kill_switch_default = router22;
 
 // src/routes/profile.ts
-var import_express22 = __toESM(require_express2(), 1);
+var import_express23 = __toESM(require_express2(), 1);
 init_drizzle_orm();
-var router22 = (0, import_express22.Router)();
+var router23 = (0, import_express23.Router)();
 var updateProfileSchema = external_exports2.object({
   name: external_exports2.string().min(1).max(100).optional()
 });
@@ -68999,7 +69155,7 @@ var changePasswordSchema = external_exports2.object({
   currentPassword: external_exports2.string().min(1),
   newPassword: external_exports2.string().min(8)
 });
-router22.get("/profile", async (req, res) => {
+router23.get("/profile", async (req, res) => {
   const userId = req.authUser?.id;
   if (!userId) {
     res.status(401).json({ error: "Non authentifi\xE9." });
@@ -69026,7 +69182,7 @@ router22.get("/profile", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router22.patch("/profile", async (req, res) => {
+router23.patch("/profile", async (req, res) => {
   const userId = req.authUser?.id;
   if (!userId) {
     res.status(401).json({ error: "Non authentifi\xE9." });
@@ -69050,7 +69206,7 @@ router22.patch("/profile", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router22.post("/profile/change-password", async (req, res) => {
+router23.post("/profile/change-password", async (req, res) => {
   const userId = req.authUser?.id;
   if (!userId) {
     res.status(401).json({ error: "Non authentifi\xE9." });
@@ -69081,62 +69237,7 @@ router22.post("/profile/change-password", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-var profile_default = router22;
-
-// src/routes/quotas.ts
-var import_express23 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router23 = (0, import_express23.Router)();
-var updateSchema2 = external_exports2.object({
-  maxAiCallsPerDay: external_exports2.number().int().min(0).optional(),
-  maxAiCallsPerMonth: external_exports2.number().int().min(0).optional(),
-  maxUsersCount: external_exports2.number().int().min(1).optional(),
-  maxStorageMb: external_exports2.number().int().min(0).optional(),
-  maxExportsPerDay: external_exports2.number().int().min(0).optional(),
-  costBudgetCentsPerMonth: external_exports2.number().int().min(0).optional()
-});
-async function getOrCreateQuota(tenantId) {
-  const [existing] = await db.select().from(tenantQuotasTable).where(eq(tenantQuotasTable.tenantId, tenantId)).limit(1);
-  if (existing) return existing;
-  const [created] = await db.insert(tenantQuotasTable).values({ tenantId }).returning();
-  return created;
-}
-router23.get("/quotas", async (req, res) => {
-  const tenantId = req.tenantId;
-  if (!tenantId) {
-    res.status(400).json({ error: "Tenant manquant." });
-    return;
-  }
-  try {
-    const quota = await getOrCreateQuota(tenantId);
-    res.json(quota);
-  } catch (err) {
-    logger.error({ err }, "Failed to get quotas");
-    res.status(500).json({ error: "Erreur serveur." });
-  }
-});
-router23.patch("/quotas", requireRole("owner"), async (req, res) => {
-  const tenantId = req.tenantId;
-  if (!tenantId) {
-    res.status(400).json({ error: "Tenant manquant." });
-    return;
-  }
-  const parse3 = updateSchema2.safeParse(req.body);
-  if (!parse3.success) {
-    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
-    return;
-  }
-  try {
-    await getOrCreateQuota(tenantId);
-    const [updated] = await db.update(tenantQuotasTable).set({ ...parse3.data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenantQuotasTable.tenantId, tenantId)).returning();
-    logger.info({ tenantId, userId: req.authUser?.id }, "Tenant quotas updated");
-    res.json(updated);
-  } catch (err) {
-    logger.error({ err }, "Failed to update quotas");
-    res.status(500).json({ error: "Erreur serveur." });
-  }
-});
-var quotas_default = router23;
+var profile_default = router23;
 
 // src/middlewares/audit.ts
 var WRITE_METHODS = /* @__PURE__ */ new Set(["POST", "PATCH", "PUT", "DELETE"]);

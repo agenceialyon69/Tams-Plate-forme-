@@ -2,6 +2,7 @@ import {
   pgTable,
   text,
   serial,
+  integer,
   timestamp,
   pgEnum,
   boolean,
@@ -23,7 +24,7 @@ export const userStatusEnum = pgEnum("user_status", [
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
-  tenantId: serial("tenant_id")
+  tenantId: integer("tenant_id")
     .notNull()
     .references(() => tenantsTable.id),
   email: text("email").notNull().unique(),
