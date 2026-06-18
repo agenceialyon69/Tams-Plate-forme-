@@ -24,6 +24,7 @@ import {
   Settings2,
   LogOut,
   Radio,
+  Users,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
@@ -93,6 +94,7 @@ const navItems = [
   { href: "/", label: "Aperçu", icon: Home },
   { href: "/capture", label: "Capture", icon: Mic },
   { href: "/recordings", label: "Enregistrements", icon: Radio },
+  { href: "/prospects", label: "Prospection", icon: Users },
   { href: "/tasks", label: "Tâches", icon: CheckCircle2 },
   { href: "/memory", label: "Mémoire", icon: BrainCircuit },
   { href: "/decisions", label: "Décisions", icon: Compass },
@@ -222,6 +224,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/capture" component={Capture} />
           <Route path="/recordings" component={Recordings} />
+          <Route path="/prospects" component={Prospects} />
           <Route path="/tasks" component={Tasks} />
           <Route path="/memory" component={Memory} />
           <Route path="/decisions" component={Decisions} />
@@ -240,6 +243,7 @@ function Router() {
 import Dashboard from "./pages/dashboard";
 import Capture from "./pages/capture";
 import Recordings from "./pages/recordings";
+import Prospects from "./pages/prospects";
 import Tasks from "./pages/tasks";
 import Memory from "./pages/memory";
 import Decisions from "./pages/decisions";
