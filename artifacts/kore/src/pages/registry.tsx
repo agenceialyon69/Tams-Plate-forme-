@@ -1,36 +1,33 @@
 import { useState } from "react";
-import { BookOpen, Search, Tag, User, Clock, Activity, Filter } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen, Search, Tag, User, Clock, Activity, Plus, Trash2, Pencil, X, Check, Loader2, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
+import { getStoredUser } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
-type EntryType = "agent" | "prompt" | "playbook" | "policy" | "workflow" | "provider" | "integration";
+type EntryType = "agent" | "prompt" | "playbook" | "policy" | "workflow" | "provider" | "integration" | "data_source";
+type EntryStatus = "active" | "draft" | "deprecated" | "disabled";
+type Sensitivity = "public" | "internal" | "restricted" | "critical";
 
 interface RegistryEntry {
-  id: string;
+  id: number;
+  tenantId: number;
   type: EntryType;
   name: string;
   description: string;
   owner: string;
   version: string;
-  status: "active" | "draft" | "deprecated" | "disabled";
-  sensitivity: "public" | "internal" | "restricted" | "critical";
+  status: EntryStatus;
+  sensitivity: Sensitivity;
   scope: string;
-  lastChange: string;
+  config?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
-
-const ENTRIES: RegistryEntry[] = [
-  { id: "e1", type: "agent", name: "Scoring Agent", description: "Score les opportunités commerciales via Gemini.", owner: "system", version: "1.2.0", status: "active", sensitivity: "internal", scope: "commercial", lastChange: "2025-06-15" },
-  { id: "e2", type: "agent", name: "Capture Agent", description: "Transcription et structuration des réunions.", owner: "system", version: "1.0.3", status: "active", sensitivity: "internal", scope: "capture", lastChange: "2025-06-10" },
-  { id: "e3", type: "prompt", name: "Briefing System Prompt", description: "Prompt de génération de briefings commerciaux.", owner: "admin@gandal.local", version: "3.0.0", status: "active", sensitivity: "restricted", scope: "commercial", lastChange: "2025-06-17" },
-  { id: "e4", type: "prompt", name: "Red Team Attack Prompt", description: "Prompt d'injection et de test adversarial.", owner: "admin@gandal.local", version: "1.1.0", status: "active", sensitivity: "critical", scope: "red-team", lastChange: "2025-06-12" },
-  { id: "e5", type: "playbook", name: "Outbound Enterprise", description: "Séquence outbound pour les comptes enterprise.", owner: "admin@gandal.local", version: "2.0.0", status: "active", sensitivity: "internal", scope: "prospection", lastChange: "2025-06-08" },
-  { id: "e6", type: "policy", name: "No Cross-Tenant Access", description: "Interdit toute lecture de données hors tenant.", owner: "system", version: "1.0.0", status: "active", sensitivity: "critical", scope: "global", lastChange: "2025-06-01" },
-  { id: "e7", type: "policy", name: "Export Requires Role", description: "L'export de données nécessite le rôle member minimum.", owner: "system", version: "1.0.0", status: "active", sensitivity: "restricted", scope: "global", lastChange: "2025-06-01" },
-  { id: "e8", type: "provider", name: "Google Gemini", description: "Provider IA principal pour génération et scoring.", owner: "system", version: "gemini-2.0-flash", status: "active", sensitivity: "restricted", scope: "ai", lastChange: "2025-06-01" },
-  { id: "e9", type: "provider", name: "Groq Whisper", description: "Provider de transcription audio.", owner: "system", version: "whisper-large-v3", status: "active", sensitivity: "restricted", scope: "capture", lastChange: "2025-05-20" },
-  { id: "e10", type: "workflow", name: "Approval Workflow", description: "Validation d'actions sensibles avant exécution.", owner: "system", version: "1.0.0", status: "draft", sensitivity: "restricted", scope: "global", lastChange: "2025-06-18" },
-];
 
 const TYPE_COLORS: Record<EntryType, string> = {
   agent: "bg-blue-500/10 text-blue-600 border-blue-200",
@@ -40,29 +37,75 @@ const TYPE_COLORS: Record<EntryType, string> = {
   workflow: "bg-teal-500/10 text-teal-600 border-teal-200",
   provider: "bg-cyan-500/10 text-cyan-600 border-cyan-200",
   integration: "bg-green-500/10 text-green-600 border-green-200",
+  data_source: "bg-pink-500/10 text-pink-600 border-pink-200",
 };
 
-const SENSITIVITY_COLORS: Record<string, string> = {
+const SENSITIVITY_COLORS: Record<Sensitivity, string> = {
   public: "bg-gray-100 text-gray-600",
   internal: "bg-blue-50 text-blue-600",
   restricted: "bg-amber-50 text-amber-600",
   critical: "bg-red-50 text-red-600",
 };
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<EntryStatus, string> = {
   active: "bg-green-50 text-green-600",
   draft: "bg-gray-50 text-gray-500",
   deprecated: "bg-amber-50 text-amber-500",
   disabled: "bg-red-50 text-red-500",
 };
 
-const ALL_TYPES: EntryType[] = ["agent", "prompt", "playbook", "policy", "workflow", "provider", "integration"];
+const ALL_TYPES: EntryType[] = ["agent", "prompt", "playbook", "policy", "workflow", "provider", "integration", "data_source"];
+
+const BLANK_FORM = {
+  type: "agent" as EntryType,
+  name: "",
+  description: "",
+  owner: "system",
+  version: "1.0.0",
+  status: "draft" as EntryStatus,
+  sensitivity: "internal" as Sensitivity,
+  scope: "global",
+};
 
 export default function Registry() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<EntryType | "all">("all");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(BLANK_FORM);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const user = getStoredUser();
+  const canWrite = user?.role === "admin" || user?.role === "owner";
 
-  const filtered = ENTRIES.filter((e) => {
+  const { data: entries = [], isLoading, error } = useQuery<RegistryEntry[]>({
+    queryKey: ["registry"],
+    queryFn: () => apiFetch<RegistryEntry[]>("/registry"),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof BLANK_FORM) => apiFetch<RegistryEntry>("/registry", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["registry"] });
+      toast({ title: "Entrée créée" });
+      setShowForm(false);
+      setForm(BLANK_FORM);
+    },
+    onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/registry/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["registry"] });
+      toast({ title: "Entrée supprimée" });
+    },
+    onError: (e: Error) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const filtered = entries.filter((e) => {
     const matchType = filterType === "all" || e.type === filterType;
     const matchSearch =
       !search ||
@@ -74,15 +117,77 @@ export default function Registry() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-accent" />
-          <h1 className="text-2xl font-serif font-semibold">Registry Central</h1>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-accent" />
+            <h1 className="text-2xl font-serif font-semibold">Registry Central</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Tout ce que GANDAL sait faire — agents, prompts, playbooks, politiques, workflows, providers.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Tout ce que GANDAL sait faire — agents, prompts, playbooks, politiques, workflows, providers.
-        </p>
+        {canWrite && (
+          <Button size="sm" onClick={() => setShowForm((v) => !v)} className="gap-1.5">
+            {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {showForm ? "Annuler" : "Nouvelle entrée"}
+          </Button>
+        )}
       </div>
+
+      {showForm && canWrite && (
+        <Card className="border-border/50">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <h3 className="text-sm font-semibold">Nouvelle entrée</h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+                <select
+                  value={form.type}
+                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as EntryType }))}
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background"
+                >
+                  {ALL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Statut</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as EntryStatus }))}
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background"
+                >
+                  {["active", "draft", "deprecated", "disabled"].map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <Input placeholder="Nom" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              <Input placeholder="Version (ex: 1.0.0)" value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />
+              <Input placeholder="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="sm:col-span-2" />
+              <Input placeholder="Owner (ex: system, admin@example.com)" value={form.owner} onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))} />
+              <Input placeholder="Scope (ex: global, commercial, ai)" value={form.scope} onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value }))} />
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Sensibilité</label>
+                <select
+                  value={form.sensitivity}
+                  onChange={(e) => setForm((f) => ({ ...f, sensitivity: e.target.value as Sensitivity }))}
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background"
+                >
+                  {["public", "internal", "restricted", "critical"].map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => createMutation.mutate(form)}
+              disabled={!form.name.trim() || createMutation.isPending}
+              className="gap-1.5"
+            >
+              {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Créer
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -107,59 +212,82 @@ export default function Registry() {
               onClick={() => setFilterType(t)}
               className={`text-xs px-3 py-1.5 rounded-md border transition-colors capitalize ${filterType === t ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/30"}`}
             >
-              {t}
+              {t.replace("_", " ")}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="text-xs text-muted-foreground">{filtered.length} entrée{filtered.length > 1 ? "s" : ""}</div>
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-      <div className="space-y-3">
-        {filtered.map((entry) => (
-          <Card key={entry.id} className="border-border/50 hover:border-border transition-colors">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-start gap-3 flex-wrap">
-                <div className="flex-1 min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${TYPE_COLORS[entry.type]}`}>
-                      {entry.type}
-                    </span>
-                    <span className="font-medium text-sm">{entry.name}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${STATUS_COLORS[entry.status]}`}>
-                      {entry.status}
-                    </span>
+      {error && (
+        <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/5 rounded-lg border border-destructive/20">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          Impossible de charger le registry.
+        </div>
+      )}
+
+      {!isLoading && !error && (
+        <>
+          <div className="text-xs text-muted-foreground">{filtered.length} entrée{filtered.length > 1 ? "s" : ""}</div>
+
+          <div className="space-y-3">
+            {filtered.map((entry) => (
+              <Card key={entry.id} className="border-border/50 hover:border-border transition-colors">
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-start gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${TYPE_COLORS[entry.type]}`}>
+                          {entry.type.replace("_", " ")}
+                        </span>
+                        <span className="font-medium text-sm">{entry.name}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${STATUS_COLORS[entry.status]}`}>
+                          {entry.status}
+                        </span>
+                      </div>
+                      {entry.description && <p className="text-xs text-muted-foreground">{entry.description}</p>}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> {entry.owner}</span>
+                        <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> v{entry.version}</span>
+                        <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> {entry.scope}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {new Date(entry.updatedAt).toLocaleDateString("fr-FR")}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded text-xs capitalize ${SENSITIVITY_COLORS[entry.sensitivity]}`}>
+                          {entry.sensitivity}
+                        </span>
+                      </div>
+                    </div>
+                    {canWrite && (
+                      <button
+                        onClick={() => deleteMutation.mutate(entry.id)}
+                        disabled={deleteMutation.isPending}
+                        className="text-muted-foreground/40 hover:text-destructive transition-colors p-1"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{entry.description}</p>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" /> {entry.owner}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Tag className="w-3 h-3" /> v{entry.version}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Activity className="w-3 h-3" /> {entry.scope}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {entry.lastChange}
-                    </span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs capitalize ${SENSITIVITY_COLORS[entry.sensitivity]}`}>
-                      {entry.sensitivity}
-                    </span>
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {filtered.length === 0 && !isLoading && (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                {entries.length === 0
+                  ? "Registry vide — crée ta première entrée."
+                  : "Aucune entrée ne correspond à ta recherche."}
               </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground text-sm">
-            Aucune entrée ne correspond à votre recherche.
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

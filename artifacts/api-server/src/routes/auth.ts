@@ -1,8 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db, usersTable, tenantsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import crypto from "node:crypto";
+import { db, usersTable, tenantsTable, passwordResetTokensTable } from "@workspace/db";
+import { eq, and, gt } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
 
@@ -16,6 +17,8 @@ function getJwtSecret(): string {
   return secret;
 }
 
+const SESSION_DURATION = process.env.SESSION_DURATION ?? "8h";
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -26,6 +29,15 @@ const registerSchema = z.object({
   password: z.string().min(8),
   name: z.string().min(1).max(100),
   tenantSlug: z.string().min(1).max(60).optional(),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(8),
 });
 
 router.post("/auth/login", async (req, res) => {
@@ -77,7 +89,7 @@ router.post("/auth/login", async (req, res) => {
         tenantSlug: tenant?.slug ?? "default",
       },
       getJwtSecret(),
-      { expiresIn: "7d" },
+      { expiresIn: SESSION_DURATION } as jwt.SignOptions,
     );
 
     await db
@@ -89,6 +101,7 @@ router.post("/auth/login", async (req, res) => {
 
     res.json({
       token,
+      sessionDuration: SESSION_DURATION,
       user: {
         id: user.id,
         email: user.email,
@@ -183,13 +196,14 @@ router.post("/auth/register", async (req, res) => {
         tenantSlug: tenant.slug,
       },
       getJwtSecret(),
-      { expiresIn: "7d" },
+      { expiresIn: SESSION_DURATION } as jwt.SignOptions,
     );
 
     logger.info({ userId: user.id, email: user.email, tenantId: tenant.id }, "User registered");
 
     res.status(201).json({
       token,
+      sessionDuration: SESSION_DURATION,
       user: {
         id: user.id,
         email: user.email,
@@ -257,6 +271,91 @@ router.get("/auth/me", async (req, res) => {
 
 router.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
+});
+
+router.post("/auth/forgot-password", async (req, res) => {
+  const parse = forgotPasswordSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: "Email invalide." });
+    return;
+  }
+
+  const always = { ok: true, message: "Si ce compte existe, un lien de réinitialisation a été généré." };
+
+  try {
+    const [user] = await db
+      .select({ id: usersTable.id, email: usersTable.email, status: usersTable.status })
+      .from(usersTable)
+      .where(eq(usersTable.email, parse.data.email.toLowerCase().trim()))
+      .limit(1);
+
+    if (!user || user.status !== "active") {
+      res.json(always);
+      return;
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await db.insert(passwordResetTokensTable).values({
+      userId: user.id,
+      token: rawToken,
+      expiresAt,
+    });
+
+    logger.info({ userId: user.id, email: user.email }, "Password reset token generated");
+
+    res.json({ ...always, resetToken: rawToken });
+  } catch (err) {
+    logger.error({ err }, "Forgot password error");
+    res.json(always);
+  }
+});
+
+router.post("/auth/reset-password", async (req, res) => {
+  const parse = resetPasswordSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: "Données invalides." });
+    return;
+  }
+
+  const { token, newPassword } = parse.data;
+
+  try {
+    const [resetRecord] = await db
+      .select()
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.token, token))
+      .limit(1);
+
+    if (!resetRecord || resetRecord.usedAt) {
+      res.status(400).json({ error: "Token invalide ou déjà utilisé." });
+      return;
+    }
+
+    if (resetRecord.expiresAt < new Date()) {
+      res.status(400).json({ error: "Token expiré. Refaites une demande de réinitialisation." });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await db
+      .update(usersTable)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, resetRecord.userId));
+
+    await db
+      .update(passwordResetTokensTable)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokensTable.id, resetRecord.id));
+
+    logger.info({ userId: resetRecord.userId }, "Password reset successful");
+    res.json({ ok: true, message: "Mot de passe réinitialisé. Tu peux te connecter." });
+  } catch (err) {
+    logger.error({ err }, "Reset password error");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
 });
 
 export default router;

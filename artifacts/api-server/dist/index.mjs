@@ -1430,7 +1430,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "../../node_modules/.pnpm/pg@8.20.0/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
-    var crypto2 = require_utils2();
+    var crypto3 = require_utils2();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function startSession(mechanisms, stream) {
       const candidates = ["SCRAM-SHA-256"];
@@ -1442,7 +1442,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto2.randomBytes(18).toString("base64");
+      const clientNonce = crypto3.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
       return {
         mechanism,
@@ -1477,20 +1477,20 @@ var require_sasl = __commonJS({
         const peerCert = stream.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto2.hashByName(hashName, peerCert);
+        const certHash = await crypto3.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto2.deriveKey(password, saltBytes, sv.iteration);
-      const clientKey = await crypto2.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto2.sha256(clientKey);
-      const clientSignature = await crypto2.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto3.deriveKey(password, saltBytes, sv.iteration);
+      const clientKey = await crypto3.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto3.sha256(clientKey);
+      const clientSignature = await crypto3.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto2.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto2.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto3.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto3.hmacSha256(serverKey, authMessage);
       session.message = "SASLResponse";
       session.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -3658,7 +3658,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults2 = require_defaults();
     var Connection2 = require_connection();
-    var crypto2 = require_utils2();
+    var crypto3 = require_utils2();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -3893,7 +3893,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto2.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto3.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -28025,14 +28025,14 @@ var require_etag = __commonJS({
   "../../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto2.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto3.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -29755,27 +29755,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router20;
+    module.exports = Router25;
     module.exports.Route = Route;
-    function Router20(options) {
-      if (!(this instanceof Router20)) {
-        return new Router20(options);
+    function Router25(options) {
+      if (!(this instanceof Router25)) {
+        return new Router25(options);
       }
       const opts = options || {};
-      function router20(req, res, next) {
-        router20.handle(req, res, next);
+      function router25(req, res, next) {
+        router25.handle(req, res, next);
       }
-      Object.setPrototypeOf(router20, this);
-      router20.caseSensitive = opts.caseSensitive;
-      router20.mergeParams = opts.mergeParams;
-      router20.params = {};
-      router20.strict = opts.strict;
-      router20.stack = [];
-      return router20;
+      Object.setPrototypeOf(router25, this);
+      router25.caseSensitive = opts.caseSensitive;
+      router25.mergeParams = opts.mergeParams;
+      router25.params = {};
+      router25.strict = opts.strict;
+      router25.stack = [];
+      return router25;
     }
-    Router20.prototype = function() {
+    Router25.prototype = function() {
     };
-    Router20.prototype.param = function param2(name2, fn) {
+    Router25.prototype.param = function param2(name2, fn) {
       if (!name2) {
         throw new TypeError("argument name is required");
       }
@@ -29795,7 +29795,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router20.prototype.handle = function handle(req, res, callback) {
+    Router25.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -29922,7 +29922,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router20.prototype.use = function use(handler) {
+    Router25.prototype.use = function use(handler) {
       let offset = 0;
       let path3 = "/";
       if (typeof handler !== "function") {
@@ -29955,7 +29955,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router20.prototype.route = function route(path3) {
+    Router25.prototype.route = function route(path3) {
       const route2 = new Route(path3);
       const layer = new Layer(path3, {
         sensitive: this.caseSensitive,
@@ -29970,7 +29970,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router20.prototype[method] = function(path3) {
+      Router25.prototype[method] = function(path3) {
         const route = this.route(path3);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -30153,13 +30153,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils5().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router20 = require_router();
+    var Router25 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router20 = null;
+      var router25 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -30168,13 +30168,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router20 === null) {
-            router20 = new Router20({
+          if (router25 === null) {
+            router25 = new Router25({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router20;
+          return router25;
         }
       });
     };
@@ -30245,15 +30245,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router20 = this.router;
+      var router25 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router20.use(path3, fn2);
+          return router25.use(path3, fn2);
         }
         debug(".use app under %s", path3);
         fn2.mountpath = path3;
         fn2.parent = this;
-        router20.use(path3, function mounted_app(req, res, next) {
+        router25.use(path3, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -31507,17 +31507,17 @@ var require_content_disposition = __commonJS({
 // ../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js"(exports) {
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input, secret) {
       if ("string" != typeof input) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input.slice(0, input.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input);
-      return expectedBuffer.length === inputBuffer.length && crypto2.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto3.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -32826,7 +32826,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router20 = require_router();
+    var Router25 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -32848,8 +32848,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router20.Route;
-    exports.Router = Router20;
+    exports.Route = Router25.Route;
+    exports.Router = Router25;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -38015,14 +38015,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "../../node_modules/.pnpm/jwa@2.0.1/node_modules/jwa/index.js"(exports, module) {
     var Buffer2 = require_safe_buffer().Buffer;
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util2 = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto2.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto3.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -38112,17 +38112,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto2.createHmac("sha" + bits, secret);
+        var hmac = crypto3.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual2 = "timingSafeEqual" in crypto2 ? function timingSafeEqual3(a, b) {
+    var timingSafeEqual2 = "timingSafeEqual" in crypto3 ? function timingSafeEqual3(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto2.timingSafeEqual(a, b);
+      return crypto3.timingSafeEqual(a, b);
     } : function timingSafeEqual3(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -38139,7 +38139,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto2.createSign("RSA-SHA" + bits);
+        var signer = crypto3.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -38149,7 +38149,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto2.createVerify("RSA-SHA" + bits);
+        var verifier = crypto3.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -38158,11 +38158,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto2.createSign("RSA-SHA" + bits);
+        var signer = crypto3.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto2.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto2.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto3.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto3.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -38172,12 +38172,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto2.createVerify("RSA-SHA" + bits);
+        var verifier = crypto3.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto2.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto2.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto3.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto3.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -39267,8 +39267,8 @@ var require_gt = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.4/node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
     var compare2 = require_compare();
-    var gt2 = (a, b, loose) => compare2(a, b, loose) > 0;
-    module.exports = gt2;
+    var gt3 = (a, b, loose) => compare2(a, b, loose) > 0;
+    module.exports = gt3;
   }
 });
 
@@ -39328,7 +39328,7 @@ var require_cmp = __commonJS({
     "use strict";
     var eq2 = require_eq();
     var neq = require_neq();
-    var gt2 = require_gt();
+    var gt3 = require_gt();
     var gte2 = require_gte();
     var lt2 = require_lt();
     var lte2 = require_lte();
@@ -39357,7 +39357,7 @@ var require_cmp = __commonJS({
         case "!=":
           return neq(a, b, loose);
         case ">":
-          return gt2(a, b, loose);
+          return gt3(a, b, loose);
         case ">=":
           return gte2(a, b, loose);
         case "<":
@@ -40085,7 +40085,7 @@ var require_min_version = __commonJS({
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
-    var gt2 = require_gt();
+    var gt3 = require_gt();
     var minVersion = (range, loose) => {
       range = new Range(range, loose);
       let minver = new SemVer("0.0.0");
@@ -40113,7 +40113,7 @@ var require_min_version = __commonJS({
             /* fallthrough */
             case "":
             case ">=":
-              if (!setMin || gt2(compver, setMin)) {
+              if (!setMin || gt3(compver, setMin)) {
                 setMin = compver;
               }
               break;
@@ -40125,7 +40125,7 @@ var require_min_version = __commonJS({
               throw new Error(`Unexpected operation: ${comparator.operator}`);
           }
         });
-        if (setMin && (!minver || gt2(minver, setMin))) {
+        if (setMin && (!minver || gt3(minver, setMin))) {
           minver = setMin;
         }
       }
@@ -40163,7 +40163,7 @@ var require_outside = __commonJS({
     var { ANY } = Comparator;
     var Range = require_range2();
     var satisfies = require_satisfies();
-    var gt2 = require_gt();
+    var gt3 = require_gt();
     var lt2 = require_lt();
     var lte2 = require_lte();
     var gte2 = require_gte();
@@ -40173,7 +40173,7 @@ var require_outside = __commonJS({
       let gtfn, ltefn, ltfn, comp, ecomp;
       switch (hilo) {
         case ">":
-          gtfn = gt2;
+          gtfn = gt3;
           ltefn = lte2;
           ltfn = lt2;
           comp = ">";
@@ -40182,7 +40182,7 @@ var require_outside = __commonJS({
         case "<":
           gtfn = lt2;
           ltefn = gte2;
-          ltfn = gt2;
+          ltfn = gt3;
           comp = "<";
           ecomp = "<=";
           break;
@@ -40360,10 +40360,10 @@ var require_subset = __commonJS({
         }
       }
       const eqSet = /* @__PURE__ */ new Set();
-      let gt2, lt2;
+      let gt3, lt2;
       for (const c of sub) {
         if (c.operator === ">" || c.operator === ">=") {
-          gt2 = higherGT(gt2, c, options);
+          gt3 = higherGT(gt3, c, options);
         } else if (c.operator === "<" || c.operator === "<=") {
           lt2 = lowerLT(lt2, c, options);
         } else {
@@ -40374,16 +40374,16 @@ var require_subset = __commonJS({
         return null;
       }
       let gtltComp;
-      if (gt2 && lt2) {
-        gtltComp = compare2(gt2.semver, lt2.semver, options);
+      if (gt3 && lt2) {
+        gtltComp = compare2(gt3.semver, lt2.semver, options);
         if (gtltComp > 0) {
           return null;
-        } else if (gtltComp === 0 && (gt2.operator !== ">=" || lt2.operator !== "<=")) {
+        } else if (gtltComp === 0 && (gt3.operator !== ">=" || lt2.operator !== "<=")) {
           return null;
         }
       }
       for (const eq2 of eqSet) {
-        if (gt2 && !satisfies(eq2, String(gt2), options)) {
+        if (gt3 && !satisfies(eq2, String(gt3), options)) {
           return null;
         }
         if (lt2 && !satisfies(eq2, String(lt2), options)) {
@@ -40399,25 +40399,25 @@ var require_subset = __commonJS({
       let higher, lower;
       let hasDomLT, hasDomGT;
       let needDomLTPre = lt2 && !options.includePrerelease && lt2.semver.prerelease.length ? lt2.semver : false;
-      let needDomGTPre = gt2 && !options.includePrerelease && gt2.semver.prerelease.length ? gt2.semver : false;
+      let needDomGTPre = gt3 && !options.includePrerelease && gt3.semver.prerelease.length ? gt3.semver : false;
       if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt2.operator === "<" && needDomLTPre.prerelease[0] === 0) {
         needDomLTPre = false;
       }
       for (const c of dom) {
         hasDomGT = hasDomGT || c.operator === ">" || c.operator === ">=";
         hasDomLT = hasDomLT || c.operator === "<" || c.operator === "<=";
-        if (gt2) {
+        if (gt3) {
           if (needDomGTPre) {
             if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomGTPre.major && c.semver.minor === needDomGTPre.minor && c.semver.patch === needDomGTPre.patch) {
               needDomGTPre = false;
             }
           }
           if (c.operator === ">" || c.operator === ">=") {
-            higher = higherGT(gt2, c, options);
-            if (higher === c && higher !== gt2) {
+            higher = higherGT(gt3, c, options);
+            if (higher === c && higher !== gt3) {
               return false;
             }
-          } else if (gt2.operator === ">=" && !c.test(gt2.semver)) {
+          } else if (gt3.operator === ">=" && !c.test(gt3.semver)) {
             return false;
           }
         }
@@ -40436,14 +40436,14 @@ var require_subset = __commonJS({
             return false;
           }
         }
-        if (!c.operator && (lt2 || gt2) && gtltComp !== 0) {
+        if (!c.operator && (lt2 || gt3) && gtltComp !== 0) {
           return false;
         }
       }
-      if (gt2 && hasDomLT && !lt2 && gtltComp !== 0) {
+      if (gt3 && hasDomLT && !lt2 && gtltComp !== 0) {
         return false;
       }
-      if (lt2 && hasDomGT && !gt2 && gtltComp !== 0) {
+      if (lt2 && hasDomGT && !gt3 && gtltComp !== 0) {
         return false;
       }
       if (needDomGTPre || needDomLTPre) {
@@ -40492,7 +40492,7 @@ var require_semver2 = __commonJS({
     var compareBuild = require_compare_build();
     var sort = require_sort();
     var rsort = require_rsort();
-    var gt2 = require_gt();
+    var gt3 = require_gt();
     var lt2 = require_lt();
     var eq2 = require_eq();
     var neq = require_neq();
@@ -40531,7 +40531,7 @@ var require_semver2 = __commonJS({
       compareBuild,
       sort,
       rsort,
-      gt: gt2,
+      gt: gt3,
       lt: lt2,
       eq: eq2,
       neq,
@@ -45307,6 +45307,9 @@ function drizzle(...params) {
 // ../../lib/db/src/schema/index.ts
 var schema_exports = {};
 __export(schema_exports, {
+  approvalRequestsTable: () => approvalRequestsTable,
+  approvalRiskEnum: () => approvalRiskEnum,
+  approvalStatusEnum: () => approvalStatusEnum,
   auditLogsTable: () => auditLogsTable,
   capturesTable: () => capturesTable,
   decisionsTable: () => decisionsTable,
@@ -45322,12 +45325,20 @@ __export(schema_exports, {
   insertMemorySchema: () => insertMemorySchema,
   insertRecordingSchema: () => insertRecordingSchema,
   insertTaskSchema: () => insertTaskSchema,
+  killSwitchTargetEnum: () => killSwitchTargetEnum,
+  killSwitchesTable: () => killSwitchesTable,
   leadActivitiesTable: () => leadActivitiesTable,
   leadsTable: () => leadsTable,
   learningsTable: () => learningsTable,
   memoryTable: () => memoryTable,
+  passwordResetTokensTable: () => passwordResetTokensTable,
   recordingsTable: () => recordingsTable,
+  registryEntriesTable: () => registryEntriesTable,
+  registryEntryStatusEnum: () => registryEntryStatusEnum,
+  registryEntryTypeEnum: () => registryEntryTypeEnum,
+  registrySensitivityEnum: () => registrySensitivityEnum,
   tasksTable: () => tasksTable,
+  tenantQuotasTable: () => tenantQuotasTable,
   tenantStatusEnum: () => tenantStatusEnum,
   tenantsTable: () => tenantsTable,
   userRoleEnum: () => userRoleEnum,
@@ -56937,6 +56948,8 @@ var leadActivitiesTable = pgTable("lead_activities", {
 // ../../lib/db/src/schema/audit_logs.ts
 var auditLogsTable = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  tenantId: integer("tenant_id"),
   action: text("action").notNull(),
   resource: text("resource").notNull(),
   resourceId: text("resource_id"),
@@ -56946,6 +56959,126 @@ var auditLogsTable = pgTable("audit_logs", {
   details: jsonb("details"),
   ip: text("ip"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// ../../lib/db/src/schema/password_reset_tokens.ts
+var passwordResetTokensTable = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// ../../lib/db/src/schema/registry_entries.ts
+var registryEntryTypeEnum = pgEnum("registry_entry_type", [
+  "agent",
+  "prompt",
+  "playbook",
+  "policy",
+  "workflow",
+  "provider",
+  "integration",
+  "data_source"
+]);
+var registryEntryStatusEnum = pgEnum("registry_entry_status", [
+  "active",
+  "draft",
+  "deprecated",
+  "disabled"
+]);
+var registrySensitivityEnum = pgEnum("registry_sensitivity", [
+  "public",
+  "internal",
+  "restricted",
+  "critical"
+]);
+var registryEntriesTable = pgTable("registry_entries", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id),
+  type: registryEntryTypeEnum("type").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  owner: text("owner").notNull().default("system"),
+  version: text("version").notNull().default("1.0.0"),
+  status: registryEntryStatusEnum("status").notNull().default("draft"),
+  sensitivity: registrySensitivityEnum("sensitivity").notNull().default("internal"),
+  scope: text("scope").notNull().default("global"),
+  config: text("config"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// ../../lib/db/src/schema/approval_requests.ts
+var approvalRiskEnum = pgEnum("approval_risk", [
+  "low",
+  "medium",
+  "high",
+  "critical"
+]);
+var approvalStatusEnum = pgEnum("approval_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+  "expired"
+]);
+var approvalRequestsTable = pgTable("approval_requests", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id),
+  requestedById: integer("requested_by_id").references(() => usersTable.id),
+  reviewedById: integer("reviewed_by_id").references(() => usersTable.id),
+  action: text("action").notNull(),
+  resource: text("resource").notNull(),
+  details: text("details").notNull().default(""),
+  risk: approvalRiskEnum("risk").notNull().default("medium"),
+  status: approvalStatusEnum("status").notNull().default("pending"),
+  reviewNote: text("review_note"),
+  metadata: jsonb("metadata"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// ../../lib/db/src/schema/kill_switches.ts
+var killSwitchTargetEnum = pgEnum("kill_switch_target", [
+  "agent",
+  "provider",
+  "workflow",
+  "module"
+]);
+var killSwitchesTable = pgTable("kill_switches", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id),
+  target: killSwitchTargetEnum("target").notNull(),
+  targetName: text("target_name").notNull(),
+  active: boolean("active").notNull().default(false),
+  reason: text("reason"),
+  activatedById: integer("activated_by_id").references(() => usersTable.id),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+
+// ../../lib/db/src/schema/tenant_quotas.ts
+var tenantQuotasTable = pgTable("tenant_quotas", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().unique().references(() => tenantsTable.id),
+  maxAiCallsPerDay: integer("max_ai_calls_per_day").notNull().default(200),
+  maxAiCallsPerMonth: integer("max_ai_calls_per_month").notNull().default(5e3),
+  maxUsersCount: integer("max_users_count").notNull().default(10),
+  maxStorageMb: integer("max_storage_mb").notNull().default(1e3),
+  maxExportsPerDay: integer("max_exports_per_day").notNull().default(10),
+  costBudgetCentsPerMonth: integer("cost_budget_cents_per_month").notNull().default(5e3),
+  aiCallsToday: integer("ai_calls_today").notNull().default(0),
+  aiCallsThisMonth: integer("ai_calls_this_month").notNull().default(0),
+  costCentsThisMonth: integer("cost_cents_this_month").notNull().default(0),
+  lastResetDate: text("last_reset_date"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
 
 // ../../lib/db/src/ensure-schema.ts
@@ -57087,6 +57220,98 @@ var STATEMENTS = [
     details JSONB,
     ip TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_id INTEGER`,
+  `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id INTEGER`,
+  `CREATE TABLE IF NOT EXISTS tenants (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'active',
+    self_service_enabled BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member',
+    status TEXT NOT NULL DEFAULT 'active',
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS registry_entries (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    owner TEXT NOT NULL DEFAULT 'system',
+    version TEXT NOT NULL DEFAULT '1.0.0',
+    status TEXT NOT NULL DEFAULT 'draft',
+    sensitivity TEXT NOT NULL DEFAULT 'internal',
+    scope TEXT NOT NULL DEFAULT 'global',
+    config TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS approval_requests (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    requested_by_id INTEGER REFERENCES users(id),
+    reviewed_by_id INTEGER REFERENCES users(id),
+    action TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '',
+    risk TEXT NOT NULL DEFAULT 'medium',
+    status TEXT NOT NULL DEFAULT 'pending',
+    review_note TEXT,
+    metadata JSONB,
+    expires_at TIMESTAMPTZ,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS kill_switches (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    target TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT false,
+    reason TEXT,
+    activated_by_id INTEGER REFERENCES users(id),
+    activated_at TIMESTAMPTZ,
+    deactivated_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS tenant_quotas (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL UNIQUE REFERENCES tenants(id),
+    max_ai_calls_per_day INTEGER NOT NULL DEFAULT 200,
+    max_ai_calls_per_month INTEGER NOT NULL DEFAULT 5000,
+    max_users_count INTEGER NOT NULL DEFAULT 10,
+    max_storage_mb INTEGER NOT NULL DEFAULT 1000,
+    max_exports_per_day INTEGER NOT NULL DEFAULT 10,
+    cost_budget_cents_per_month INTEGER NOT NULL DEFAULT 5000,
+    ai_calls_today INTEGER NOT NULL DEFAULT 0,
+    ai_calls_this_month INTEGER NOT NULL DEFAULT 0,
+    cost_cents_this_month INTEGER NOT NULL DEFAULT 0,
+    last_reset_date TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`
 ];
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -57167,7 +57392,7 @@ var pool = new Pool3(connectionString ? { connectionString } : {});
 var db = drizzle(pool, { schema: schema_exports });
 
 // src/app.ts
-var import_express20 = __toESM(require_express2(), 1);
+var import_express25 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib5(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -57175,7 +57400,7 @@ import path2 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/routes/index.ts
-var import_express19 = __toESM(require_express2(), 1);
+var import_express24 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -63262,6 +63487,7 @@ var bcryptjs_default = {
 
 // src/routes/auth.ts
 var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
+import crypto2 from "node:crypto";
 init_drizzle_orm();
 
 // src/lib/logger.ts
@@ -63291,6 +63517,7 @@ function getJwtSecret() {
   }
   return secret;
 }
+var SESSION_DURATION = process.env.SESSION_DURATION ?? "8h";
 var loginSchema = external_exports2.object({
   email: external_exports2.string().email(),
   password: external_exports2.string().min(1)
@@ -63300,6 +63527,13 @@ var registerSchema = external_exports2.object({
   password: external_exports2.string().min(8),
   name: external_exports2.string().min(1).max(100),
   tenantSlug: external_exports2.string().min(1).max(60).optional()
+});
+var forgotPasswordSchema = external_exports2.object({
+  email: external_exports2.string().email()
+});
+var resetPasswordSchema = external_exports2.object({
+  token: external_exports2.string().min(1),
+  newPassword: external_exports2.string().min(8)
 });
 router2.post("/auth/login", async (req, res) => {
   const parse3 = loginSchema.safeParse(req.body);
@@ -63335,12 +63569,13 @@ router2.post("/auth/login", async (req, res) => {
         tenantSlug: tenant?.slug ?? "default"
       },
       getJwtSecret(),
-      { expiresIn: "7d" }
+      { expiresIn: SESSION_DURATION }
     );
     await db.update(usersTable).set({ lastLoginAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, user.id));
     logger.info({ userId: user.id, email: user.email, tenantId: user.tenantId }, "User logged in");
     res.json({
       token,
+      sessionDuration: SESSION_DURATION,
       user: {
         id: user.id,
         email: user.email,
@@ -63402,11 +63637,12 @@ router2.post("/auth/register", async (req, res) => {
         tenantSlug: tenant.slug
       },
       getJwtSecret(),
-      { expiresIn: "7d" }
+      { expiresIn: SESSION_DURATION }
     );
     logger.info({ userId: user.id, email: user.email, tenantId: tenant.id }, "User registered");
     res.status(201).json({
       token,
+      sessionDuration: SESSION_DURATION,
       user: {
         id: user.id,
         email: user.email,
@@ -63452,6 +63688,60 @@ router2.get("/auth/me", async (req, res) => {
 });
 router2.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
+});
+router2.post("/auth/forgot-password", async (req, res) => {
+  const parse3 = forgotPasswordSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Email invalide." });
+    return;
+  }
+  const always = { ok: true, message: "Si ce compte existe, un lien de r\xE9initialisation a \xE9t\xE9 g\xE9n\xE9r\xE9." };
+  try {
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, status: usersTable.status }).from(usersTable).where(eq(usersTable.email, parse3.data.email.toLowerCase().trim())).limit(1);
+    if (!user || user.status !== "active") {
+      res.json(always);
+      return;
+    }
+    const rawToken = crypto2.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
+    await db.insert(passwordResetTokensTable).values({
+      userId: user.id,
+      token: rawToken,
+      expiresAt
+    });
+    logger.info({ userId: user.id, email: user.email }, "Password reset token generated");
+    res.json({ ...always, resetToken: rawToken });
+  } catch (err) {
+    logger.error({ err }, "Forgot password error");
+    res.json(always);
+  }
+});
+router2.post("/auth/reset-password", async (req, res) => {
+  const parse3 = resetPasswordSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides." });
+    return;
+  }
+  const { token, newPassword } = parse3.data;
+  try {
+    const [resetRecord] = await db.select().from(passwordResetTokensTable).where(eq(passwordResetTokensTable.token, token)).limit(1);
+    if (!resetRecord || resetRecord.usedAt) {
+      res.status(400).json({ error: "Token invalide ou d\xE9j\xE0 utilis\xE9." });
+      return;
+    }
+    if (resetRecord.expiresAt < /* @__PURE__ */ new Date()) {
+      res.status(400).json({ error: "Token expir\xE9. Refaites une demande de r\xE9initialisation." });
+      return;
+    }
+    const passwordHash = await bcryptjs_default.hash(newPassword, 12);
+    await db.update(usersTable).set({ passwordHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, resetRecord.userId));
+    await db.update(passwordResetTokensTable).set({ usedAt: /* @__PURE__ */ new Date() }).where(eq(passwordResetTokensTable.id, resetRecord.id));
+    logger.info({ userId: resetRecord.userId }, "Password reset successful");
+    res.json({ ok: true, message: "Mot de passe r\xE9initialis\xE9. Tu peux te connecter." });
+  } catch (err) {
+    logger.error({ err }, "Reset password error");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
 });
 var auth_default = router2;
 
@@ -63668,13 +63958,13 @@ function __classPrivateFieldGet(receiver, state, kind, f) {
 
 // ../../node_modules/.pnpm/groq-sdk@1.2.1/node_modules/groq-sdk/internal/utils/uuid.mjs
 var uuid42 = function() {
-  const { crypto: crypto2 } = globalThis;
-  if (crypto2?.randomUUID) {
-    uuid42 = crypto2.randomUUID.bind(crypto2);
-    return crypto2.randomUUID();
+  const { crypto: crypto3 } = globalThis;
+  if (crypto3?.randomUUID) {
+    uuid42 = crypto3.randomUUID.bind(crypto3);
+    return crypto3.randomUUID();
   }
   const u8 = new Uint8Array(1);
-  const randomByte = crypto2 ? () => crypto2.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
+  const randomByte = crypto3 ? () => crypto3.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (+c ^ randomByte() & 15 >> +c / 4).toString(16));
 };
 
@@ -67031,6 +67321,18 @@ function rateLimit(opts) {
     next();
   };
 }
+function rateLimitByTenant(opts) {
+  return rateLimit({
+    ...opts,
+    key: (req) => `tenant:${req.tenantId ?? req.ip ?? "unknown"}`
+  });
+}
+function rateLimitByUser(opts) {
+  return rateLimit({
+    ...opts,
+    key: (req) => `user:${req.authUser?.id ?? req.ip ?? "unknown"}`
+  });
+}
 
 // src/routes/captures.ts
 init_drizzle_orm();
@@ -68318,6 +68620,524 @@ router18.post("/red-team/run", async (req, res) => {
 });
 var red_team_default = router18;
 
+// src/routes/registry.ts
+var import_express19 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router19 = (0, import_express19.Router)();
+var createSchema = external_exports2.object({
+  type: external_exports2.enum(["agent", "prompt", "playbook", "policy", "workflow", "provider", "integration", "data_source"]),
+  name: external_exports2.string().min(1).max(200),
+  description: external_exports2.string().max(1e3).default(""),
+  owner: external_exports2.string().max(200).default("system"),
+  version: external_exports2.string().max(50).default("1.0.0"),
+  status: external_exports2.enum(["active", "draft", "deprecated", "disabled"]).default("draft"),
+  sensitivity: external_exports2.enum(["public", "internal", "restricted", "critical"]).default("internal"),
+  scope: external_exports2.string().max(100).default("global"),
+  config: external_exports2.string().optional()
+});
+var updateSchema = createSchema.partial();
+router19.get("/registry", async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  try {
+    const entries = await db.select().from(registryEntriesTable).where(eq(registryEntriesTable.tenantId, tenantId)).orderBy(registryEntriesTable.updatedAt);
+    res.json(entries);
+  } catch (err) {
+    logger.error({ err }, "Failed to list registry entries");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router19.get("/registry/:id", async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  try {
+    const [entry] = await db.select().from(registryEntriesTable).where(and(eq(registryEntriesTable.id, id), eq(registryEntriesTable.tenantId, tenantId))).limit(1);
+    if (!entry) {
+      res.status(404).json({ error: "Entr\xE9e introuvable." });
+      return;
+    }
+    res.json(entry);
+  } catch (err) {
+    logger.error({ err }, "Failed to get registry entry");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router19.post("/registry", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  const parse3 = createSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    const [entry] = await db.insert(registryEntriesTable).values({ ...parse3.data, tenantId }).returning();
+    logger.info({ entryId: entry.id, tenantId, userId: req.authUser?.id }, "Registry entry created");
+    res.status(201).json(entry);
+  } catch (err) {
+    logger.error({ err }, "Failed to create registry entry");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router19.patch("/registry/:id", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  const parse3 = updateSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    const [updated] = await db.update(registryEntriesTable).set({ ...parse3.data, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(registryEntriesTable.id, id), eq(registryEntriesTable.tenantId, tenantId))).returning();
+    if (!updated) {
+      res.status(404).json({ error: "Entr\xE9e introuvable." });
+      return;
+    }
+    logger.info({ entryId: id, tenantId, userId: req.authUser?.id }, "Registry entry updated");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to update registry entry");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router19.delete("/registry/:id", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  try {
+    const [deleted] = await db.delete(registryEntriesTable).where(and(eq(registryEntriesTable.id, id), eq(registryEntriesTable.tenantId, tenantId))).returning({ id: registryEntriesTable.id });
+    if (!deleted) {
+      res.status(404).json({ error: "Entr\xE9e introuvable." });
+      return;
+    }
+    logger.info({ entryId: id, tenantId, userId: req.authUser?.id }, "Registry entry deleted");
+    res.status(204).end();
+  } catch (err) {
+    logger.error({ err }, "Failed to delete registry entry");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var registry_default = router19;
+
+// src/routes/approvals.ts
+var import_express20 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router20 = (0, import_express20.Router)();
+var RISK_REQUIRED_ROLE = {
+  low: "member",
+  medium: "admin",
+  high: "admin",
+  critical: "owner"
+};
+var createSchema2 = external_exports2.object({
+  action: external_exports2.string().min(1).max(300),
+  resource: external_exports2.string().min(1).max(300),
+  details: external_exports2.string().max(2e3).default(""),
+  risk: external_exports2.enum(["low", "medium", "high", "critical"]).default("medium"),
+  metadata: external_exports2.record(external_exports2.unknown()).optional()
+});
+var reviewSchema = external_exports2.object({
+  decision: external_exports2.enum(["approved", "rejected", "cancelled"]),
+  note: external_exports2.string().max(500).optional()
+});
+router20.get("/approvals", async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  try {
+    const rows = await db.select().from(approvalRequestsTable).where(eq(approvalRequestsTable.tenantId, tenantId)).orderBy(desc(approvalRequestsTable.createdAt)).limit(100);
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, "Failed to list approvals");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router20.post("/approvals", async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  const parse3 = createSchema2.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
+  try {
+    const [request] = await db.insert(approvalRequestsTable).values({
+      tenantId,
+      requestedById: req.authUser?.id,
+      action: parse3.data.action,
+      resource: parse3.data.resource,
+      details: parse3.data.details,
+      risk: parse3.data.risk,
+      metadata: parse3.data.metadata ?? null,
+      expiresAt,
+      status: "pending"
+    }).returning();
+    logger.info({ approvalId: request.id, tenantId, userId: req.authUser?.id, risk: parse3.data.risk }, "Approval request created");
+    res.status(201).json(request);
+  } catch (err) {
+    logger.error({ err }, "Failed to create approval request");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router20.patch("/approvals/:id", async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  const parse3 = reviewSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    const [existing] = await db.select().from(approvalRequestsTable).where(and(eq(approvalRequestsTable.id, id), eq(approvalRequestsTable.tenantId, tenantId))).limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Demande introuvable." });
+      return;
+    }
+    if (existing.status !== "pending") {
+      res.status(409).json({ error: "Cette demande a d\xE9j\xE0 \xE9t\xE9 trait\xE9e." });
+      return;
+    }
+    const requiredRole = RISK_REQUIRED_ROLE[existing.risk] ?? "admin";
+    const roleHierarchy = { owner: 4, admin: 3, member: 2, viewer: 1 };
+    const userLevel = roleHierarchy[req.authUser?.role ?? "viewer"] ?? 0;
+    const requiredLevel = roleHierarchy[requiredRole] ?? 99;
+    if (userLevel < requiredLevel) {
+      res.status(403).json({ error: `Cette action requiert le r\xF4le ${requiredRole} minimum.` });
+      return;
+    }
+    const [updated] = await db.update(approvalRequestsTable).set({
+      status: parse3.data.decision,
+      reviewedById: req.authUser?.id,
+      reviewNote: parse3.data.note ?? null,
+      reviewedAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(approvalRequestsTable.id, id)).returning();
+    logger.info({
+      approvalId: id,
+      decision: parse3.data.decision,
+      reviewerId: req.authUser?.id,
+      tenantId
+    }, "Approval request reviewed");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to review approval request");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var approvals_default = router20;
+
+// src/routes/kill-switch.ts
+var import_express21 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router21 = (0, import_express21.Router)();
+var createSchema3 = external_exports2.object({
+  target: external_exports2.enum(["agent", "provider", "workflow", "module"]),
+  targetName: external_exports2.string().min(1).max(200),
+  reason: external_exports2.string().max(500).optional()
+});
+router21.get("/kill-switches", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  try {
+    const switches = await db.select().from(killSwitchesTable).where(eq(killSwitchesTable.tenantId, tenantId));
+    res.json(switches);
+  } catch (err) {
+    logger.error({ err }, "Failed to list kill switches");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router21.post("/kill-switches", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  const parse3 = createSchema3.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    const [ks] = await db.insert(killSwitchesTable).values({
+      tenantId,
+      target: parse3.data.target,
+      targetName: parse3.data.targetName,
+      reason: parse3.data.reason ?? null,
+      active: false
+    }).returning();
+    logger.info({ ksId: ks.id, tenantId, userId: req.authUser?.id }, "Kill switch created");
+    res.status(201).json(ks);
+  } catch (err) {
+    logger.error({ err }, "Failed to create kill switch");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router21.post("/kill-switches/:id/activate", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  const parse3 = external_exports2.object({ reason: external_exports2.string().max(500).optional() }).safeParse(req.body);
+  const reason = parse3.success ? parse3.data.reason : void 0;
+  try {
+    const [updated] = await db.update(killSwitchesTable).set({
+      active: true,
+      activatedById: req.authUser?.id,
+      activatedAt: /* @__PURE__ */ new Date(),
+      deactivatedAt: null,
+      reason: reason ?? null,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and(eq(killSwitchesTable.id, id), eq(killSwitchesTable.tenantId, tenantId))).returning();
+    if (!updated) {
+      res.status(404).json({ error: "Kill switch introuvable." });
+      return;
+    }
+    logger.warn({
+      ksId: id,
+      target: updated.target,
+      targetName: updated.targetName,
+      userId: req.authUser?.id,
+      tenantId
+    }, "KILL SWITCH ACTIVATED");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to activate kill switch");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router21.post("/kill-switches/:id/deactivate", requireRole("admin", "owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  try {
+    const [updated] = await db.update(killSwitchesTable).set({
+      active: false,
+      deactivatedAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and(eq(killSwitchesTable.id, id), eq(killSwitchesTable.tenantId, tenantId))).returning();
+    if (!updated) {
+      res.status(404).json({ error: "Kill switch introuvable." });
+      return;
+    }
+    logger.info({
+      ksId: id,
+      target: updated.target,
+      targetName: updated.targetName,
+      userId: req.authUser?.id,
+      tenantId
+    }, "Kill switch deactivated");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to deactivate kill switch");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router21.delete("/kill-switches/:id", requireRole("owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  const id = Number(req.params.id);
+  if (!tenantId || isNaN(id)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  try {
+    const [deleted] = await db.delete(killSwitchesTable).where(and(eq(killSwitchesTable.id, id), eq(killSwitchesTable.tenantId, tenantId))).returning({ id: killSwitchesTable.id });
+    if (!deleted) {
+      res.status(404).json({ error: "Kill switch introuvable." });
+      return;
+    }
+    res.status(204).end();
+  } catch (err) {
+    logger.error({ err }, "Failed to delete kill switch");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var kill_switch_default = router21;
+
+// src/routes/profile.ts
+var import_express22 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router22 = (0, import_express22.Router)();
+var updateProfileSchema = external_exports2.object({
+  name: external_exports2.string().min(1).max(100).optional()
+});
+var changePasswordSchema = external_exports2.object({
+  currentPassword: external_exports2.string().min(1),
+  newPassword: external_exports2.string().min(8)
+});
+router22.get("/profile", async (req, res) => {
+  const userId = req.authUser?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Non authentifi\xE9." });
+    return;
+  }
+  try {
+    const [user] = await db.select({
+      id: usersTable.id,
+      email: usersTable.email,
+      name: usersTable.name,
+      role: usersTable.role,
+      status: usersTable.status,
+      tenantId: usersTable.tenantId,
+      lastLoginAt: usersTable.lastLoginAt,
+      createdAt: usersTable.createdAt
+    }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "Profil introuvable." });
+      return;
+    }
+    res.json(user);
+  } catch (err) {
+    logger.error({ err }, "Failed to get profile");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router22.patch("/profile", async (req, res) => {
+  const userId = req.authUser?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Non authentifi\xE9." });
+    return;
+  }
+  const parse3 = updateProfileSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  if (!parse3.data.name) {
+    res.status(400).json({ error: "Aucune modification fournie." });
+    return;
+  }
+  try {
+    const [updated] = await db.update(usersTable).set({ name: parse3.data.name, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, userId)).returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email });
+    logger.info({ userId }, "Profile updated");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to update profile");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router22.post("/profile/change-password", async (req, res) => {
+  const userId = req.authUser?.id;
+  if (!userId) {
+    res.status(401).json({ error: "Non authentifi\xE9." });
+    return;
+  }
+  const parse3 = changePasswordSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    const [user] = await db.select({ id: usersTable.id, passwordHash: usersTable.passwordHash }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "Utilisateur introuvable." });
+      return;
+    }
+    const valid = await bcryptjs_default.compare(parse3.data.currentPassword, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Mot de passe actuel incorrect." });
+      return;
+    }
+    const newHash = await bcryptjs_default.hash(parse3.data.newPassword, 12);
+    await db.update(usersTable).set({ passwordHash: newHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, userId));
+    logger.info({ userId }, "Password changed");
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to change password");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var profile_default = router22;
+
+// src/routes/quotas.ts
+var import_express23 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router23 = (0, import_express23.Router)();
+var updateSchema2 = external_exports2.object({
+  maxAiCallsPerDay: external_exports2.number().int().min(0).optional(),
+  maxAiCallsPerMonth: external_exports2.number().int().min(0).optional(),
+  maxUsersCount: external_exports2.number().int().min(1).optional(),
+  maxStorageMb: external_exports2.number().int().min(0).optional(),
+  maxExportsPerDay: external_exports2.number().int().min(0).optional(),
+  costBudgetCentsPerMonth: external_exports2.number().int().min(0).optional()
+});
+async function getOrCreateQuota(tenantId) {
+  const [existing] = await db.select().from(tenantQuotasTable).where(eq(tenantQuotasTable.tenantId, tenantId)).limit(1);
+  if (existing) return existing;
+  const [created] = await db.insert(tenantQuotasTable).values({ tenantId }).returning();
+  return created;
+}
+router23.get("/quotas", async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  try {
+    const quota = await getOrCreateQuota(tenantId);
+    res.json(quota);
+  } catch (err) {
+    logger.error({ err }, "Failed to get quotas");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router23.patch("/quotas", requireRole("owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  if (!tenantId) {
+    res.status(400).json({ error: "Tenant manquant." });
+    return;
+  }
+  const parse3 = updateSchema2.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  try {
+    await getOrCreateQuota(tenantId);
+    const [updated] = await db.update(tenantQuotasTable).set({ ...parse3.data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenantQuotasTable.tenantId, tenantId)).returning();
+    logger.info({ tenantId, userId: req.authUser?.id }, "Tenant quotas updated");
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to update quotas");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var quotas_default = router23;
+
 // src/middlewares/audit.ts
 var WRITE_METHODS = /* @__PURE__ */ new Set(["POST", "PATCH", "PUT", "DELETE"]);
 function resourceFromPath(path3) {
@@ -68349,6 +69169,8 @@ function auditMiddleware(req, res, next) {
     const { resource, resourceId } = resourceFromPath(req.path);
     const action = actionFromMethod(req.method, resource);
     db.insert(auditLogsTable).values({
+      userId: req.authUser?.id ?? null,
+      tenantId: req.tenantId ?? null,
       action,
       resource,
       resourceId: resourceId ?? null,
@@ -68366,28 +69188,37 @@ function auditMiddleware(req, res, next) {
 }
 
 // src/routes/index.ts
-var router19 = (0, import_express19.Router)();
-router19.use(health_default);
-router19.use(auth_default);
-router19.use(auditMiddleware);
+var router24 = (0, import_express24.Router)();
+router24.use(health_default);
+router24.use(auth_default);
+router24.use(auditMiddleware);
 var aiLimiter = rateLimit({ windowMs: 6e4, max: 20 });
-router19.use(users_default);
-router19.use(captures_default);
-router19.use(tasks_default);
-router19.use(events_default);
-router19.use(learnings_default);
-router19.use(decisions_default);
-router19.use(memory_default);
-router19.use(briefings_default);
-router19.use(overload_default);
-router19.use(aiLimiter, ai_default);
-router19.use(aiLimiter, recordings_default);
-router19.use(leads_default);
-router19.use(audit_default);
-router19.use(diagnostics_default);
-router19.use(export_default);
-router19.use(red_team_default);
-var routes_default = router19;
+var tenantLimiter = rateLimitByTenant({ windowMs: 6e4, max: 300 });
+var userLimiter = rateLimitByUser({ windowMs: 6e4, max: 100 });
+router24.use(tenantLimiter);
+router24.use(userLimiter);
+router24.use(users_default);
+router24.use(captures_default);
+router24.use(tasks_default);
+router24.use(events_default);
+router24.use(learnings_default);
+router24.use(decisions_default);
+router24.use(memory_default);
+router24.use(briefings_default);
+router24.use(overload_default);
+router24.use(aiLimiter, ai_default);
+router24.use(aiLimiter, recordings_default);
+router24.use(leads_default);
+router24.use(audit_default);
+router24.use(diagnostics_default);
+router24.use(export_default);
+router24.use(red_team_default);
+router24.use(registry_default);
+router24.use(approvals_default);
+router24.use(kill_switch_default);
+router24.use(profile_default);
+router24.use(quotas_default);
+var routes_default = router24;
 
 // src/middlewares/security.ts
 var API_CSP = "default-src 'none'; frame-ancestors 'none'";
@@ -68422,7 +69253,7 @@ function securityHeaders(req, res, next) {
 }
 
 // src/app.ts
-var app = (0, import_express20.default)();
+var app = (0, import_express25.default)();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(
@@ -68468,12 +69299,12 @@ var corsMiddleware = (0, import_cors.default)({
   maxAge: 600
 });
 app.use(rateLimit({ windowMs: 6e4, max: 120 }));
-var audioJson = import_express20.default.json({ limit: "10mb" });
-var textJson = import_express20.default.json({ limit: "512kb" });
+var audioJson = import_express25.default.json({ limit: "10mb" });
+var textJson = import_express25.default.json({ limit: "512kb" });
 app.use(
   (req, res, next) => req.path === "/api/ai/transcribe" ? audioJson(req, res, next) : textJson(req, res, next)
 );
-app.use(import_express20.default.urlencoded({ extended: true, limit: "64kb" }));
+app.use(import_express25.default.urlencoded({ extended: true, limit: "64kb" }));
 var here = path2.dirname(fileURLToPath(import.meta.url));
 var clientDirCandidates = [
   process.env.CLIENT_DIR,
@@ -68539,7 +69370,7 @@ app.use("/api", (_req, res) => {
 if (clientDir) {
   logger.info({ clientDir }, "Serving web app");
   app.use(
-    import_express20.default.static(clientDir, {
+    import_express25.default.static(clientDir, {
       index: false,
       setHeaders(res, filePath) {
         if (filePath.includes(`${path2.sep}assets${path2.sep}`)) {

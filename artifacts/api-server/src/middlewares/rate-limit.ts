@@ -1,12 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
 
-// ---------------------------------------------------------------------------
-// In-memory rate limiter (sliding-window, per-IP).
-// For a single-server personal app this is correct. If you scale horizontally,
-// replace the Map with a Redis-backed counter.
-// ---------------------------------------------------------------------------
-
 const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function memoryCount(key: string, windowMs: number, max: number): { ok: boolean; remaining: number } {
@@ -54,4 +48,18 @@ export function rateLimit(opts: RateOptions) {
 
     next();
   };
+}
+
+export function rateLimitByTenant(opts: Omit<RateOptions, "key">) {
+  return rateLimit({
+    ...opts,
+    key: (req: Request) => `tenant:${req.tenantId ?? req.ip ?? "unknown"}`,
+  });
+}
+
+export function rateLimitByUser(opts: Omit<RateOptions, "key">) {
+  return rateLimit({
+    ...opts,
+    key: (req: Request) => `user:${req.authUser?.id ?? req.ip ?? "unknown"}`,
+  });
 }

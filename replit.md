@@ -1,75 +1,106 @@
-# GANDAL — Plateforme IA Gouvernée
+# GANDAL — Plateforme d'Intelligence Commerciale IA Gouvernée
 
-Plateforme personnelle d'IA avec mémoire persistante, mode red team intégré, audit trail immuable, observabilité complète et gouvernance.
+Plateforme multi-tenant d'IA avec gouvernance complète : registre d'agents, workflow d'approbation 4 niveaux, kill switches d'urgence, quotas IA par tenant, audit immuable, profils, reset de mot de passe, red team intégré.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/kore run dev` — run the frontend (port from env PORT)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/api-server run build` — build API (esbuild → dist/)
+- `pnpm --filter @workspace/kore run build` — build frontend (vite → dist/public/)
 - Required env:
   - `DATABASE_URL` — Postgres connection string
-  - `API_AUTH_TOKEN` — shared secret protecting the API (>= 16 chars). Generate with `openssl rand -hex 32`. The server refuses to start without it. Clients send it as `Authorization: Bearer <token>`.
-  - `PORT` — port to listen on
+  - `JWT_SECRET` — secret for JWT signing (>= 32 chars)
+  - `PORT` — port (api-server: 8080, kore: assigned by Replit)
+  - `BASE_PATH` — Vite base path (kore only, dev only)
 - Optional env:
-  - `FRONTEND_URL` — comma-separated allowlist of exact browser origins for CORS
-  - `GROQ_API_KEY` — enables voice transcription (`/api/ai/transcribe`)
-  - `GEMINI_API_KEY` — enables LLM extraction/analysis/briefings
-  - Frontend: `VITE_API_URL` — base URL of the API server
+  - `SESSION_DURATION` — JWT duration (default "8h", e.g. "24h", "7d")
+  - `FRONTEND_URL` — comma-separated CORS origins allowlist
+  - `GROQ_API_KEY` — voice transcription (`/api/ai/transcribe`)
+  - `GEMINI_API_KEY` — LLM extraction/analysis/briefings
 
 ## Security
 
-- All `/api` routes require a valid bearer token except `/api/healthz`. See `src/middlewares/auth.ts`.
-- Rate limiting: 120 req/min globally, 20 req/min on LLM endpoints.
-- Audit trail: all write operations (POST/PATCH/DELETE) are logged to `audit_logs` table.
-- Red Team mode: `/api/red-team/run` executes 9 real security tests.
-- See `SECURITY_AUDIT.md` for the full red-team audit and remediation log.
+- All `/api` routes require JWT bearer token except `/api/auth/login`, `/api/auth/register`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/healthz`
+- Rate limiting: 120 req/min globally (IP), 300/min per tenant, 100/min per user, 20/min on AI routes
+- Audit trail: all write operations (POST/PATCH/DELETE) logged to `audit_logs` with userId + tenantId
+- Multi-tenant RBAC: owner > admin > member > viewer enforced per-route
+- Red Team mode: `/api/red-team/run` executes 9 real security tests
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API: Express 5 + JWT auth + RBAC
+- DB: PostgreSQL + Drizzle ORM + ensure-schema (auto-migrate on boot)
+- Validation: Zod, drizzle-zod
+- Frontend: React 19, Vite 7, Tailwind 4, Shadcn/ui, TanStack Query, Wouter
 
-## Where things live
+## API Routes (v3.0)
 
-- `artifacts/kore/src/pages/` — all frontend pages
-- `artifacts/kore/src/components/` — shared components (CommandPalette, QuickCapture, LoginGate)
-- `artifacts/kore/src/lib/api.ts` — direct apiFetch for new endpoints not in OpenAPI spec
-- `artifacts/api-server/src/routes/` — all API routes
-- `artifacts/api-server/src/middlewares/audit.ts` — auto-audit middleware for all writes
-- `lib/db/src/schema/` — Drizzle schema (includes audit_logs)
+### Auth
+- `POST /api/auth/login` — login, returns JWT
+- `POST /api/auth/register` — create account + tenant
+- `POST /api/auth/forgot-password` — request password reset token
+- `POST /api/auth/reset-password` — reset password with token
+- `GET/PATCH /api/auth/me` — current user profile
 
-## New Pages (v2.0)
+### Profile
+- `GET /api/profile` — get own profile
+- `PATCH /api/profile` — update name/language preferences
+- `POST /api/profile/change-password` — change password (requires current)
 
-- `/audit` — Audit trail viewer (all write operations, exportable)
-- `/red-team` — Security test runner (9 tests: injection, auth, CORS, data leaks, headers)
-- `/diagnostics` — System health dashboard (DB, AI providers, memory, uptime, PWA status)
-- ⌘K — Command palette (navigation + actions rapides)
-- ⌘J — Quick capture (moved from ⌘K)
+### Registry (tenant-scoped)
+- `GET /api/registry` — list all agents for tenant
+- `POST /api/registry` — create agent (member+)
+- `GET /api/registry/:id` — get agent detail
+- `PATCH /api/registry/:id` — update agent (admin+)
+- `DELETE /api/registry/:id` — delete agent (admin+)
+
+### Approvals (4-tier risk: low/medium/high/critical)
+- `GET /api/approvals` — list requests
+- `POST /api/approvals` — create approval request (auto-assigns reviewer tier)
+- `GET /api/approvals/:id` — get request detail
+- `POST /api/approvals/:id/review` — approve/reject (tier-enforced RBAC)
+
+### Kill Switches (admin+)
+- `GET /api/kill-switches` — list all kill switches
+- `POST /api/kill-switches` — create (targets: agent/provider/workflow/module)
+- `POST /api/kill-switches/:id/activate` — emergency stop
+- `POST /api/kill-switches/:id/deactivate` — restore
+
+### Quotas
+- `GET /api/quotas` — tenant AI usage & budget
+- `PATCH /api/quotas` — update limits (admin+)
+
+### Existing routes
+- `/api/captures`, `/api/tasks`, `/api/memory`, `/api/briefings`, `/api/leads`, `/api/decisions`, `/api/recordings`, `/api/learnings`, `/api/events`, `/api/diagnostics`, `/api/red-team`, `/api/audit`, `/api/export`, `/api/ai`, `/api/users`, `/api/overload`
+
+## Frontend Pages
+
+- `/` — Dashboard (overview, captures, tasks)
+- `/registry` — Registre des agents IA (CRUD complet + filtres)
+- `/approvals` — Workflow d'approbation (4 niveaux de risque)
+- `/observability` — Observabilité (quotas IA, kill switches, audit live)
+- `/profile` — Profil utilisateur + changement de mot de passe
+- `/audit` — Journal d'audit complet
+- `/red-team` — Tests de sécurité red team
+- `/diagnostics` — Santé système
+
+## DB Schema (ensure-schema — auto-migrate on boot)
+
+Tables: `tenants`, `users`, `sessions`, `captures`, `tasks`, `memory_entries`, `briefings`, `leads`, `decisions`, `recordings`, `learnings`, `events`, `audit_logs` (+ userId, tenantId), `password_reset_tokens`, `registry_entries`, `approval_requests`, `kill_switches`, `tenant_quotas`
 
 ## Architecture decisions
 
-- New API endpoints (audit, diagnostics, export, red-team) bypass OpenAPI codegen — direct fetch via `apiFetch()` in `artifacts/kore/src/lib/api.ts`
+- `ensure-schema.ts` runs on API startup — uses IF NOT EXISTS + ADD COLUMN IF NOT EXISTS → safe for prod
+- New routes bypass OpenAPI codegen — direct `apiFetch()` in kore/src/lib/api.ts
 - Audit middleware is async/non-blocking — never delays API responses
-- Red Team tests run inside the same process (uses `fetch` to localhost) — no external dependencies
-- AI provider preferences stored in localStorage (`gandal_ai_prefs`) — backend still uses GEMINI_API_KEY env var
-
-## Product
-
-- Mémoire persistante structurée avec tags, domaines, recherche
-- Dashboard d'état général avec alertes surcharge
-- Journal d'audit immuable de toutes les actions
-- Mode Red Team : 9 tests de sécurité réels (injection, auth bypass, CORS, fuites de données)
-- Diagnostics système en temps réel
-- Command palette globale (⌘K) pour navigation rapide
-- Export complet des données en JSON
-- Sélecteur de provider IA (Gemini / Ollama / désactivé)
+- `checkAndIncrementAiCalls()` exported from quotas.ts — import in AI routes to enforce cost guardrails
+- Approval RBAC: low→member, medium/high→admin, critical→owner (enforced server-side)
+- Kill switch activation logged as WARN level in audit trail
+- Password reset tokens: 1h TTL, single-use, stored hashed in DB
+- Vite build (kore): PORT/BASE_PATH required in dev, optional in build (isBuild guard)
 
 ## User preferences
 
@@ -79,11 +110,8 @@ Plateforme personnelle d'IA avec mémoire persistante, mode red team intégré, 
 
 ## Gotchas
 
-- `git commit` and `git push` are managed by Replit's auto-commit system
-- To push to GitHub: configure GITHUB_TOKEN secret and run `git push origin main` from terminal, or use the Replit Git panel
-- Railway auto-deploys from `main` branch (configured in `railway.toml`)
-- New routes use `apiFetch` directly — if you add them to OpenAPI spec, remove the direct calls
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `git commit` is managed by Replit's auto-commit system at end of each agent task
+- To push to GitHub after auto-commit: `git push "https://${GITHUB_TOKEN}@github.com/agenceialyon69/Tams-Plate-forme-.git" main`
+- Kore vite.config.ts: PORT required in dev, skipped in build (isBuild check on process.argv)
+- `CREATE TYPE IF NOT EXISTS` is invalid PostgreSQL — use TEXT columns in ensure-schema, Drizzle pgEnum in schema files
+- Rate limit order matters: global IP limiter in app.ts, per-tenant + per-user in routes/index.ts before route handlers

@@ -31,6 +31,8 @@ export function auditMiddleware(req: Request, res: Response, next: NextFunction)
     const action = actionFromMethod(req.method, resource);
 
     db.insert(auditLogsTable).values({
+      userId: req.authUser?.id ?? null,
+      tenantId: req.tenantId ?? null,
       action,
       resource,
       resourceId: resourceId ?? null,

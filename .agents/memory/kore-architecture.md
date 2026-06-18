@@ -1,57 +1,69 @@
 ---
-name: KORE Architecture
-description: Key decisions and constraints for the GANDAL/KORE life copilot app (React+Vite frontend, Express 5 backend, PostgreSQL)
+name: KORE / GANDAL Architecture
+description: Full stack, Vite proxy wiring, auth flow, multi-tenant RBAC, DB migration pattern, kill switches, quotas
 ---
 
-# GANDAL / KORE Architecture
-
 ## Stack
-- Frontend: React + Vite, wouter routing, TanStack Query, shadcn/ui, framer-motion, Recharts
-- Backend: Express 5, Drizzle ORM, PostgreSQL (Replit DB via DATABASE_URL)
-- AI: Gemini 2.5 Flash (via @google/generative-ai), Groq Whisper transcription
-- API client: @workspace/api-client-react (generated hooks, customFetch with setBaseUrl)
+- Frontend: React 19, Vite 7, wouter routing, TanStack Query, shadcn/ui, Tailwind 4
+- Backend: Express 5, Drizzle ORM, PostgreSQL (DATABASE_URL)
+- AI: Gemini 2.5 Flash, Groq Whisper transcription
+- Repo: https://github.com/agenceialyon69/Tams-Plate-forme-.git — push to main
 
-## Critical wiring detail
-- Vite dev server proxies `/api` → `http://localhost:8080` (vite.config.ts server.proxy)
-- Without this proxy, the browser gets 504 timeouts on all API calls
-- API server port: 8080. Frontend port: 25268 (from PORT env var).
-- Frontend uses `@/lib/api.ts` for new endpoints not in the OpenAPI spec (direct apiFetch)
+## Vite proxy (kore)
+- Dev server proxies `/api` → `http://localhost:8080`
+- PORT + BASE_PATH required in dev, SKIPPED in build via `isBuild = process.argv.includes("build")` guard
+- `getApiBase()` in kore/src/lib/api.ts returns empty string in dev (proxy), full URL in prod
 
-## Morning briefing caching
-- `/api/briefings/morning` calls Gemini (4-8 seconds). Must cache in-memory per day (1hr TTL).
-- Cache: `briefingCache = { date, data, cachedAt }` in briefings.ts module scope.
+## Auth flow (v3.0)
+- JWT issued on login/register, stored in localStorage
+- `getToken()` / `setToken()` / `clearToken()` / `setStoredUser()` / `onAuthChange()` in kore/src/lib/auth.ts
+- LoginGate tabs: login, register, forgot-password, reset-password
+- URL param `?reset=<token>` auto-switches LoginGate to reset tab
+- `SESSION_DURATION` env var configures JWT TTL (default "8h")
+- Password reset tokens: 1h TTL, single-use, stored in `password_reset_tokens` table
+
+## Multi-tenant RBAC
+- Roles: owner > admin > member > viewer
+- Tenant ID extracted from JWT, attached to req by auth middleware
+- Per-route RBAC enforced via `requireRole()` helper
+- Approval tiers: low→member, medium/high→admin, critical→owner
+
+## DB migration pattern (ensure-schema.ts)
+- Runs on API startup using raw pg queries
+- Uses `CREATE TABLE IF NOT EXISTS` and `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+- DO NOT use `CREATE TYPE IF NOT EXISTS` — INVALID PostgreSQL syntax
+- Drizzle schema files use `pgEnum`; ensure-schema uses TEXT equivalents
+
+## Rate limiting (order matters)
+- Global: 120 req/min per IP (app.ts)
+- Per-tenant: 300/min, Per-user: 100/min (routes/index.ts, before route handlers)
+- AI routes: 20/min (ai.ts)
+
+## Kill switches
+- Targets: agent | provider | workflow | module
+- activate/deactivate tracked with activatedById, timestamps
+- Activation logged as WARN in audit trail; admin+ required
+
+## Cost guardrails
+- `checkAndIncrementAiCalls(tenantId, db)` exported from routes/quotas.ts
+- Import in AI routes to enforce daily + monthly call limits
+- Returns `{ allowed: boolean }` — return 429 if not allowed
 
 ## API client mutation pattern
 - All mutations use `{ data: body }` e.g. `useCreateCapture({ data: { content, source } })`
 - Query invalidation uses the `get*QueryKey()` helper functions
-- New routes (audit, diagnostics, export, red-team) use `apiFetch()` directly from `artifacts/kore/src/lib/api.ts`
+- New routes (registry, approvals, kill-switch, profile, quotas, audit) use `apiFetch()` directly
 
-## Priority compass (domain ordering, never change)
-health > family > admin > work > projects > productivity
+## Morning briefing caching
+- `/api/briefings/morning` calls Gemini (4-8s) — cached in-memory per day (1hr TTL)
+- Cache: `briefingCache = { date, data, cachedAt }` in briefings.ts module scope
 
 ## Red Team philosophy
-- GANDAL/KORE never flatters, never guilt-trips. Calm honesty only.
-- Overload alerts are visually prominent but tonally calm.
-- No gamification, no streaks, no badges, no scores anywhere.
-- Red Team page runs real security tests (injection, auth, CORS, data leaks) — not just labels.
+- Honnête, jamais flatteur, jamais culpabilisant
+- No gamification, no streaks, no badges anywhere
+- Red Team page runs real tests (injection, auth, CORS, data leaks)
 
-**Why:** Core product identity — any deviation makes GANDAL just another productivity app.
-
-## New features added (v2.0)
-- `audit_logs` DB table — tracks all write operations (POST/PATCH/DELETE) automatically
-- Audit middleware (`artifacts/api-server/src/middlewares/audit.ts`) — non-blocking async log
-- `/api/audit` — query audit log with resource/date filters
-- `/api/diagnostics` — system health check (DB, AI providers, memory, uptime)
-- `/api/export` — full data export as JSON
-- `/api/red-team/run` — POST to run 9 security tests (injection, auth, CORS, headers, sensitive data)
-- Frontend pages: `/audit`, `/red-team`, `/diagnostics`
-- `CommandPalette` component — triggered by ⌘K (global navigation + actions)
-- `QuickCapture` now triggered by ⌘J (moved from ⌘K)
-- Settings page enhanced with AI provider selector (Gemini/Ollama/disabled) + export button
-- AI provider prefs stored in localStorage under key `gandal_ai_prefs`
-
-## GitHub remote
-- Remote: `https://github.com/agenceialyon69/Tams-Plate-forme-`
-- Branch: `main`
-- Railway auto-deploys from main (railway.toml configured)
-- No GITHUB_TOKEN configured in Replit secrets — push must be done manually or via token
+## GitHub push
+- Auto-commit happens at end of each agent task (Replit system)
+- After auto-commit, push with: `git push "https://${GITHUB_TOKEN}@github.com/agenceialyon69/Tams-Plate-forme-.git" main`
+- GITHUB_TOKEN is set as Replit secret

@@ -17,22 +17,27 @@ import auditRouter from "./audit";
 import diagnosticsRouter from "./diagnostics";
 import exportRouter from "./export";
 import redTeamRouter from "./red-team";
-import { rateLimit } from "../middlewares/rate-limit";
+import registryRouter from "./registry";
+import approvalsRouter from "./approvals";
+import killSwitchRouter from "./kill-switch";
+import profileRouter from "./profile";
+import quotasRouter from "./quotas";
+import { rateLimit, rateLimitByTenant, rateLimitByUser } from "../middlewares/rate-limit";
 import { auditMiddleware } from "../middlewares/audit";
 
 const router: IRouter = Router();
 
-// Public health check.
 router.use(healthRouter);
-
-// Auth routes (login / register / me / logout — public or self-verifying).
 router.use(authRouter);
 
-// Audit all write operations.
 router.use(auditMiddleware);
 
-// Tighter limit for expensive LLM-backed endpoints (Gemini / Groq).
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 20 });
+const tenantLimiter = rateLimitByTenant({ windowMs: 60_000, max: 300 });
+const userLimiter = rateLimitByUser({ windowMs: 60_000, max: 100 });
+
+router.use(tenantLimiter);
+router.use(userLimiter);
 
 router.use(usersRouter);
 router.use(capturesRouter);
@@ -50,5 +55,10 @@ router.use(auditRouter);
 router.use(diagnosticsRouter);
 router.use(exportRouter);
 router.use(redTeamRouter);
+router.use(registryRouter);
+router.use(approvalsRouter);
+router.use(killSwitchRouter);
+router.use(profileRouter);
+router.use(quotasRouter);
 
 export default router;

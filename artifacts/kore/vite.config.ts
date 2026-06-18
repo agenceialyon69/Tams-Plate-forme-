@@ -3,27 +3,25 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
+const isBuild = process.argv.includes("build");
+
 const rawPort = process.env.PORT;
+const basePath = process.env.BASE_PATH ?? "/";
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
+if (!isBuild) {
+  if (!rawPort) {
+    throw new Error(
+      "PORT environment variable is required but was not provided.",
+    );
+  }
+  if (!process.env.BASE_PATH) {
+    throw new Error(
+      "BASE_PATH environment variable is required but was not provided.",
+    );
+  }
 }
 
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+const port = Number(rawPort ?? "3000");
 
 export default defineConfig({
   base: basePath,

@@ -11,3 +11,8 @@ export * from "./energy_logs";
 export * from "./recordings";
 export * from "./leads";
 export * from "./audit_logs";
+export * from "./password_reset_tokens";
+export * from "./registry_entries";
+export * from "./approval_requests";
+export * from "./kill_switches";
+export * from "./tenant_quotas";

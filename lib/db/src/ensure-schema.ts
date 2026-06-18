@@ -147,6 +147,98 @@ const STATEMENTS = [
     ip TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+  `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_id INTEGER`,
+  `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id INTEGER`,
+  `CREATE TABLE IF NOT EXISTS tenants (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'active',
+    self_service_enabled BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member',
+    status TEXT NOT NULL DEFAULT 'active',
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS registry_entries (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    owner TEXT NOT NULL DEFAULT 'system',
+    version TEXT NOT NULL DEFAULT '1.0.0',
+    status TEXT NOT NULL DEFAULT 'draft',
+    sensitivity TEXT NOT NULL DEFAULT 'internal',
+    scope TEXT NOT NULL DEFAULT 'global',
+    config TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS approval_requests (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    requested_by_id INTEGER REFERENCES users(id),
+    reviewed_by_id INTEGER REFERENCES users(id),
+    action TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '',
+    risk TEXT NOT NULL DEFAULT 'medium',
+    status TEXT NOT NULL DEFAULT 'pending',
+    review_note TEXT,
+    metadata JSONB,
+    expires_at TIMESTAMPTZ,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS kill_switches (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    target TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT false,
+    reason TEXT,
+    activated_by_id INTEGER REFERENCES users(id),
+    activated_at TIMESTAMPTZ,
+    deactivated_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS tenant_quotas (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL UNIQUE REFERENCES tenants(id),
+    max_ai_calls_per_day INTEGER NOT NULL DEFAULT 200,
+    max_ai_calls_per_month INTEGER NOT NULL DEFAULT 5000,
+    max_users_count INTEGER NOT NULL DEFAULT 10,
+    max_storage_mb INTEGER NOT NULL DEFAULT 1000,
+    max_exports_per_day INTEGER NOT NULL DEFAULT 10,
+    cost_budget_cents_per_month INTEGER NOT NULL DEFAULT 5000,
+    ai_calls_today INTEGER NOT NULL DEFAULT 0,
+    ai_calls_this_month INTEGER NOT NULL DEFAULT 0,
+    cost_cents_this_month INTEGER NOT NULL DEFAULT 0,
+    last_reset_date TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
