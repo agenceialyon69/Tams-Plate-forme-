@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
+import usersRouter from "./users";
 import capturesRouter from "./captures";
 import tasksRouter from "./tasks";
 import eventsRouter from "./events";
@@ -20,8 +22,11 @@ import { auditMiddleware } from "../middlewares/audit";
 
 const router: IRouter = Router();
 
-// Public, unauthenticated health check (used by platform probes).
+// Public health check.
 router.use(healthRouter);
+
+// Auth routes (login / register / me / logout — public or self-verifying).
+router.use(authRouter);
 
 // Audit all write operations.
 router.use(auditMiddleware);
@@ -29,6 +34,7 @@ router.use(auditMiddleware);
 // Tighter limit for expensive LLM-backed endpoints (Gemini / Groq).
 const aiLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 
+router.use(usersRouter);
 router.use(capturesRouter);
 router.use(tasksRouter);
 router.use(eventsRouter);

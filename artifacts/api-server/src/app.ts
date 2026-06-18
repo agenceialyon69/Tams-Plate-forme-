@@ -14,7 +14,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { rateLimit } from "./middlewares/rate-limit";
-import { requireAuth } from "./middlewares/auth";
+import { requireAuthJwt } from "./middlewares/auth-jwt";
 
 const app: Express = express();
 
@@ -159,8 +159,8 @@ app.get("/api/_debug", (_req, res) => {
 // --- CORS sur les routes API uniquement ---
 app.use("/api", corsMiddleware);
 
-// --- Auth sur toutes les routes API moins healthz / _debug ---
-app.use("/api", requireAuth);
+// --- Auth sur toutes les routes API moins healthz / _debug / auth ---
+app.use("/api", requireAuthJwt);
 
 // --- API router (protégé) ---
 app.use("/api", router);

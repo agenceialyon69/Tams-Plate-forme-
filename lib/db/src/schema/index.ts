@@ -1,3 +1,5 @@
+export * from "./tenants";
+export * from "./users";
 export * from "./captures";
 export * from "./tasks";
 export * from "./events";

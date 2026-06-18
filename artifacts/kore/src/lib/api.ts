@@ -2,6 +2,10 @@ import { getToken } from "./auth";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
+export function getApiBase(): string {
+  return BASE;
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   options?: RequestInit,

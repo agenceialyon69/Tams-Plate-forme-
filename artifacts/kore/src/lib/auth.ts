@@ -1,13 +1,24 @@
-const STORAGE_KEY = "tams_api_token";
+const STORAGE_KEY = "gandal_auth_token";
+const USER_KEY = "gandal_auth_user";
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: "owner" | "admin" | "member" | "viewer";
+  tenantId: number;
+  tenantSlug: string;
+  tenantName?: string;
+}
 
 let listeners: Array<() => void> = [];
 
 export function getToken(): string | null {
   try {
-    // Migrate from old key if needed
-    const old = localStorage.getItem("kore_api_token");
-    if (old) {
-      localStorage.setItem(STORAGE_KEY, old);
+    const legacy = localStorage.getItem("tams_api_token") ?? localStorage.getItem("kore_api_token");
+    if (legacy) {
+      localStorage.setItem(STORAGE_KEY, legacy);
+      localStorage.removeItem("tams_api_token");
       localStorage.removeItem("kore_api_token");
     }
     return localStorage.getItem(STORAGE_KEY);
@@ -19,27 +30,40 @@ export function getToken(): string | null {
 export function setToken(token: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, token.trim());
-  } catch {
-    /* ignore storage errors */
-  }
+  } catch { }
   listeners.forEach((fn) => fn());
 }
 
 export function clearToken(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("kore_api_token"); // cleanup legacy key
-  } catch {
-    /* ignore storage errors */
-  }
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem("tams_api_token");
+    localStorage.removeItem("kore_api_token");
+  } catch { }
   listeners.forEach((fn) => fn());
+}
+
+export function getStoredUser(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredUser(user: AuthUser): void {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch { }
 }
 
 export function isAuthenticated(): boolean {
   return Boolean(getToken());
 }
 
-/** Subscribe to token changes (login / logout). Returns an unsubscribe fn. */
 export function onAuthChange(fn: () => void): () => void {
   listeners.push(fn);
   return () => {

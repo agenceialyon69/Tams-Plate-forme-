@@ -28,6 +28,12 @@ import {
   FileText,
   Swords,
   Stethoscope,
+  Shield,
+  BookOpen,
+  Bell,
+  Eye,
+  User,
+  UsersRound,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
@@ -35,7 +41,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { LoginGate } from "@/components/LoginGate";
 import { useEffect, useState } from "react";
 import { loadPrefs } from "@/hooks/useNotifications";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getStoredUser } from "@/lib/auth";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -106,16 +112,24 @@ const navItems = [
   { href: "/overload", label: "Bien-être", icon: Activity },
   { href: "/weekly", label: "Bilan", icon: BarChart2 },
   { label: "divider", href: "", icon: Home },
+  { href: "/governance", label: "Gouvernance", icon: Shield },
+  { href: "/registry", label: "Registry", icon: BookOpen },
+  { href: "/approvals", label: "Approbations", icon: Bell },
+  { href: "/observability", label: "Observabilité", icon: Eye },
+  { label: "divider", href: "", icon: Home },
   { href: "/audit", label: "Audit Trail", icon: FileText },
   { href: "/red-team", label: "Red Team", icon: Swords },
   { href: "/diagnostics", label: "Diagnostics", icon: Stethoscope },
+  { label: "divider", href: "", icon: Home },
+  { href: "/admin/users", label: "Utilisateurs", icon: UsersRound },
+  { href: "/profile", label: "Mon profil", icon: User },
   { href: "/settings", label: "Paramètres", icon: Settings2 },
 ];
 
 const mobileNav = [
   { href: "/", label: "Aperçu", icon: Home },
   { href: "/capture", label: "Capture", icon: Mic },
-  { href: "/tasks", label: "Tâches", icon: CheckCircle2 },
+  { href: "/governance", label: "Gouv.", icon: Shield },
   { href: "/red-team", label: "Red Team", icon: Swords },
   { href: "/settings", label: "Config", icon: Settings2 },
 ];
@@ -124,6 +138,8 @@ function AppSidebar({ onCommandPalette }: { onCommandPalette: () => void }) {
   const [location, navigate] = useLocation();
   const [today, setToday] = useState(() => format(new Date(), "EEEE d MMM", { locale: fr }));
   useScheduleNotifications();
+
+  const user = getStoredUser();
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -184,6 +200,17 @@ function AppSidebar({ onCommandPalette }: { onCommandPalette: () => void }) {
             </SidebarMenu>
 
             <div className="border-t border-border/40 px-3 py-3 space-y-1">
+              {user && (
+                <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground">
+                  <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground leading-none">{user.name}</p>
+                    <p className="truncate capitalize text-[10px] mt-0.5">{user.role}</p>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={onCommandPalette}
                 className="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 rounded-md transition-colors"
@@ -261,6 +288,12 @@ function Router() {
           <Route path="/red-team" component={RedTeam} />
           <Route path="/diagnostics" component={DiagnosticsPage} />
           <Route path="/settings" component={SettingsPage} />
+          <Route path="/governance" component={GovernancePage} />
+          <Route path="/registry" component={RegistryPage} />
+          <Route path="/approvals" component={ApprovalsPage} />
+          <Route path="/observability" component={ObservabilityPage} />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/admin/users" component={AdminUsersPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
@@ -284,6 +317,12 @@ import Audit from "./pages/audit";
 import RedTeam from "./pages/red-team";
 import DiagnosticsPage from "./pages/diagnostics";
 import SettingsPage from "./pages/settings";
+import GovernancePage from "./pages/governance";
+import RegistryPage from "./pages/registry";
+import ApprovalsPage from "./pages/approvals";
+import ObservabilityPage from "./pages/observability";
+import ProfilePage from "./pages/profile";
+import AdminUsersPage from "./pages/admin-users";
 
 function App() {
   return (
