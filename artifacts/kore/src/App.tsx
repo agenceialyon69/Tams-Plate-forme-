@@ -23,6 +23,7 @@ import {
   BarChart2,
   Settings2,
   LogOut,
+  Radio,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
@@ -91,6 +92,7 @@ function TamsLogo() {
 const navItems = [
   { href: "/", label: "Aperçu", icon: Home },
   { href: "/capture", label: "Capture", icon: Mic },
+  { href: "/recordings", label: "Enregistrements", icon: Radio },
   { href: "/tasks", label: "Tâches", icon: CheckCircle2 },
   { href: "/memory", label: "Mémoire", icon: BrainCircuit },
   { href: "/decisions", label: "Décisions", icon: Compass },
@@ -98,6 +100,15 @@ const navItems = [
   { href: "/overload", label: "Bien-être", icon: Activity },
   { href: "/weekly", label: "Bilan", icon: BarChart2 },
   { href: "/settings", label: "Paramètres", icon: Settings2 },
+];
+
+// Mobile bottom nav — show most important 5
+const mobileNav = [
+  { href: "/", label: "Aperçu", icon: Home },
+  { href: "/capture", label: "Capture", icon: Mic },
+  { href: "/recordings", label: "Enreg.", icon: Radio },
+  { href: "/tasks", label: "Tâches", icon: CheckCircle2 },
+  { href: "/evening", label: "Revue", icon: MoonStar },
 ];
 
 function AppSidebar() {
@@ -180,7 +191,7 @@ function AppSidebar() {
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border flex items-center justify-around pb-safe">
-        {[navItems[0], navItems[1], navItems[2], navItems[5], navItems[8]].map((item) => {
+        {mobileNav.map((item) => {
           const isActive = location === item.href;
           return (
             <Link
@@ -210,6 +221,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/capture" component={Capture} />
+          <Route path="/recordings" component={Recordings} />
           <Route path="/tasks" component={Tasks} />
           <Route path="/memory" component={Memory} />
           <Route path="/decisions" component={Decisions} />
@@ -227,6 +239,7 @@ function Router() {
 
 import Dashboard from "./pages/dashboard";
 import Capture from "./pages/capture";
+import Recordings from "./pages/recordings";
 import Tasks from "./pages/tasks";
 import Memory from "./pages/memory";
 import Decisions from "./pages/decisions";
