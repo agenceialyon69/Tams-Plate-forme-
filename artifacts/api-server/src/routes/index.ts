@@ -9,6 +9,7 @@ import memoryRouter from "./memory";
 import briefingsRouter from "./briefings";
 import overloadRouter from "./overload";
 import aiRouter from "./ai";
+import recordingsRouter from "./recordings";
 import { rateLimit } from "../middlewares/rate-limit";
 
 const router: IRouter = Router();
@@ -28,5 +29,6 @@ router.use(memoryRouter);
 router.use(briefingsRouter);
 router.use(overloadRouter);
 router.use(aiLimiter, aiRouter);
+router.use(aiLimiter, recordingsRouter);
 
 export default router;
