@@ -567,3 +567,85 @@ export async function detectOverload(data: {
 
   return { riskLevel, alerts, suggestion };
 }
+
+export interface LeadScore {
+  score: number;                   // 0-100
+  conversionProbability: number;   // 0-100
+  priority: "high" | "medium" | "low";
+  nextBestAction: string;
+  redTeamWarning: string | null;
+  rationale: string;
+}
+
+/** Score a lead with Red Team analysis via Gemini */
+export async function scoreLead(lead: {
+  name: string;
+  company?: string | null;
+  role?: string | null;
+  industry?: string | null;
+  source?: string | null;
+  notes?: string | null;
+  painPoints?: string | null;
+  budget?: string | null;
+  decisionTimeline?: string | null;
+  signals?: string | null;
+  companySize?: string | null;
+  status?: string | null;
+}): Promise<LeadScore> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const prompt = `${INJECTION_GUARD}
+
+Tu es un expert en sales B2B avec une approche Red Team : tu identifies objectivement la qualité d'un lead sans optimisme excessif.
+
+Analyse ce lead et retourne un scoring JSON précis.
+
+LEAD :
+- Nom : ${lead.name}
+- Entreprise : ${lead.company ?? "non renseigné"}
+- Rôle : ${lead.role ?? "non renseigné"}
+- Secteur : ${lead.industry ?? "non renseigné"}
+- Taille entreprise : ${lead.companySize ?? "non renseigné"}
+- Source : ${lead.source ?? "manual"}
+- Budget : ${lead.budget ?? "non renseigné"}
+- Timeline décision : ${lead.decisionTimeline ?? "non renseigné"}
+- Pain points : ${lead.painPoints ?? "non renseigné"}
+- Signaux / contexte : ${lead.signals ?? "aucun"}
+- Notes : ${lead.notes ?? "aucune"}
+- Statut actuel : ${lead.status ?? "new"}
+
+CRITÈRES DE SCORING :
+- score (0-100) : qualité globale du lead (fit produit, urgence, budget, décideur, signaux)
+- conversionProbability (0-100) : probabilité réaliste de conversion basée sur les infos disponibles
+- priority : high si score >= 70 et timeline < 3 mois, low si score < 40 ou très peu d'info
+- nextBestAction : action concrète et immédiate à faire maintenant (max 1 phrase)
+- redTeamWarning : signal d'alarme ou risque caché (null si aucun) — ex : décideur absent, budget vague, timing trop long, concurrent cité, silence inhabituel
+- rationale : explication courte du scoring (2-3 phrases max)
+
+RÈGLES :
+- Ne sois PAS optimiste par défaut. Un lead sans budget ni timeline = score < 50.
+- Le redTeamWarning est le signal le plus important — ne le noie pas.
+- nextBestAction doit être IMMÉDIATE et SPÉCIFIQUE (pas "faire un suivi").
+
+Réponds UNIQUEMENT avec ce JSON (aucun texte autour) :
+{
+  "score": <number 0-100>,
+  "conversionProbability": <number 0-100>,
+  "priority": "<high|medium|low>",
+  "nextBestAction": "<string>",
+  "redTeamWarning": <string|null>,
+  "rationale": "<string>"
+}`;
+
+  const result = await model.generateContent(prompt);
+  const raw = result.response.text().replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(raw);
+
+  return {
+    score: Math.max(0, Math.min(100, Number(parsed.score) || 0)),
+    conversionProbability: Math.max(0, Math.min(100, Number(parsed.conversionProbability) || 0)),
+    priority: ["high", "medium", "low"].includes(parsed.priority) ? parsed.priority : "medium",
+    nextBestAction: String(parsed.nextBestAction ?? ""),
+    redTeamWarning: parsed.redTeamWarning ? String(parsed.redTeamWarning) : null,
+    rationale: String(parsed.rationale ?? ""),
+  };
+}
