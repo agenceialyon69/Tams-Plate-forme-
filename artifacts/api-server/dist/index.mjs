@@ -25630,27 +25630,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router13;
+    module.exports = Router14;
     module.exports.Route = Route;
-    function Router13(options) {
-      if (!(this instanceof Router13)) {
-        return new Router13(options);
+    function Router14(options) {
+      if (!(this instanceof Router14)) {
+        return new Router14(options);
       }
       const opts = options || {};
-      function router13(req, res, next) {
-        router13.handle(req, res, next);
+      function router14(req, res, next) {
+        router14.handle(req, res, next);
       }
-      Object.setPrototypeOf(router13, this);
-      router13.caseSensitive = opts.caseSensitive;
-      router13.mergeParams = opts.mergeParams;
-      router13.params = {};
-      router13.strict = opts.strict;
-      router13.stack = [];
-      return router13;
+      Object.setPrototypeOf(router14, this);
+      router14.caseSensitive = opts.caseSensitive;
+      router14.mergeParams = opts.mergeParams;
+      router14.params = {};
+      router14.strict = opts.strict;
+      router14.stack = [];
+      return router14;
     }
-    Router13.prototype = function() {
+    Router14.prototype = function() {
     };
-    Router13.prototype.param = function param(name, fn) {
+    Router14.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -25670,7 +25670,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router13.prototype.handle = function handle(req, res, callback) {
+    Router14.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -25797,7 +25797,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router13.prototype.use = function use(handler) {
+    Router14.prototype.use = function use(handler) {
       let offset = 0;
       let path3 = "/";
       if (typeof handler !== "function") {
@@ -25830,7 +25830,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router13.prototype.route = function route(path3) {
+    Router14.prototype.route = function route(path3) {
       const route2 = new Route(path3);
       const layer = new Layer(path3, {
         sensitive: this.caseSensitive,
@@ -25845,7 +25845,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router13.prototype[method] = function(path3) {
+      Router14.prototype[method] = function(path3) {
         const route = this.route(path3);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -26028,13 +26028,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils5().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router13 = require_router();
+    var Router14 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router13 = null;
+      var router14 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -26043,13 +26043,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router13 === null) {
-            router13 = new Router13({
+          if (router14 === null) {
+            router14 = new Router14({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router13;
+          return router14;
         }
       });
     };
@@ -26120,15 +26120,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router13 = this.router;
+      var router14 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router13.use(path3, fn2);
+          return router14.use(path3, fn2);
         }
         debug(".use app under %s", path3);
         fn2.mountpath = path3;
         fn2.parent = this;
-        router13.use(path3, function mounted_app(req, res, next) {
+        router14.use(path3, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -28701,7 +28701,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router13 = require_router();
+    var Router14 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -28723,8 +28723,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router13.Route;
-    exports.Router = Router13;
+    exports.Route = Router14.Route;
+    exports.Router = Router14;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -40581,6 +40581,8 @@ __export(schema_exports, {
   insertMemorySchema: () => insertMemorySchema,
   insertRecordingSchema: () => insertRecordingSchema,
   insertTaskSchema: () => insertTaskSchema,
+  leadActivitiesTable: () => leadActivitiesTable,
+  leadsTable: () => leadsTable,
   learningsTable: () => learningsTable,
   memoryTable: () => memoryTable,
   recordingsTable: () => recordingsTable,
@@ -52093,6 +52095,57 @@ var recordingsTable = pgTable("recordings", {
 });
 var insertRecordingSchema = createInsertSchema(recordingsTable).omit({ id: true, createdAt: true });
 
+// ../../lib/db/src/schema/leads.ts
+var leadsTable = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  // Identity
+  name: text("name").notNull(),
+  company: text("company"),
+  email: text("email"),
+  phone: text("phone"),
+  linkedin: text("linkedin"),
+  website: text("website"),
+  // Context
+  role: text("role"),
+  industry: text("industry"),
+  source: text("source").notNull().default("manual"),
+  // Status workflow
+  status: text("status").notNull().default("new"),
+  // new|contacted|nurturing|proposal|won|lost|paused
+  priority: text("priority").notNull().default("medium"),
+  // high|medium|low
+  // AI scoring
+  score: integer("score"),
+  // 0-100
+  conversionProbability: integer("conversion_probability"),
+  // 0-100
+  nextBestAction: text("next_best_action"),
+  redTeamWarning: text("red_team_warning"),
+  scoredAt: timestamp("scored_at", { withTimezone: true }),
+  // Enrichment
+  companySize: text("company_size"),
+  budget: text("budget"),
+  decisionTimeline: text("decision_timeline"),
+  painPoints: text("pain_points"),
+  signals: text("signals"),
+  // intent signals, news, triggers
+  tags: text("tags").array().notNull().default([]),
+  // Notes
+  notes: text("notes"),
+  nextActionDate: text("next_action_date"),
+  // Timestamps
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+var leadActivitiesTable = pgTable("lead_activities", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull(),
+  type: text("type").notNull(),
+  // note|call|email|meeting|linkedin|status_change|score|next_action
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+
 // ../../lib/db/src/ensure-schema.ts
 var STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS captures (
@@ -52167,6 +52220,42 @@ var STATEMENTS = [
     free_reflection TEXT,
     kore_response TEXT,
     review_date TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS leads (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    company TEXT,
+    email TEXT,
+    phone TEXT,
+    linkedin TEXT,
+    website TEXT,
+    role TEXT,
+    industry TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    status TEXT NOT NULL DEFAULT 'new',
+    priority TEXT NOT NULL DEFAULT 'medium',
+    score INTEGER,
+    conversion_probability INTEGER,
+    next_best_action TEXT,
+    red_team_warning TEXT,
+    scored_at TIMESTAMPTZ,
+    company_size TEXT,
+    budget TEXT,
+    decision_timeline TEXT,
+    pain_points TEXT,
+    signals TEXT,
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    notes TEXT,
+    next_action_date TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS lead_activities (
+    id SERIAL PRIMARY KEY,
+    lead_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS recordings (
@@ -52264,7 +52353,7 @@ var pool = new Pool3(connectionString ? { connectionString } : {});
 var db = drizzle(pool, { schema: schema_exports });
 
 // src/app.ts
-var import_express13 = __toESM(require_express2(), 1);
+var import_express14 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib5(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -52272,7 +52361,7 @@ import path2 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/routes/index.ts
-var import_express12 = __toESM(require_express2(), 1);
+var import_express13 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -59789,6 +59878,62 @@ async function detectOverload(data) {
   }
   return { riskLevel, alerts, suggestion };
 }
+async function scoreLead(lead) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const prompt = `${INJECTION_GUARD}
+
+Tu es un expert en sales B2B avec une approche Red Team : tu identifies objectivement la qualit\xE9 d'un lead sans optimisme excessif.
+
+Analyse ce lead et retourne un scoring JSON pr\xE9cis.
+
+LEAD :
+- Nom : ${lead.name}
+- Entreprise : ${lead.company ?? "non renseign\xE9"}
+- R\xF4le : ${lead.role ?? "non renseign\xE9"}
+- Secteur : ${lead.industry ?? "non renseign\xE9"}
+- Taille entreprise : ${lead.companySize ?? "non renseign\xE9"}
+- Source : ${lead.source ?? "manual"}
+- Budget : ${lead.budget ?? "non renseign\xE9"}
+- Timeline d\xE9cision : ${lead.decisionTimeline ?? "non renseign\xE9"}
+- Pain points : ${lead.painPoints ?? "non renseign\xE9"}
+- Signaux / contexte : ${lead.signals ?? "aucun"}
+- Notes : ${lead.notes ?? "aucune"}
+- Statut actuel : ${lead.status ?? "new"}
+
+CRIT\xC8RES DE SCORING :
+- score (0-100) : qualit\xE9 globale du lead (fit produit, urgence, budget, d\xE9cideur, signaux)
+- conversionProbability (0-100) : probabilit\xE9 r\xE9aliste de conversion bas\xE9e sur les infos disponibles
+- priority : high si score >= 70 et timeline < 3 mois, low si score < 40 ou tr\xE8s peu d'info
+- nextBestAction : action concr\xE8te et imm\xE9diate \xE0 faire maintenant (max 1 phrase)
+- redTeamWarning : signal d'alarme ou risque cach\xE9 (null si aucun) \u2014 ex : d\xE9cideur absent, budget vague, timing trop long, concurrent cit\xE9, silence inhabituel
+- rationale : explication courte du scoring (2-3 phrases max)
+
+R\xC8GLES :
+- Ne sois PAS optimiste par d\xE9faut. Un lead sans budget ni timeline = score < 50.
+- Le redTeamWarning est le signal le plus important \u2014 ne le noie pas.
+- nextBestAction doit \xEAtre IMM\xC9DIATE et SP\xC9CIFIQUE (pas "faire un suivi").
+
+R\xE9ponds UNIQUEMENT avec ce JSON (aucun texte autour) :
+{
+  "score": <number 0-100>,
+  "conversionProbability": <number 0-100>,
+  "priority": "<high|medium|low>",
+  "nextBestAction": "<string>",
+  "redTeamWarning": <string|null>,
+  "rationale": "<string>"
+}`;
+  const result = await model.generateContent(prompt);
+  const raw = result.response.text().replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(raw);
+  return {
+    score: Math.max(0, Math.min(100, Number(parsed.score) || 0)),
+    conversionProbability: Math.max(0, Math.min(100, Number(parsed.conversionProbability) || 0)),
+    priority: ["high", "medium", "low"].includes(parsed.priority) ? parsed.priority : "medium",
+    nextBestAction: String(parsed.nextBestAction ?? ""),
+    redTeamWarning: parsed.redTeamWarning ? String(parsed.redTeamWarning) : null,
+    rationale: String(parsed.rationale ?? "")
+  };
+}
 
 // src/middlewares/rate-limit.ts
 var memoryBuckets = /* @__PURE__ */ new Map();
@@ -60561,21 +60706,218 @@ router11.delete("/recordings/:id", async (req, res) => {
 });
 var recordings_default = router11;
 
-// src/routes/index.ts
+// src/routes/leads.ts
+var import_express12 = __toESM(require_express2(), 1);
 var router12 = (0, import_express12.Router)();
-router12.use(health_default);
+var scoreLimiter = rateLimit({ windowMs: 6e4, max: 15 });
+var VALID_STATUSES = ["new", "contacted", "nurturing", "proposal", "won", "lost", "paused"];
+var VALID_PRIORITIES = ["high", "medium", "low"];
+function asStr2(v, max2 = 1e3) {
+  if (typeof v !== "string" || !v.trim()) return null;
+  return v.trim().slice(0, max2);
+}
+function isStatus(v) {
+  return typeof v === "string" && VALID_STATUSES.includes(v);
+}
+function isPriority(v) {
+  return typeof v === "string" && VALID_PRIORITIES.includes(v);
+}
+router12.get("/leads", async (req, res) => {
+  const leads = await db.select().from(leadsTable).orderBy(
+    desc(leadsTable.score),
+    desc(leadsTable.createdAt)
+  ).limit(200);
+  res.json(leads);
+});
+router12.get("/leads/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
+  if (!lead) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const activities = await db.select().from(leadActivitiesTable).where(eq(leadActivitiesTable.leadId, id)).orderBy(asc(leadActivitiesTable.createdAt));
+  res.json({ ...lead, activities });
+});
+router12.post("/leads", async (req, res) => {
+  const b = req.body ?? {};
+  const name = asStr2(b.name, 200);
+  if (!name) {
+    res.status(400).json({ error: "name requis" });
+    return;
+  }
+  const [lead] = await db.insert(leadsTable).values({
+    name,
+    company: asStr2(b.company, 200),
+    email: asStr2(b.email, 200),
+    phone: asStr2(b.phone, 50),
+    linkedin: asStr2(b.linkedin, 300),
+    website: asStr2(b.website, 300),
+    role: asStr2(b.role, 200),
+    industry: asStr2(b.industry, 200),
+    source: asStr2(b.source, 100) ?? "manual",
+    status: isStatus(b.status) ? b.status : "new",
+    priority: isPriority(b.priority) ? b.priority : "medium",
+    companySize: asStr2(b.companySize, 100),
+    budget: asStr2(b.budget, 200),
+    decisionTimeline: asStr2(b.decisionTimeline, 200),
+    painPoints: asStr2(b.painPoints, 2e3),
+    signals: asStr2(b.signals, 2e3),
+    notes: asStr2(b.notes, 5e3),
+    nextActionDate: asStr2(b.nextActionDate, 20),
+    tags: Array.isArray(b.tags) ? b.tags.filter((t) => typeof t === "string").map(String) : []
+  }).returning();
+  await db.insert(leadActivitiesTable).values({
+    leadId: lead.id,
+    type: "note",
+    content: `Lead cr\xE9\xE9 depuis ${lead.source}.`
+  });
+  res.status(201).json(lead);
+});
+router12.patch("/leads/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const b = req.body ?? {};
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const updates = {
+    updatedAt: /* @__PURE__ */ new Date()
+  };
+  if (b.name !== void 0) updates.name = asStr2(b.name, 200) ?? existing.name;
+  if (b.company !== void 0) updates.company = asStr2(b.company, 200);
+  if (b.email !== void 0) updates.email = asStr2(b.email, 200);
+  if (b.phone !== void 0) updates.phone = asStr2(b.phone, 50);
+  if (b.linkedin !== void 0) updates.linkedin = asStr2(b.linkedin, 300);
+  if (b.website !== void 0) updates.website = asStr2(b.website, 300);
+  if (b.role !== void 0) updates.role = asStr2(b.role, 200);
+  if (b.industry !== void 0) updates.industry = asStr2(b.industry, 200);
+  if (b.source !== void 0) updates.source = asStr2(b.source, 100) ?? "manual";
+  if (isStatus(b.status)) updates.status = b.status;
+  if (isPriority(b.priority)) updates.priority = b.priority;
+  if (b.companySize !== void 0) updates.companySize = asStr2(b.companySize, 100);
+  if (b.budget !== void 0) updates.budget = asStr2(b.budget, 200);
+  if (b.decisionTimeline !== void 0) updates.decisionTimeline = asStr2(b.decisionTimeline, 200);
+  if (b.painPoints !== void 0) updates.painPoints = asStr2(b.painPoints, 2e3);
+  if (b.signals !== void 0) updates.signals = asStr2(b.signals, 2e3);
+  if (b.notes !== void 0) updates.notes = asStr2(b.notes, 5e3);
+  if (b.nextActionDate !== void 0) updates.nextActionDate = asStr2(b.nextActionDate, 20);
+  if (Array.isArray(b.tags)) updates.tags = b.tags.filter((t) => typeof t === "string").map(String);
+  if (isStatus(b.status) && b.status !== existing.status) {
+    await db.insert(leadActivitiesTable).values({
+      leadId: id,
+      type: "status_change",
+      content: `Statut chang\xE9 : ${existing.status} \u2192 ${b.status}`
+    });
+  }
+  const [updated] = await db.update(leadsTable).set(updates).where(eq(leadsTable.id, id)).returning();
+  res.json(updated);
+});
+router12.post("/leads/:id/score", scoreLimiter, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
+  if (!lead) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  try {
+    const result = await scoreLead(lead);
+    const [updated] = await db.update(leadsTable).set({
+      score: result.score,
+      conversionProbability: result.conversionProbability,
+      priority: result.priority,
+      nextBestAction: result.nextBestAction,
+      redTeamWarning: result.redTeamWarning,
+      scoredAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(leadsTable.id, id)).returning();
+    await db.insert(leadActivitiesTable).values({
+      leadId: id,
+      type: "score",
+      content: `Score IA : ${result.score}/100 \u2014 ${result.rationale}`
+    });
+    res.json({ ...updated, rationale: result.rationale });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "AI error";
+    res.status(500).json({ error: msg });
+  }
+});
+router12.post("/leads/:id/activities", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const b = req.body ?? {};
+  const content = asStr2(b.content, 3e3);
+  const type = asStr2(b.type, 50) ?? "note";
+  if (!content) {
+    res.status(400).json({ error: "content requis" });
+    return;
+  }
+  const [act] = await db.insert(leadActivitiesTable).values({
+    leadId: id,
+    type,
+    content
+  }).returning();
+  await db.update(leadsTable).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(leadsTable.id, id));
+  res.status(201).json(act);
+});
+router12.delete("/leads/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  await db.delete(leadActivitiesTable).where(eq(leadActivitiesTable.leadId, id));
+  await db.delete(leadsTable).where(eq(leadsTable.id, id));
+  res.status(204).end();
+});
+router12.get("/leads/export.csv", async (_req, res) => {
+  const leads = await db.select().from(leadsTable).orderBy(desc(leadsTable.score), desc(leadsTable.createdAt));
+  const headers = ["id", "name", "company", "role", "email", "phone", "industry", "source", "status", "priority", "score", "conversion_probability", "next_best_action", "red_team_warning", "budget", "decision_timeline", "company_size", "signals", "notes", "next_action_date", "created_at"];
+  const escape2 = (v) => {
+    const s = v == null ? "" : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const rows = leads.map(
+    (l) => [l.id, l.name, l.company, l.role, l.email, l.phone, l.industry, l.source, l.status, l.priority, l.score, l.conversionProbability, l.nextBestAction, l.redTeamWarning, l.budget, l.decisionTimeline, l.companySize, l.signals, l.notes, l.nextActionDate, l.createdAt].map(escape2).join(",")
+  );
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", 'attachment; filename="leads-tams.csv"');
+  res.send([headers.join(","), ...rows].join("\n"));
+});
+var leads_default = router12;
+
+// src/routes/index.ts
+var router13 = (0, import_express13.Router)();
+router13.use(health_default);
 var aiLimiter = rateLimit({ windowMs: 6e4, max: 20 });
-router12.use(captures_default);
-router12.use(tasks_default);
-router12.use(events_default);
-router12.use(learnings_default);
-router12.use(decisions_default);
-router12.use(memory_default);
-router12.use(briefings_default);
-router12.use(overload_default);
-router12.use(aiLimiter, ai_default);
-router12.use(aiLimiter, recordings_default);
-var routes_default = router12;
+router13.use(captures_default);
+router13.use(tasks_default);
+router13.use(events_default);
+router13.use(learnings_default);
+router13.use(decisions_default);
+router13.use(memory_default);
+router13.use(briefings_default);
+router13.use(overload_default);
+router13.use(aiLimiter, ai_default);
+router13.use(aiLimiter, recordings_default);
+router13.use(leads_default);
+var routes_default = router13;
 
 // src/middlewares/security.ts
 var API_CSP = "default-src 'none'; frame-ancestors 'none'";
@@ -60773,7 +61115,7 @@ async function requireAuth(req, res, next) {
 }
 
 // src/app.ts
-var app = (0, import_express13.default)();
+var app = (0, import_express14.default)();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(
@@ -60819,12 +61161,12 @@ var corsMiddleware = (0, import_cors.default)({
   maxAge: 600
 });
 app.use(rateLimit({ windowMs: 6e4, max: 120 }));
-var audioJson = import_express13.default.json({ limit: "10mb" });
-var textJson = import_express13.default.json({ limit: "512kb" });
+var audioJson = import_express14.default.json({ limit: "10mb" });
+var textJson = import_express14.default.json({ limit: "512kb" });
 app.use(
   (req, res, next) => req.path === "/api/ai/transcribe" ? audioJson(req, res, next) : textJson(req, res, next)
 );
-app.use(import_express13.default.urlencoded({ extended: true, limit: "64kb" }));
+app.use(import_express14.default.urlencoded({ extended: true, limit: "64kb" }));
 var here = path2.dirname(fileURLToPath(import.meta.url));
 var clientDirCandidates = [
   process.env.CLIENT_DIR,
@@ -60890,7 +61232,7 @@ app.use("/api", (_req, res) => {
 if (clientDir) {
   logger.info({ clientDir }, "Serving web app");
   app.use(
-    import_express13.default.static(clientDir, {
+    import_express14.default.static(clientDir, {
       index: false,
       setHeaders(res, filePath) {
         if (filePath.includes(`${path2.sep}assets${path2.sep}`)) {
