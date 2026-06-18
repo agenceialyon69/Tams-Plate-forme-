@@ -8,3 +8,4 @@ export * from "./evening_reviews";
 export * from "./energy_logs";
 export * from "./recordings";
 export * from "./leads";
+export * from "./audit_logs";

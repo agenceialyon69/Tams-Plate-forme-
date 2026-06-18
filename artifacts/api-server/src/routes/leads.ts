@@ -34,7 +34,7 @@ router.get("/leads", async (req, res): Promise<void> => {
 
 /** GET /api/leads/:id */
 router.get("/leads/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
   if (!lead) { res.status(404).json({ error: "Not found" }); return; }
@@ -84,7 +84,7 @@ router.post("/leads", async (req, res): Promise<void> => {
 
 /** PATCH /api/leads/:id */
 router.patch("/leads/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const b = req.body ?? {};
 
@@ -129,7 +129,7 @@ router.patch("/leads/:id", async (req, res): Promise<void> => {
 
 /** POST /api/leads/:id/score — AI Red Team scoring */
 router.post("/leads/:id/score", scoreLimiter, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
@@ -163,7 +163,7 @@ router.post("/leads/:id/score", scoreLimiter, async (req, res): Promise<void> =>
 
 /** POST /api/leads/:id/activities — log an activity */
 router.post("/leads/:id/activities", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const b = req.body ?? {};
   const content = asStr(b.content, 3000);
@@ -181,7 +181,7 @@ router.post("/leads/:id/activities", async (req, res): Promise<void> => {
 
 /** DELETE /api/leads/:id */
 router.delete("/leads/:id", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(leadActivitiesTable).where(eq(leadActivitiesTable.leadId, id));
   await db.delete(leadsTable).where(eq(leadsTable.id, id));

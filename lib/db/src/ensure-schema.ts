@@ -135,6 +135,18 @@ const STATEMENTS = [
     tams_message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    action TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    resource_id TEXT,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    status_code INTEGER,
+    details JSONB,
+    ip TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

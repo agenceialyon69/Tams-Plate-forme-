@@ -1,0 +1,122 @@
+Tu travailles sur GANDAL.
+
+Objectif :
+Transformer GANDAL en une vraie plateforme d’IA et de pilotage commerciale, professionnelle, gouvernée, observable et sûre.
+
+Contexte :
+- Frontend React + Vite PWA.
+- Backend Node.js + Express.
+- Modules mémoire, red team, IA, prospection, meeting intelligence, pipeline.
+- L’application doit rester simple à utiliser, mais prête pour un usage sérieux et contrôlé.
+
+Règles non négociables :
+1. Ne casse pas l’existant.
+2. Garde une architecture modulaire.
+3. Sépare strictement :
+   - données métier,
+   - mémoire,
+   - logs techniques,
+   - audit trail,
+   - décisions IA,
+   - actions exécutées,
+   - permissions,
+   - configurations,
+   - exports.
+4. Aucun secret en dur.
+5. Toute action sensible doit pouvoir être bloquée, validée ou annulée.
+6. Toute exécution IA doit être traçable et rejouable.
+7. Toute modification de configuration doit être versionnée.
+8. Toute intégration IA doit avoir un fallback ou une désactivation propre.
+
+Ce que GANDAL doit devenir :
+- Une plateforme avec gouvernance.
+- Une plateforme avec permissions fines.
+- Une plateforme avec observabilité complète.
+- Une plateforme avec audit trail immuable.
+- Une plateforme avec simulation, approbation et rollback.
+- Une plateforme avec workflows métier contrôlés.
+- Une plateforme avec red team rejouable et cas de régression.
+
+Fonctions à ajouter ou renforcer :
+
+1. Centre de gouvernance
+- Ajoute une page de gouvernance.
+- Affiche les rôles, permissions, politiques actives, workflows d’approbation et statuts de sécurité.
+- Permets de voir qui peut lire, modifier, lancer une IA, exporter ou déclencher une action sensible.
+
+2. RBAC fin
+- Implémente des rôles et permissions par module et par action.
+- Distingue lecture, suggestion, validation, exécution, export, admin.
+- Toute action sensible doit être refusée si le rôle n’est pas autorisé.
+
+3. Workflow d’approbation
+- Les actions sensibles doivent passer par un mode “approval required”.
+- Permets d’approuver, refuser, ou mettre en attente.
+- Journalise chaque décision d’approbation avec horodatage, utilisateur et motif.
+
+4. Audit trail immuable
+- Enregistre chaque événement important : login, lecture de données sensibles, génération IA, scoring, export, modification, déclenchement d’action, approbation, rejet, rollback.
+- Conserve : qui, quoi, quand, sur quel objet, avec quelle configuration, quelle sortie, quel statut.
+- L’audit trail doit être exportable et non modifiable depuis l’UI.
+
+5. Versioning / rollback
+- Versionne les prompts IA, playbooks, règles de scoring, politiques, workflows et configurations de provider.
+- Ajoute la possibilité de revenir à une version précédente.
+- Ajoute un diff simple entre versions si possible.
+
+6. Policy engine
+- Ajoute un moteur de politiques simple pour autoriser ou bloquer certaines actions.
+- Exemples : pas d’export sans rôle, pas d’action externe sans approbation, pas de données sensibles dans les logs bruts, pas d’enrôlement séquence si confiance trop basse.
+- Les règles doivent être lisibles et éditables.
+
+7. Simulation / dry-run
+- Ajoute un mode simulation pour toutes les actions sensibles.
+- En mode simulation, l’IA propose mais n’exécute rien.
+- L’utilisateur peut voir le résultat attendu avant exécution.
+
+8. Observabilité avancée
+- Ajoute un dashboard santé global.
+- Affiche erreurs, latence, coûts, usage IA, actions sensibles, taux d’échec, approbations, rejets, rollbacks.
+- Ajoute des alertes sur anomalies, boucles, surcoûts, retrys anormaux, ou comportements risqués.
+
+9. Registry central
+- Ajoute un registre des prompts, playbooks, providers, politiques et workflows.
+- Chaque élément doit avoir une version, un auteur, un statut et un historique.
+
+10. Cas de régression
+- Chaque red team test important doit être enregistré comme cas de régression.
+- Permets de le rejouer après chaque changement important.
+
+Travail demandé :
+- Analyse d’abord l’existant.
+- Implémente par lots cohérents.
+- Commence par les fondations : permissions, audit trail, policies, versioning.
+- Ensuite ajoute la gouvernance, la simulation, le rollback et l’observabilité.
+- Ensuite connecte ces contrôles aux modules commercial, mémoire, red team et IA.
+- Vérifie la compilation et la cohérence à chaque gros lot.
+- Corrige immédiatement les problèmes.
+
+Exigences de qualité :
+- UI claire et professionnelle.
+- Contrôles visibles, pas cachés.
+- Journalisation fiable.
+- Séparation stricte entre suggestion et action.
+- Pas de duplication inutile.
+- Logs exploitables.
+- Flux d’approbation simples et explicites.
+- Toute action critique doit être compréhensible et réversible.
+
+Livrables attendus :
+- Liste des fichiers créés ou modifiés.
+- Résumé des changements.
+- Ce qui reste à faire.
+- Risques ou blocages.
+- Checklist finale de validation.
+
+Fin obligatoire :
+- vérifie que tous les fichiers utiles sont enregistrés,
+- commit les changements avec un message clair,
+- pousse tout sur GitHub sur la branche main,
+- confirme que le remote GitHub est à jour,
+- vérifie que Railway peut redéployer automatiquement depuis main,
+- ne termine pas sans avoir confirmé le push réussi.

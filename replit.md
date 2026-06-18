@@ -1,6 +1,6 @@
-# [Project name]
+# GANDAL — Plateforme IA Gouvernée
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Plateforme personnelle d'IA avec mémoire persistante, mode red team intégré, audit trail immuable, observabilité complète et gouvernance.
 
 ## Run & Operate
 
@@ -14,17 +14,17 @@ _Replace the heading above with the project's name, and this line with one sente
   - `API_AUTH_TOKEN` — shared secret protecting the API (>= 16 chars). Generate with `openssl rand -hex 32`. The server refuses to start without it. Clients send it as `Authorization: Bearer <token>`.
   - `PORT` — port to listen on
 - Optional env:
-  - `FRONTEND_URL` — comma-separated allowlist of exact browser origins for CORS (e.g. `https://app.example.com,https://kore.vercel.app`). If unset, only same-origin requests are allowed.
-  - `GROQ_API_KEY` — enables voice transcription (`/api/ai/transcribe`). The server boots without it; only transcription fails.
-  - `GEMINI_API_KEY` — enables LLM extraction/analysis/briefings.
-  - Frontend: `VITE_API_URL` — base URL of the API server.
+  - `FRONTEND_URL` — comma-separated allowlist of exact browser origins for CORS
+  - `GROQ_API_KEY` — enables voice transcription (`/api/ai/transcribe`)
+  - `GEMINI_API_KEY` — enables LLM extraction/analysis/briefings
+  - Frontend: `VITE_API_URL` — base URL of the API server
 
 ## Security
 
 - All `/api` routes require a valid bearer token except `/api/healthz`. See `src/middlewares/auth.ts`.
-- Rate limiting (`src/middlewares/rate-limit.ts`): 120 req/min globally, 20 req/min on LLM endpoints (`/captures`, `/decisions`, `/ai/*`).
-- Strict CORS allowlist, security headers (`src/middlewares/security.ts`), explicit body-size caps, and a centralized error handler that returns generic messages.
-- LLM output is sanitized/clamped before DB insertion (`src/lib/ai.ts`).
+- Rate limiting: 120 req/min globally, 20 req/min on LLM endpoints.
+- Audit trail: all write operations (POST/PATCH/DELETE) are logged to `audit_logs` table.
+- Red Team mode: `/api/red-team/run` executes 9 real security tests.
 - See `SECURITY_AUDIT.md` for the full red-team audit and remediation log.
 
 ## Stack
@@ -38,23 +38,51 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/kore/src/pages/` — all frontend pages
+- `artifacts/kore/src/components/` — shared components (CommandPalette, QuickCapture, LoginGate)
+- `artifacts/kore/src/lib/api.ts` — direct apiFetch for new endpoints not in OpenAPI spec
+- `artifacts/api-server/src/routes/` — all API routes
+- `artifacts/api-server/src/middlewares/audit.ts` — auto-audit middleware for all writes
+- `lib/db/src/schema/` — Drizzle schema (includes audit_logs)
+
+## New Pages (v2.0)
+
+- `/audit` — Audit trail viewer (all write operations, exportable)
+- `/red-team` — Security test runner (9 tests: injection, auth, CORS, data leaks, headers)
+- `/diagnostics` — System health dashboard (DB, AI providers, memory, uptime, PWA status)
+- ⌘K — Command palette (navigation + actions rapides)
+- ⌘J — Quick capture (moved from ⌘K)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- New API endpoints (audit, diagnostics, export, red-team) bypass OpenAPI codegen — direct fetch via `apiFetch()` in `artifacts/kore/src/lib/api.ts`
+- Audit middleware is async/non-blocking — never delays API responses
+- Red Team tests run inside the same process (uses `fetch` to localhost) — no external dependencies
+- AI provider preferences stored in localStorage (`gandal_ai_prefs`) — backend still uses GEMINI_API_KEY env var
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Mémoire persistante structurée avec tags, domaines, recherche
+- Dashboard d'état général avec alertes surcharge
+- Journal d'audit immuable de toutes les actions
+- Mode Red Team : 9 tests de sécurité réels (injection, auth bypass, CORS, fuites de données)
+- Diagnostics système en temps réel
+- Command palette globale (⌘K) pour navigation rapide
+- Export complet des données en JSON
+- Sélecteur de provider IA (Gemini / Ollama / désactivé)
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Langage : Français
+- Philosophie : Red Team — honnête, jamais flatteur, jamais culpabilisant
+- Pas de gamification, pas de streaks, pas de badges
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `git commit` and `git push` are managed by Replit's auto-commit system
+- To push to GitHub: configure GITHUB_TOKEN secret and run `git push origin main` from terminal, or use the Replit Git panel
+- Railway auto-deploys from `main` branch (configured in `railway.toml`)
+- New routes use `apiFetch` directly — if you add them to OpenAPI spec, remove the direct calls
 
 ## Pointers
 
