@@ -1,0 +1,324 @@
+Tu travailles sur GANDAL.
+
+Objectif :
+Transformer GANDAL en une vraie plateforme professionnelle d’IA, de pilotage commercial et de gouvernance, avec multi-utilisateurs, authentification réelle, multi-tenant, audit, observabilité, red team, registry central, et contrôle strict des actions.
+
+Contexte :
+- Frontend React + Vite PWA.
+- Backend Node.js + Express.
+- Base de données persistante.
+- Modules existants : mémoire, red team, audit, IA, prospection, commercial intelligence, meeting intelligence, pipeline, diagnostics, export.
+- L’application doit rester claire, performante, sécurisée et exploitable par plusieurs utilisateurs et plusieurs équipes.
+
+Règles non négociables :
+1. Ne casse pas l’existant.
+2. Garde une architecture modulaire.
+3. Sépare strictement :
+   - données métier,
+   - mémoire,
+   - logs techniques,
+   - audit trail,
+   - décisions IA,
+   - actions exécutées,
+   - permissions,
+   - configurations,
+   - exports.
+4. Aucun secret en dur.
+5. Toute action sensible doit pouvoir être bloquée, validée, annulée ou simulée.
+6. Toute exécution IA doit être traçable, rejouable et versionnée.
+7. Toute modification de configuration doit être versionnée.
+8. Toute intégration IA doit avoir un fallback ou une désactivation propre.
+9. Toute donnée doit être isolée par tenant / workspace.
+10. Toute décision d’accès doit être vérifiée côté backend.
+
+Ce que GANDAL doit devenir :
+- Une plateforme avec gouvernance.
+- Une plateforme avec permissions fines.
+- Une plateforme avec observabilité complète.
+- Une plateforme avec audit trail immuable.
+- Une plateforme avec simulation, approbation et rollback.
+- Une plateforme avec workflows métier contrôlés.
+- Une plateforme avec red team rejouable et cas de régression.
+- Une plateforme multi-utilisateurs et multi-tenant.
+- Une plateforme avec vraie authentification et vraie page de connexion.
+
+Fonctions à ajouter ou renforcer :
+
+1. Registry central
+- Crée un registre unique de tout ce que GANDAL sait faire :
+  - agents IA,
+  - providers,
+  - prompts,
+  - playbooks,
+  - politiques,
+  - workflows,
+  - cas red team,
+  - sources de données,
+  - intégrations externes.
+- Chaque entrée doit avoir :
+  - nom,
+  - description,
+  - owner,
+  - version,
+  - statut,
+  - périmètre,
+  - niveau de sensibilité,
+  - dernier changement.
+- Le registry doit permettre de savoir “quoi existe”, “qui l’utilise” et “qui y a accès”.
+
+2. Agent map
+- Ajoute une carte visuelle des relations :
+  - utilisateurs,
+  - rôles,
+  - tenants / workspaces,
+  - comptes,
+  - contacts,
+  - opportunités,
+  - signaux,
+  - agents,
+  - outils,
+  - données sensibles,
+  - intégrations.
+- Montre les dépendances, les flux et les points de fuite potentiels.
+- Permets de repérer les contaminations croisées et les zones à risque.
+
+3. Authentification
+- Ajoute une vraie page de connexion moderne.
+- Ajoute une page d’inscription si self-service activé.
+- Mot de passe hashé côté serveur.
+- Session sécurisée ou JWT sécurisé.
+- Déconnexion.
+- Reset mot de passe.
+- “Remember me” si utile.
+- Page de profil utilisateur.
+- Protection des routes front et backend.
+
+4. Multi-utilisateurs
+- Création et gestion des utilisateurs.
+- Attribution de rôles.
+- Permissions par rôle.
+- Journal d’activité par utilisateur.
+- Vue admin pour gérer l’équipe.
+- Lien clair entre utilisateur, tenant et actions.
+
+5. Multi-tenant / workspace
+- Un espace par organisation ou équipe.
+- Isolation stricte des données par tenant.
+- Données commerciales, mémoire, logs et exports scoppés par tenant.
+- Aucun accès croisé possible entre équipes.
+- Toutes les requêtes backend doivent vérifier le tenant.
+- Toutes les réponses doivent être filtrées par tenant.
+
+6. RBAC sérieux
+- Rôles minimum :
+  - owner,
+  - admin,
+  - member,
+  - viewer.
+- Permissions fines par module et par action :
+  - lecture,
+  - suggestion,
+  - validation,
+  - exécution,
+  - export,
+  - admin.
+- Vérification côté backend, pas seulement dans l’UI.
+- Vérification du tenant à chaque décision d’accès.
+- Prévois aussi une évolution possible vers ABAC si nécessaire.
+
+7. Centre de gouvernance
+- Ajoute une page de gouvernance.
+- Affiche :
+  - rôles,
+  - permissions,
+  - politiques actives,
+  - workflows d’approbation,
+  - statut sécurité,
+  - état des providers,
+  - version courante des prompts / playbooks / politiques.
+- Permets de voir qui peut lire, modifier, lancer une IA, exporter ou déclencher une action sensible.
+
+8. Workflow d’approbation
+- Les actions sensibles doivent passer par un mode “approval required”.
+- Permets d’approuver, refuser, ou mettre en attente.
+- Journalise chaque décision d’approbation avec horodatage, utilisateur, tenant et motif.
+- Aucune action externe sans validation explicite si la policy l’exige.
+
+9. Audit trail immuable
+- Enregistre chaque événement important :
+  - login,
+  - logout,
+  - lecture de données sensibles,
+  - génération IA,
+  - scoring,
+  - export,
+  - modification,
+  - déclenchement d’action,
+  - approbation,
+  - rejet,
+  - rollback,
+  - changement de rôle,
+  - changement de politique.
+- Conserve :
+  - qui,
+  - quoi,
+  - quand,
+  - tenant,
+  - sur quel objet,
+  - avec quelle configuration,
+  - quelle sortie,
+  - quel statut,
+  - quelle justification.
+- L’audit trail doit être exportable et non modifiable depuis l’UI.
+
+10. Versioning / rollback
+- Versionne les prompts IA, playbooks, règles de scoring, politiques, workflows, providers et templates.
+- Ajoute la possibilité de revenir à une version précédente.
+- Ajoute un diff simple entre versions si possible.
+- Stocke l’auteur, la date, le motif et le statut.
+
+11. Policy engine
+- Ajoute un moteur de politiques simple pour autoriser ou bloquer certaines actions.
+- Exemples :
+  - pas d’export sans rôle,
+  - pas d’action externe sans approbation,
+  - pas de données sensibles dans les logs bruts,
+  - pas d’enrôlement séquence si confiance trop basse,
+  - pas de lecture hors tenant,
+  - pas d’exécution IA si provider non autorisé.
+- Les règles doivent être lisibles, versionnées et éditables.
+
+12. Simulation / dry-run
+- Ajoute un mode simulation pour toutes les actions sensibles.
+- En mode simulation, l’IA propose mais n’exécute rien.
+- L’utilisateur peut voir le résultat attendu avant exécution.
+- Affiche clairement les risques, les impacts et les validations requises.
+
+13. Observabilité avancée
+- Ajoute un dashboard santé global.
+- Affiche :
+  - erreurs,
+  - latence,
+  - coûts,
+  - usage IA,
+  - actions sensibles,
+  - taux d’échec,
+  - approbations,
+  - rejets,
+  - rollbacks,
+  - activité par tenant,
+  - activité par user.
+- Ajoute des alertes sur anomalies, boucles, surcoûts, retrys anormaux, dérives de score, comportements risqués.
+
+14. Registry métier
+- Ajoute un registre central des prompts, playbooks, providers, politiques et workflows.
+- Chaque élément doit avoir une version, un auteur, un statut et un historique.
+- On doit pouvoir activer, désactiver, comparer et revenir en arrière.
+
+15. Cas de régression
+- Chaque red team test important doit être enregistré comme cas de régression.
+- Permets de le rejouer après chaque changement important.
+- Conserve les cas de prompt injection, fuite de tenant, export excessif, auth bypass, mauvais scoring, orchestration abusive et contamination mémoire.
+
+16. Memory lifecycle
+- La mémoire doit avoir :
+  - rétention,
+  - expiration,
+  - purge,
+  - provenance,
+  - importance,
+  - sensibilité,
+  - tenant,
+  - scope.
+- Une mémoire illimitée est interdite.
+- La mémoire doit rester isolée par tenant et ne jamais fuiter.
+
+17. Commercial intelligence renforcée
+- Garde et améliore :
+  - accounts,
+  - contacts,
+  - opportunities,
+  - signals,
+  - playbooks,
+  - meeting intelligence,
+  - pipeline,
+  - forecast,
+  - scoring IA.
+- Ajoute si possible :
+  - buyer committee map,
+  - next best action,
+  - deal risk,
+  - signal engine,
+  - orchestration contrôlée,
+  - relances pilotées,
+  - vue compte / contact / opportunité liée.
+- Toute action commerciale sensible doit respecter les permissions et les policies.
+
+18. Pages à prévoir ou renforcer
+- Login.
+- Signup si activé.
+- Profil utilisateur.
+- Admin / users.
+- Governance.
+- Registry.
+- Agent map.
+- Audit trail.
+- Approvals.
+- Simulation.
+- Observability.
+- Commercial intelligence.
+- Prospects / leads.
+- Accounts.
+- Signals.
+- Playbooks.
+- Meeting intelligence.
+- Pipeline.
+- Diagnostics.
+- Export.
+- Settings IA.
+- Memory / history.
+
+19. Sécurité et qualité
+- Aucun secret en dur.
+- Pas d’accès cross-tenant.
+- Pas de permission implicite.
+- Pas de logique cachée dans l’UI seulement.
+- Les contrôles doivent être backend-first.
+- Toute action critique doit être compréhensible et réversible.
+- Toute IA doit avoir un fallback et un mode dégradé propre.
+- Toute décision IA doit être justifiée et journalisée.
+
+Travail demandé :
+- Analyse d’abord l’existant.
+- Implémente par lots cohérents.
+- Commence par les fondations : auth, multi-user, tenant, RBAC, registry, audit trail.
+- Ensuite ajoute la gouvernance, la simulation, le rollback et l’observabilité.
+- Ensuite connecte ces contrôles aux modules commercial, mémoire, red team et IA.
+- Vérifie la compilation et la cohérence à chaque gros lot.
+- Corrige immédiatement les problèmes.
+- Fais des choix d’architecture propres, maintenables et professionnels.
+
+Exigences de qualité :
+- UI claire et professionnelle.
+- Contrôles visibles, pas cachés.
+- Journalisation fiable.
+- Séparation stricte entre suggestion et action.
+- Pas de duplication inutile.
+- Logs exploitables.
+- Flux d’approbation simples et explicites.
+- UX moderne et crédible pour une vraie application SaaS.
+
+Livrables attendus :
+- Liste des fichiers créés ou modifiés.
+- Résumé des changements.
+- Ce qui reste à faire.
+- Risques ou blocages.
+- Checklist finale de validation.
+
+Fin obligatoire :
+- vérifie que tous les fichiers utiles sont enregistrés,
+- commit les changements avec un message clair,
+- pousse tout sur GitHub sur la branche main,
+- confirme que le remote GitHub est à jour,
+- vérifie que Railway peut redéployer automatiquement depuis main,
+- ne termine pas sans avoir confirmé le push réussi.
