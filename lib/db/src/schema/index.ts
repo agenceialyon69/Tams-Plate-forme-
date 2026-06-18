@@ -6,3 +6,4 @@ export * from "./decisions";
 export * from "./memory";
 export * from "./evening_reviews";
 export * from "./energy_logs";
+export * from "./recordings";
