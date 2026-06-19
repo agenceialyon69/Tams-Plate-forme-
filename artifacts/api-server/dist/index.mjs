@@ -63776,12 +63776,14 @@ init_drizzle_orm();
 // src/middlewares/auth-jwt.ts
 var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
 import { createHash as createHash2, timingSafeEqual } from "node:crypto";
-function getJwtSecret2() {
-  const s = process.env.JWT_SECRET;
-  return s && s.length >= 32 ? s : null;
-}
-function getLegacyToken() {
-  return process.env.API_AUTH_TOKEN ?? null;
+function resolveJwtSecret() {
+  const explicit = process.env.JWT_SECRET;
+  if (explicit && explicit.length >= 32) return explicit;
+  const legacy = process.env.API_AUTH_TOKEN;
+  if (legacy && legacy.length >= 16) {
+    return createHash2("sha256").update("gandal-jwt:" + legacy).digest("hex");
+  }
+  return null;
 }
 function extractRawToken(req) {
   const header = req.headers.authorization;
@@ -63819,7 +63821,7 @@ async function requireAuthJwt(req, res, next) {
     res.status(401).json({ error: "Non authentifi\xE9." });
     return;
   }
-  const jwtSecret = getJwtSecret2();
+  const jwtSecret = resolveJwtSecret();
   if (jwtSecret) {
     try {
       const payload = import_jsonwebtoken2.default.verify(rawToken, jwtSecret);
@@ -63836,7 +63838,7 @@ async function requireAuthJwt(req, res, next) {
     } catch {
     }
   }
-  const legacyToken = getLegacyToken();
+  const legacyToken = process.env.API_AUTH_TOKEN;
   if (legacyToken && legacyToken.length >= 16) {
     const candidateDigest = createHash2("sha256").update(rawToken).digest();
     const legacyDigest = createHash2("sha256").update(legacyToken).digest();

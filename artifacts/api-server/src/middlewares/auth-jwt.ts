@@ -3,6 +3,24 @@ import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
 
+/**
+ * Same priority as auth.ts getJwtSecret():
+ *   1. JWT_SECRET (>= 32 chars)
+ *   2. Derived from API_AUTH_TOKEN (>= 16 chars)  ← backward-compat fallback
+ *   3. null  (neither configured — caller handles the failure)
+ */
+function resolveJwtSecret(): string | null {
+  const explicit = process.env.JWT_SECRET;
+  if (explicit && explicit.length >= 32) return explicit;
+
+  const legacy = process.env.API_AUTH_TOKEN;
+  if (legacy && legacy.length >= 16) {
+    return createHash("sha256").update("gandal-jwt:" + legacy).digest("hex");
+  }
+
+  return null;
+}
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -19,15 +37,6 @@ declare global {
       tenantId?: number;
     }
   }
-}
-
-function getJwtSecret(): string | null {
-  const s = process.env.JWT_SECRET;
-  return s && s.length >= 32 ? s : null;
-}
-
-function getLegacyToken(): string | null {
-  return process.env.API_AUTH_TOKEN ?? null;
 }
 
 function extractRawToken(req: Request): string | null {
@@ -75,7 +84,8 @@ export async function requireAuthJwt(
     return;
   }
 
-  const jwtSecret = getJwtSecret();
+  // ── JWT verification (same secret priority as auth.ts) ──────────────────────
+  const jwtSecret = resolveJwtSecret();
 
   if (jwtSecret) {
     try {
@@ -99,10 +109,12 @@ export async function requireAuthJwt(
       req.tenantId = payload.tenantId;
       return next();
     } catch {
+      // Invalid / expired JWT — fall through to 401
     }
   }
 
-  const legacyToken = getLegacyToken();
+  // ── Legacy: raw API_AUTH_TOKEN still accepted as a bearer (backward-compat) ─
+  const legacyToken = process.env.API_AUTH_TOKEN;
   if (legacyToken && legacyToken.length >= 16) {
     const candidateDigest = createHash("sha256").update(rawToken).digest();
     const legacyDigest = createHash("sha256").update(legacyToken).digest();
