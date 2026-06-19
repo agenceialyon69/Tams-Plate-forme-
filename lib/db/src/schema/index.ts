@@ -16,3 +16,4 @@ export * from "./registry_entries";
 export * from "./approval_requests";
 export * from "./kill_switches";
 export * from "./tenant_quotas";
+export * from "./member_invitations";

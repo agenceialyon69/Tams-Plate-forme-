@@ -67,6 +67,17 @@ const PUBLIC_PATHS = new Set([
   "/api/auth/reset-password",
 ]);
 
+/**
+ * Path prefixes that are public without authentication.
+ * /users/invite/<token> and /users/invite/accept are invitation endpoints
+ * that must be accessible before the user has an account.
+ * Note: POST /users/invite (no trailing slash) stays protected.
+ */
+const PUBLIC_PREFIXES = [
+  "/users/invite/",
+  "/api/users/invite/",
+];
+
 export async function requireAuthJwt(
   req: Request,
   res: Response,
@@ -74,7 +85,7 @@ export async function requireAuthJwt(
 ): Promise<void> {
   const path = req.path;
 
-  if (PUBLIC_PATHS.has(path)) {
+  if (PUBLIC_PATHS.has(path) || PUBLIC_PREFIXES.some((p) => path.startsWith(p))) {
     return next();
   }
 

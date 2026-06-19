@@ -832,11 +832,11 @@ var require_binaryParsers = __commonJS({
         var array2 = [];
         var i2;
         if (dimension.length > 1) {
-          var count2 = dimension.shift();
-          for (i2 = 0; i2 < count2; i2++) {
+          var count3 = dimension.shift();
+          for (i2 = 0; i2 < count3; i2++) {
             array2[i2] = parse3(dimension, elementType2);
           }
-          dimension.unshift(count2);
+          dimension.unshift(count3);
         } else {
           for (i2 = 0; i2 < dimension[0]; i2++) {
             array2[i2] = parseElement(elementType2);
@@ -1255,7 +1255,7 @@ var require_utils_webcrypto = __commonJS({
     var nodeCrypto2 = __require("crypto");
     module.exports = {
       postgresMd5PasswordHash,
-      randomBytes: randomBytes2,
+      randomBytes: randomBytes3,
       deriveKey,
       sha256,
       hashByName,
@@ -1265,7 +1265,7 @@ var require_utils_webcrypto = __commonJS({
     var webCrypto = nodeCrypto2.webcrypto || globalThis.crypto;
     var subtleCrypto = webCrypto.subtle;
     var textEncoder = new TextEncoder();
-    function randomBytes2(length) {
+    function randomBytes3(length) {
       return webCrypto.getRandomValues(Buffer.alloc(length));
     }
     async function md5(string4) {
@@ -9993,8 +9993,8 @@ var require_depd = __commonJS({
       return deprecate;
     }
     function eehaslisteners(emitter, type) {
-      var count2 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count2 > 0;
+      var count3 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
+      return count3 > 0;
     }
     function isignored(namespace) {
       if (process.noDeprecation) {
@@ -27587,14 +27587,14 @@ var require_urlencoded = __commonJS({
       };
     }
     function parameterCount(body, limit) {
-      let count2 = 0;
+      let count3 = 0;
       let index = -1;
       do {
-        count2++;
-        if (count2 > limit) return void 0;
+        count3++;
+        if (count3 > limit) return void 0;
         index = body.indexOf("&", index + 1);
       } while (index !== -1);
-      return count2;
+      return count3;
     }
   }
 });
@@ -30807,13 +30807,13 @@ var require_mediaType = __commonJS({
       return spec.q > 0;
     }
     function quoteCount(string4) {
-      var count2 = 0;
+      var count3 = 0;
       var index = 0;
       while ((index = string4.indexOf('"', index)) !== -1) {
-        count2++;
+        count3++;
         index++;
       }
-      return count2;
+      return count3;
     }
     function splitKeyValuePair(str) {
       var index = str.indexOf("=");
@@ -32118,8 +32118,8 @@ var require_send = __commonJS({
       }
     }
     function hasListeners(emitter, type) {
-      var count2 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count2 > 0;
+      var count3 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
+      return count3 > 0;
     }
     function normalizeList(val, name2) {
       var list = [].concat(val || []);
@@ -38476,9 +38476,9 @@ var require_jws = __commonJS({
 var require_decode = __commonJS({
   "../../node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
-    module.exports = function(jwt4, options) {
+    module.exports = function(jwt5, options) {
       options = options || {};
-      var decoded = jws.decode(jwt4, options);
+      var decoded = jws.decode(jwt5, options);
       if (!decoded) {
         return null;
       }
@@ -45330,6 +45330,7 @@ __export(schema_exports, {
   leadActivitiesTable: () => leadActivitiesTable,
   leadsTable: () => leadsTable,
   learningsTable: () => learningsTable,
+  memberInvitationsTable: () => memberInvitationsTable,
   memoryTable: () => memoryTable,
   passwordResetTokensTable: () => passwordResetTokensTable,
   recordingsTable: () => recordingsTable,
@@ -49222,8 +49223,8 @@ function az_default() {
 }
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/locales/be.js
-function getBelarusianPlural(count2, one, few, many) {
-  const absCount = Math.abs(count2);
+function getBelarusianPlural(count3, one, few, many) {
+  const absCount = Math.abs(count3);
   const lastDigit = absCount % 10;
   const lastTwoDigits = absCount % 100;
   if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
@@ -52368,8 +52369,8 @@ function pt_default() {
 }
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/locales/ru.js
-function getRussianPlural(count2, one, few, many) {
-  const absCount = Math.abs(count2);
+function getRussianPlural(count3, one, few, many) {
+  const absCount = Math.abs(count3);
   const lastDigit = absCount % 10;
   const lastTwoDigits = absCount % 100;
   if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
@@ -57081,6 +57082,20 @@ var tenantQuotasTable = pgTable("tenant_quotas", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 });
 
+// ../../lib/db/src/schema/member_invitations.ts
+var memberInvitationsTable = pgTable("member_invitations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  role: userRoleEnum("role").notNull().default("member"),
+  token: text("token").notNull().unique(),
+  invitedById: integer("invited_by_id").notNull().references(() => usersTable.id),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+
 // ../../lib/db/src/ensure-schema.ts
 var STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS captures (
@@ -57311,6 +57326,18 @@ var STATEMENTS = [
     deactivated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS member_invitations (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role user_role NOT NULL DEFAULT 'member',
+    token TEXT NOT NULL UNIQUE,
+    invited_by_id INTEGER NOT NULL REFERENCES users(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    accepted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS tenant_quotas (
     id SERIAL PRIMARY KEY,
@@ -58407,11 +58434,11 @@ function isValidIP(ip, version3) {
   }
   return false;
 }
-function isValidJWT2(jwt4, alg) {
-  if (!jwtRegex.test(jwt4))
+function isValidJWT2(jwt5, alg) {
+  if (!jwtRegex.test(jwt5))
     return false;
   try {
-    const [header] = jwt4.split(".");
+    const [header] = jwt5.split(".");
     if (!header)
       return false;
     const base643 = header.replace(/-/g, "+").replace(/_/g, "/").padEnd(header.length + (4 - header.length % 4) % 4, "=");
@@ -63501,8 +63528,8 @@ var bcryptjs_default = {
 };
 
 // src/routes/auth.ts
-var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
-import crypto2, { createHash } from "node:crypto";
+var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
+import crypto2 from "node:crypto";
 init_drizzle_orm();
 
 // src/lib/logger.ts
@@ -63523,8 +63550,10 @@ var logger = (0, import_pino.default)({
   }
 });
 
-// src/routes/auth.ts
-var router2 = (0, import_express2.Router)();
+// src/lib/jwt.ts
+var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
+import { createHash } from "node:crypto";
+var SESSION_DURATION = process.env.SESSION_DURATION ?? "8h";
 function getJwtSecret() {
   const explicit = process.env.JWT_SECRET;
   if (explicit && explicit.length >= 32) return explicit;
@@ -63541,7 +63570,23 @@ function getJwtSecret() {
     "Authentication misconfigured: set JWT_SECRET (>= 32 chars) or API_AUTH_TOKEN (>= 16 chars) environment variable."
   );
 }
-var SESSION_DURATION = process.env.SESSION_DURATION ?? "8h";
+function signUserJwt(user, tenant) {
+  return import_jsonwebtoken.default.sign(
+    {
+      sub: String(user.id),
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+      tenantSlug: tenant.slug
+    },
+    getJwtSecret(),
+    { expiresIn: SESSION_DURATION }
+  );
+}
+
+// src/routes/auth.ts
+var router2 = (0, import_express2.Router)();
 var loginSchema = external_exports2.object({
   email: external_exports2.string().email(),
   password: external_exports2.string().min(1)
@@ -63583,18 +63628,7 @@ router2.post("/auth/login", async (req, res) => {
       return;
     }
     const [tenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, user.tenantId)).limit(1);
-    const token = import_jsonwebtoken.default.sign(
-      {
-        sub: String(user.id),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-        tenantSlug: tenant?.slug ?? "default"
-      },
-      getJwtSecret(),
-      { expiresIn: SESSION_DURATION }
-    );
+    const token = signUserJwt(user, tenant ?? { slug: "default" });
     await db.update(usersTable).set({ lastLoginAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, user.id));
     logger.info({ userId: user.id, email: user.email, tenantId: user.tenantId }, "User logged in");
     res.json({
@@ -63651,18 +63685,7 @@ router2.post("/auth/register", async (req, res) => {
       role: isFirstUser ? "owner" : "member",
       status: "active"
     }).returning();
-    const token = import_jsonwebtoken.default.sign(
-      {
-        sub: String(user.id),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-        tenantSlug: tenant.slug
-      },
-      getJwtSecret(),
-      { expiresIn: SESSION_DURATION }
-    );
+    const token = signUserJwt(user, tenant);
     logger.info({ userId: user.id, email: user.email, tenantId: tenant.id }, "User registered");
     res.status(201).json({
       token,
@@ -63689,7 +63712,7 @@ router2.get("/auth/me", async (req, res) => {
   }
   const token = authHeader.slice(7);
   try {
-    const payload = import_jsonwebtoken.default.verify(token, getJwtSecret());
+    const payload = import_jsonwebtoken2.default.verify(token, getJwtSecret());
     const [user] = await db.select({
       id: usersTable.id,
       email: usersTable.email,
@@ -63771,10 +63794,11 @@ var auth_default = router2;
 
 // src/routes/users.ts
 var import_express3 = __toESM(require_express2(), 1);
+import { randomBytes as randomBytes2 } from "node:crypto";
 init_drizzle_orm();
 
 // src/middlewares/auth-jwt.ts
-var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
+var import_jsonwebtoken3 = __toESM(require_jsonwebtoken(), 1);
 import { createHash as createHash2, timingSafeEqual } from "node:crypto";
 function resolveJwtSecret() {
   const explicit = process.env.JWT_SECRET;
@@ -63811,9 +63835,13 @@ var PUBLIC_PATHS = /* @__PURE__ */ new Set([
   "/auth/reset-password",
   "/api/auth/reset-password"
 ]);
+var PUBLIC_PREFIXES = [
+  "/users/invite/",
+  "/api/users/invite/"
+];
 async function requireAuthJwt(req, res, next) {
   const path3 = req.path;
-  if (PUBLIC_PATHS.has(path3)) {
+  if (PUBLIC_PATHS.has(path3) || PUBLIC_PREFIXES.some((p) => path3.startsWith(p))) {
     return next();
   }
   const rawToken = extractRawToken(req);
@@ -63824,7 +63852,7 @@ async function requireAuthJwt(req, res, next) {
   const jwtSecret = resolveJwtSecret();
   if (jwtSecret) {
     try {
-      const payload = import_jsonwebtoken2.default.verify(rawToken, jwtSecret);
+      const payload = import_jsonwebtoken3.default.verify(rawToken, jwtSecret);
       req.authUser = {
         id: Number(payload.sub),
         email: payload.email,
@@ -63882,32 +63910,54 @@ function requireRole(...roles) {
 
 // src/routes/users.ts
 var router3 = (0, import_express3.Router)();
+async function countActiveOwners(tenantId, excludeId) {
+  const rows = await db.select({ id: usersTable.id }).from(usersTable).where(
+    and(
+      eq(usersTable.tenantId, tenantId),
+      eq(usersTable.role, "owner"),
+      eq(usersTable.status, "active"),
+      ...excludeId !== void 0 ? [ne(usersTable.id, excludeId)] : []
+    )
+  );
+  return rows.length;
+}
+var ROLE_HIERARCHY = {
+  owner: 4,
+  admin: 3,
+  member: 2,
+  viewer: 1
+};
 router3.get("/users", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
     return;
   }
-  const users = await db.select({
-    id: usersTable.id,
-    email: usersTable.email,
-    name: usersTable.name,
-    role: usersTable.role,
-    status: usersTable.status,
-    lastLoginAt: usersTable.lastLoginAt,
-    createdAt: usersTable.createdAt
-  }).from(usersTable).where(eq(usersTable.tenantId, tenantId));
-  res.json(users);
+  try {
+    const users = await db.select({
+      id: usersTable.id,
+      email: usersTable.email,
+      name: usersTable.name,
+      role: usersTable.role,
+      status: usersTable.status,
+      lastLoginAt: usersTable.lastLoginAt,
+      createdAt: usersTable.createdAt
+    }).from(usersTable).where(eq(usersTable.tenantId, tenantId));
+    res.json(users);
+  } catch (err) {
+    logger.error({ err, tenantId }, "Failed to list users");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
 });
 var inviteSchema = external_exports2.object({
   email: external_exports2.string().email(),
   name: external_exports2.string().min(1).max(100),
-  role: external_exports2.enum(["admin", "member", "viewer"]).default("member"),
-  password: external_exports2.string().min(8)
+  role: external_exports2.enum(["admin", "member", "viewer"]).default("member")
 });
 router3.post("/users/invite", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
-  if (!tenantId) {
+  const callerId = req.authUser?.id;
+  if (!tenantId || !callerId) {
     res.status(400).json({ error: "Tenant manquant." });
     return;
   }
@@ -63916,22 +63966,166 @@ router3.post("/users/invite", requireRole("admin", "owner"), async (req, res) =>
     res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
     return;
   }
-  const { email: email3, name: name2, role, password } = parse3.data;
-  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email3.toLowerCase())).limit(1);
-  if (existing.length > 0) {
-    res.status(409).json({ error: "Un compte existe d\xE9j\xE0 avec cet email." });
+  const { email: email3, name: name2, role } = parse3.data;
+  const callerRole = req.authUser?.role ?? "member";
+  if (callerRole === "admin" && role === "admin") {
+    res.status(403).json({ error: "Un admin ne peut pas inviter un autre admin." });
     return;
   }
-  const passwordHash = await bcryptjs_default.hash(password, 12);
-  const [user] = await db.insert(usersTable).values({ tenantId, email: email3.toLowerCase(), name: name2, role, passwordHash, status: "active" }).returning({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role });
-  logger.info({ userId: user.id, invitedBy: req.authUser?.id, tenantId }, "User invited");
-  res.status(201).json(user);
+  try {
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email3.toLowerCase())).limit(1);
+    if (existing) {
+      res.status(409).json({ error: "Un compte existe d\xE9j\xE0 avec cet email." });
+      return;
+    }
+    await db.delete(memberInvitationsTable).where(
+      and(
+        eq(memberInvitationsTable.tenantId, tenantId),
+        eq(memberInvitationsTable.email, email3.toLowerCase())
+      )
+    );
+    const token = randomBytes2(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1e3);
+    const [invitation] = await db.insert(memberInvitationsTable).values({
+      tenantId,
+      email: email3.toLowerCase(),
+      name: name2,
+      role,
+      token,
+      invitedById: callerId,
+      expiresAt
+    }).returning();
+    logger.info(
+      { tenantId, invitedBy: callerId, email: email3, role, event: "member.invited" },
+      "member.invited"
+    );
+    res.status(201).json({
+      id: invitation.id,
+      email: invitation.email,
+      name: invitation.name,
+      role: invitation.role,
+      inviteToken: token,
+      expiresAt: invitation.expiresAt
+    });
+  } catch (err) {
+    logger.error({ err, tenantId }, "Failed to create invitation");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
 });
-var updateRoleSchema = external_exports2.object({ role: external_exports2.enum(["admin", "member", "viewer"]) });
-router3.patch("/users/:id/role", requireRole("owner"), async (req, res) => {
+router3.get("/users/invite/:token", async (req, res) => {
+  const token = req.params.token;
+  try {
+    const [inv] = await db.select({
+      id: memberInvitationsTable.id,
+      email: memberInvitationsTable.email,
+      name: memberInvitationsTable.name,
+      role: memberInvitationsTable.role,
+      expiresAt: memberInvitationsTable.expiresAt,
+      acceptedAt: memberInvitationsTable.acceptedAt,
+      tenantId: memberInvitationsTable.tenantId
+    }).from(memberInvitationsTable).where(eq(memberInvitationsTable.token, token)).limit(1);
+    if (!inv) {
+      res.status(404).json({ error: "Invitation introuvable ou expir\xE9e." });
+      return;
+    }
+    if (inv.acceptedAt) {
+      res.status(410).json({ error: "Cette invitation a d\xE9j\xE0 \xE9t\xE9 accept\xE9e." });
+      return;
+    }
+    if (new Date(inv.expiresAt) < /* @__PURE__ */ new Date()) {
+      res.status(410).json({ error: "Invitation expir\xE9e." });
+      return;
+    }
+    const [tenant] = await db.select({ name: tenantsTable.name, slug: tenantsTable.slug }).from(tenantsTable).where(eq(tenantsTable.id, inv.tenantId)).limit(1);
+    res.json({
+      email: inv.email,
+      name: inv.name,
+      role: inv.role,
+      expiresAt: inv.expiresAt,
+      tenant: tenant ? { name: tenant.name, slug: tenant.slug } : null
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to get invitation");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var acceptSchema = external_exports2.object({
+  token: external_exports2.string().min(1),
+  password: external_exports2.string().min(8),
+  name: external_exports2.string().min(1).max(100).optional()
+});
+router3.post("/users/invite/accept", async (req, res) => {
+  const parse3 = acceptSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides.", details: parse3.error.flatten() });
+    return;
+  }
+  const { token, password, name: overrideName } = parse3.data;
+  try {
+    const [inv] = await db.select().from(memberInvitationsTable).where(eq(memberInvitationsTable.token, token)).limit(1);
+    if (!inv) {
+      res.status(404).json({ error: "Invitation introuvable ou expir\xE9e." });
+      return;
+    }
+    if (inv.acceptedAt) {
+      res.status(410).json({ error: "Invitation d\xE9j\xE0 utilis\xE9e." });
+      return;
+    }
+    if (new Date(inv.expiresAt) < /* @__PURE__ */ new Date()) {
+      res.status(410).json({ error: "Invitation expir\xE9e." });
+      return;
+    }
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, inv.email)).limit(1);
+    if (existing) {
+      res.status(409).json({ error: "Un compte existe d\xE9j\xE0 avec cet email." });
+      return;
+    }
+    const [tenant] = await db.select({ name: tenantsTable.name, slug: tenantsTable.slug }).from(tenantsTable).where(eq(tenantsTable.id, inv.tenantId)).limit(1);
+    if (!tenant) {
+      res.status(404).json({ error: "Tenant introuvable." });
+      return;
+    }
+    const passwordHash = await bcryptjs_default.hash(password, 12);
+    const [user] = await db.insert(usersTable).values({
+      tenantId: inv.tenantId,
+      email: inv.email,
+      name: overrideName ?? inv.name,
+      role: inv.role,
+      passwordHash,
+      status: "active"
+    }).returning();
+    await db.update(memberInvitationsTable).set({ acceptedAt: /* @__PURE__ */ new Date() }).where(eq(memberInvitationsTable.id, inv.id));
+    logger.info(
+      { userId: user.id, tenantId: inv.tenantId, role: user.role, event: "member.invite_accepted" },
+      "member.invite_accepted"
+    );
+    const jwtToken = signUserJwt(user, tenant);
+    res.status(201).json({
+      token: jwtToken,
+      sessionDuration: SESSION_DURATION,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        tenantId: user.tenantId,
+        tenantSlug: tenant.slug
+      }
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to accept invitation");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+var updateRoleSchema = external_exports2.object({
+  role: external_exports2.enum(["owner", "admin", "member", "viewer"])
+});
+router3.patch("/users/:id/role", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
-  const userId = Number(req.params.id);
-  if (!tenantId || isNaN(userId)) {
+  const targetId = Number(req.params.id);
+  const callerId = req.authUser?.id;
+  const callerRole = req.authUser?.role ?? "member";
+  if (!tenantId || isNaN(targetId)) {
     res.status(400).json({ error: "Param\xE8tres invalides." });
     return;
   }
@@ -63940,28 +64134,126 @@ router3.patch("/users/:id/role", requireRole("owner"), async (req, res) => {
     res.status(400).json({ error: "R\xF4le invalide." });
     return;
   }
-  const [updated] = await db.update(usersTable).set({ role: parse3.data.role, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(usersTable.id, userId), eq(usersTable.tenantId, tenantId))).returning({ id: usersTable.id, role: usersTable.role });
-  if (!updated) {
-    res.status(404).json({ error: "Utilisateur introuvable." });
+  const newRole = parse3.data.role;
+  if (targetId === callerId) {
+    res.status(403).json({ error: "Vous ne pouvez pas modifier votre propre r\xF4le." });
     return;
   }
-  res.json(updated);
+  if (callerRole === "admin" && ROLE_HIERARCHY[newRole] >= ROLE_HIERARCHY["admin"]) {
+    res.status(403).json({ error: "Un admin ne peut assigner que les r\xF4les member ou viewer." });
+    return;
+  }
+  try {
+    const [target] = await db.select({ role: usersTable.role, status: usersTable.status, tenantId: usersTable.tenantId }).from(usersTable).where(and(eq(usersTable.id, targetId), eq(usersTable.tenantId, tenantId))).limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Utilisateur introuvable." });
+      return;
+    }
+    if (callerRole === "admin" && target.role === "admin") {
+      res.status(403).json({ error: "Un admin ne peut pas modifier le r\xF4le d'un autre admin." });
+      return;
+    }
+    if (target.role === "owner" && newRole !== "owner") {
+      const remaining = await countActiveOwners(tenantId, targetId);
+      if (remaining === 0) {
+        res.status(409).json({ error: "Impossible de r\xE9trograder le dernier owner du tenant." });
+        return;
+      }
+    }
+    const [updated] = await db.update(usersTable).set({ role: newRole, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(usersTable.id, targetId), eq(usersTable.tenantId, tenantId))).returning({ id: usersTable.id, role: usersTable.role });
+    logger.info(
+      { tenantId, actorId: callerId, targetId, oldRole: target.role, newRole, event: "member.role_changed" },
+      "member.role_changed"
+    );
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err, tenantId, targetId }, "Failed to change role");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
 });
+var statusSchema = external_exports2.object({ status: external_exports2.enum(["active", "suspended"]) });
 router3.patch("/users/:id/status", requireRole("admin", "owner"), async (req, res) => {
   const tenantId = req.tenantId;
-  const userId = Number(req.params.id);
-  const statusSchema = external_exports2.object({ status: external_exports2.enum(["active", "suspended"]) });
-  const parse3 = statusSchema.safeParse(req.body);
-  if (!tenantId || isNaN(userId) || !parse3.success) {
+  const targetId = Number(req.params.id);
+  const callerId = req.authUser?.id;
+  const callerRole = req.authUser?.role ?? "member";
+  if (!tenantId || isNaN(targetId)) {
     res.status(400).json({ error: "Param\xE8tres invalides." });
     return;
   }
-  const [updated] = await db.update(usersTable).set({ status: parse3.data.status, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(usersTable.id, userId), eq(usersTable.tenantId, tenantId))).returning({ id: usersTable.id, status: usersTable.status });
-  if (!updated) {
-    res.status(404).json({ error: "Utilisateur introuvable." });
+  const parse3 = statusSchema.safeParse(req.body);
+  if (!parse3.success) {
+    res.status(400).json({ error: "Statut invalide." });
     return;
   }
-  res.json(updated);
+  const newStatus = parse3.data.status;
+  if (targetId === callerId) {
+    res.status(403).json({ error: "Vous ne pouvez pas modifier votre propre statut." });
+    return;
+  }
+  try {
+    const [target] = await db.select({ role: usersTable.role, status: usersTable.status }).from(usersTable).where(and(eq(usersTable.id, targetId), eq(usersTable.tenantId, tenantId))).limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Utilisateur introuvable." });
+      return;
+    }
+    if (callerRole === "admin" && ROLE_HIERARCHY[target.role] >= ROLE_HIERARCHY["admin"]) {
+      res.status(403).json({ error: "Permissions insuffisantes pour modifier ce compte." });
+      return;
+    }
+    if (target.role === "owner" && newStatus === "suspended") {
+      const remaining = await countActiveOwners(tenantId, targetId);
+      if (remaining === 0) {
+        res.status(409).json({ error: "Impossible de suspendre le dernier owner actif du tenant." });
+        return;
+      }
+    }
+    const [updated] = await db.update(usersTable).set({ status: newStatus, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(usersTable.id, targetId), eq(usersTable.tenantId, tenantId))).returning({ id: usersTable.id, status: usersTable.status });
+    logger.info(
+      { tenantId, actorId: callerId, targetId, oldStatus: target.status, newStatus, event: "member.status_changed" },
+      "member.status_changed"
+    );
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err, tenantId, targetId }, "Failed to change status");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+router3.delete("/users/:id", requireRole("owner"), async (req, res) => {
+  const tenantId = req.tenantId;
+  const targetId = Number(req.params.id);
+  const callerId = req.authUser?.id;
+  if (!tenantId || isNaN(targetId)) {
+    res.status(400).json({ error: "Param\xE8tres invalides." });
+    return;
+  }
+  if (targetId === callerId) {
+    res.status(403).json({ error: "Vous ne pouvez pas supprimer votre propre compte." });
+    return;
+  }
+  try {
+    const [target] = await db.select({ role: usersTable.role, email: usersTable.email }).from(usersTable).where(and(eq(usersTable.id, targetId), eq(usersTable.tenantId, tenantId))).limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Utilisateur introuvable." });
+      return;
+    }
+    if (target.role === "owner") {
+      const remaining = await countActiveOwners(tenantId, targetId);
+      if (remaining === 0) {
+        res.status(409).json({ error: "Impossible de supprimer le dernier owner du tenant." });
+        return;
+      }
+    }
+    await db.delete(usersTable).where(and(eq(usersTable.id, targetId), eq(usersTable.tenantId, tenantId)));
+    logger.info(
+      { tenantId, actorId: callerId, targetId, email: target.email, event: "member.removed" },
+      "member.removed"
+    );
+    res.json({ ok: true, id: targetId });
+  } catch (err) {
+    logger.error({ err, tenantId, targetId }, "Failed to delete user");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
 });
 var users_default = router3;
 

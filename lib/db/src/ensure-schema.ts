@@ -238,6 +238,18 @@ const STATEMENTS = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS member_invitations (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role user_role NOT NULL DEFAULT 'member',
+    token TEXT NOT NULL UNIQUE,
+    invited_by_id INTEGER NOT NULL REFERENCES users(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    accepted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
   `CREATE TABLE IF NOT EXISTS tenant_quotas (
     id SERIAL PRIMARY KEY,
     tenant_id INTEGER NOT NULL UNIQUE REFERENCES tenants(id),

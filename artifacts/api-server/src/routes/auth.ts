@@ -1,47 +1,14 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto, { createHash } from "node:crypto";
+import crypto from "node:crypto";
 import { db, usersTable, tenantsTable, passwordResetTokensTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
+import { getJwtSecret, signUserJwt, SESSION_DURATION } from "../lib/jwt";
 
 const router = Router();
-
-/**
- * Resolve the JWT signing secret.
- *
- * Priority:
- *   1. JWT_SECRET env var (>= 32 chars) — set this in production.
- *   2. Derived from API_AUTH_TOKEN if JWT_SECRET is absent — backward-compat
- *      fallback so Railway deploys don't break before JWT_SECRET is added.
- *
- * Throws only if NEITHER is available, giving a clear error instead of a
- * cryptic "Cannot read properties of undefined" deep inside jsonwebtoken.
- */
-function getJwtSecret(): string {
-  const explicit = process.env.JWT_SECRET;
-  if (explicit && explicit.length >= 32) return explicit;
-
-  const legacy = process.env.API_AUTH_TOKEN;
-  if (legacy && legacy.length >= 16) {
-    if (!explicit) {
-      logger.warn(
-        "JWT_SECRET not set — deriving from API_AUTH_TOKEN. " +
-          "Set JWT_SECRET explicitly to invalidate old tokens on rotation.",
-      );
-    }
-    return createHash("sha256").update("gandal-jwt:" + legacy).digest("hex");
-  }
-
-  throw new Error(
-    "Authentication misconfigured: set JWT_SECRET (>= 32 chars) or " +
-      "API_AUTH_TOKEN (>= 16 chars) environment variable.",
-  );
-}
-
-const SESSION_DURATION = process.env.SESSION_DURATION ?? "8h";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -103,18 +70,7 @@ router.post("/auth/login", async (req, res) => {
       .where(eq(tenantsTable.id, user.tenantId))
       .limit(1);
 
-    const token = jwt.sign(
-      {
-        sub: String(user.id),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-        tenantSlug: tenant?.slug ?? "default",
-      },
-      getJwtSecret(),
-      { expiresIn: SESSION_DURATION } as jwt.SignOptions,
-    );
+    const token = signUserJwt(user, tenant ?? { slug: "default" });
 
     await db
       .update(usersTable)
@@ -210,18 +166,7 @@ router.post("/auth/register", async (req, res) => {
       })
       .returning();
 
-    const token = jwt.sign(
-      {
-        sub: String(user.id),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-        tenantSlug: tenant.slug,
-      },
-      getJwtSecret(),
-      { expiresIn: SESSION_DURATION } as jwt.SignOptions,
-    );
+    const token = signUserJwt(user, tenant);
 
     logger.info({ userId: user.id, email: user.email, tenantId: tenant.id }, "User registered");
 
