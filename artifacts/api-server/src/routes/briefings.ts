@@ -115,8 +115,10 @@ router.get("/briefings/morning", async (req, res): Promise<void> => {
     ...todayEvents.slice(0, 1).map(e => e.title),
   ].slice(0, 3);
 
+  const generatedAt = new Date().toISOString();
   const briefingData = {
     date: today,
+    generatedAt,
     topPriorities,
     todayEvents,
     pendingHighPriorityTasks,

@@ -4,6 +4,7 @@ import {
   useTranscribeAudio,
   useListCaptures,
   getListCapturesQueryKey,
+  type Capture,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-const typeConfig: Record<string, { label: string; icon: typeof Inbox; color: string }> = {
-  task: { label: "Tâche", icon: CheckCircle2, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
-  event: { label: "Événement", icon: Calendar, color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
-  learning: { label: "Apprentissage", icon: BookOpen, color: "text-purple-500 bg-purple-500/10 border-purple-500/20" },
-  note: { label: "Note", icon: Inbox, color: "text-muted-foreground bg-muted border-border" },
+const sourceConfig: Record<string, { label: string; icon: typeof Inbox; color: string }> = {
+  text: { label: "Texte", icon: Inbox, color: "text-muted-foreground bg-muted border-border" },
+  voice: { label: "Voix", icon: Mic, color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
 };
 
 export default function Capture() {
@@ -35,7 +34,7 @@ export default function Capture() {
 
   const createCapture = useCreateCapture();
   const transcribeAudio = useTranscribeAudio();
-  const { data: recentCaptures } = useListCaptures({ limit: 5 } as any);
+  const { data: recentCaptures } = useListCaptures({ limit: 5 });
 
   const startRecording = async () => {
     try {
@@ -196,8 +195,8 @@ export default function Capture() {
             Récemment capturé
           </h2>
           <div className="space-y-2">
-            {recentCaptures.map((cap: any, i: number) => {
-              const cfg = typeConfig[cap.extractedType || cap.type] || typeConfig.note;
+            {recentCaptures.map((cap: Capture, i: number) => {
+              const cfg = sourceConfig[cap.source] ?? sourceConfig.text;
               const Icon = cfg.icon;
               return (
                 <motion.div
@@ -214,14 +213,12 @@ export default function Capture() {
                       {format(new Date(cap.createdAt), "d MMM à HH:mm", { locale: fr })}
                     </p>
                   </div>
-                  {(cap.extractedType || cap.type) && (
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] shrink-0 font-normal ${cfg.color}`}
-                    >
-                      {cfg.label}
-                    </Badge>
-                  )}
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] shrink-0 font-normal ${cfg.color}`}
+                  >
+                    {cfg.label}
+                  </Badge>
                 </motion.div>
               );
             })}

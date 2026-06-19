@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CheckCircle2, Clock, Battery, ListTodo } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Battery, ListTodo, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -92,6 +92,18 @@ export default function Dashboard() {
   const dateStr = format(new Date(), "EEEE d MMMM", { locale: fr });
   const capitalizedDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
+  const generatedAtStr = briefing?.generatedAt
+    ? format(new Date(briefing.generatedAt), "HH:mm", { locale: fr })
+    : null;
+
+  const loadConfig: Record<string, { label: string; className: string }> = {
+    light:    { label: "Charge légère",   className: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
+    moderate: { label: "Charge modérée",  className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+    heavy:    { label: "Charge élevée",   className: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+    critical: { label: "Charge critique", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  };
+  const loadDisplay = briefing?.estimatedLoad ? loadConfig[briefing.estimatedLoad] : null;
+
   return (
     <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-10">
       <header>
@@ -100,12 +112,25 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-sm text-muted-foreground mb-1 font-medium">{capitalizedDate}</p>
+          <div className="flex items-center gap-3 mb-1">
+            <p className="text-sm text-muted-foreground font-medium">{capitalizedDate}</p>
+            {loadDisplay && (
+              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${loadDisplay.className}`}>
+                <Zap className="w-3 h-3" />
+                {loadDisplay.label}
+              </span>
+            )}
+          </div>
           <h1 className="text-3xl font-serif mb-2 text-foreground">{greeting}.</h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
             {briefing?.koreMessage ||
               "Prenons le temps de nous recentrer sur ce qui compte vraiment."}
           </p>
+          {generatedAtStr && (
+            <p className="text-xs text-muted-foreground/60 mt-2">
+              Briefing généré à {generatedAtStr}
+            </p>
+          )}
         </motion.div>
       </header>
 

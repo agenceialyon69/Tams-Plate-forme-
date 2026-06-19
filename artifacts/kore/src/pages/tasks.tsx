@@ -1,4 +1,4 @@
-import { useListTasks, useUpdateTask, getListTasksQueryKey } from "@workspace/api-client-react";
+import { useListTasks, useUpdateTask, getListTasksQueryKey, TaskUpdateStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,7 @@ export default function Tasks() {
   const handleToggle = (id: number, currentStatus: string) => {
     const newStatus = currentStatus === "pending" ? "done" : "pending";
     updateTask.mutate(
-      { id, data: { status: newStatus as any } },
+      { id, data: { status: newStatus as TaskUpdateStatus } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });

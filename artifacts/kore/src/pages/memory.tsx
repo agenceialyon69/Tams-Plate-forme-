@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListMemory, useCreateMemoryEntry, useDeleteMemoryEntry, getListMemoryQueryKey } from "@workspace/api-client-react";
+import { useListMemory, useCreateMemoryEntry, useDeleteMemoryEntry, getListMemoryQueryKey, ListMemoryDomain, MemoryEntryInputDomain } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,7 +22,7 @@ export default function Memory() {
   const [newEntry, setNewEntry] = useState({ title: "", content: "", domain: "personal", tags: "" });
   
   const { data: memories, isLoading } = useListMemory({ 
-    domain: activeTab !== "all" ? activeTab as any : undefined,
+    domain: activeTab !== "all" ? activeTab as ListMemoryDomain : undefined,
     search: searchQuery || undefined
   });
   
@@ -40,7 +40,7 @@ export default function Memory() {
         data: {
           title: newEntry.title,
           content: newEntry.content,
-          domain: newEntry.domain as any,
+          domain: newEntry.domain as MemoryEntryInputDomain,
           tags: newEntry.tags.split(",").map(t => t.trim()).filter(Boolean)
         }
       });
