@@ -67775,35 +67775,77 @@ router10.patch("/quotas", requireRole("owner"), async (req, res) => {
   try {
     await getOrCreateQuota(tenantId);
     const [updated] = await db.update(tenantQuotasTable).set({ ...parse3.data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenantQuotasTable.tenantId, tenantId)).returning();
-    logger.info({ tenantId, userId: req.authUser?.id }, "Tenant quotas updated");
+    logger.info({ tenantId, userId: req.authUser?.id, changes: parse3.data }, "quota.updated");
     res.json(updated);
   } catch (err) {
     logger.error({ err }, "Failed to update quotas");
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-async function checkAndIncrementAiCalls(tenantId) {
+async function checkAndIncrementAiCalls(tenantId, ctx = {}) {
+  const logCtx = { tenantId, userId: ctx.userId, route: ctx.route };
   try {
     const quota = await getOrCreateQuota(tenantId);
     const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const thisMonth = today.slice(0, 7);
+    const updates = {};
     if (quota.lastResetDate !== today) {
-      await db.update(tenantQuotasTable).set({ aiCallsToday: 0, lastResetDate: today, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenantQuotasTable.tenantId, tenantId));
+      updates.aiCallsToday = 0;
+      updates.lastResetDate = today;
+      updates.updatedAt = /* @__PURE__ */ new Date();
+      const lastMonth = quota.lastResetDate?.slice(0, 7) ?? "";
+      if (lastMonth !== thisMonth) {
+        updates.aiCallsThisMonth = 0;
+        updates.costCentsThisMonth = 0;
+        logger.info({ ...logCtx, month: thisMonth }, "quota.monthly_reset");
+      }
+      await db.update(tenantQuotasTable).set(updates).where(eq(tenantQuotasTable.tenantId, tenantId));
       quota.aiCallsToday = 0;
+      if ("aiCallsThisMonth" in updates) quota.aiCallsThisMonth = 0;
     }
     if (quota.aiCallsToday >= quota.maxAiCallsPerDay) {
-      return { allowed: false, reason: `Quota journalier IA atteint (${quota.maxAiCallsPerDay} appels/jour).` };
+      logger.warn({
+        ...logCtx,
+        event: "ai.quota.blocked",
+        reason: "daily",
+        callsToday: quota.aiCallsToday,
+        limitPerDay: quota.maxAiCallsPerDay
+      }, "ai.quota.blocked.daily");
+      return {
+        allowed: false,
+        reason: `Quota journalier IA atteint (${quota.maxAiCallsPerDay} appels/jour).`
+      };
     }
     if (quota.aiCallsThisMonth >= quota.maxAiCallsPerMonth) {
-      return { allowed: false, reason: `Quota mensuel IA atteint (${quota.maxAiCallsPerMonth} appels/mois).` };
+      logger.warn({
+        ...logCtx,
+        event: "ai.quota.blocked",
+        reason: "monthly",
+        callsThisMonth: quota.aiCallsThisMonth,
+        limitPerMonth: quota.maxAiCallsPerMonth
+      }, "ai.quota.blocked.monthly");
+      return {
+        allowed: false,
+        reason: `Quota mensuel IA atteint (${quota.maxAiCallsPerMonth} appels/mois).`
+      };
     }
     await db.update(tenantQuotasTable).set({
       aiCallsToday: quota.aiCallsToday + 1,
       aiCallsThisMonth: quota.aiCallsThisMonth + 1,
       updatedAt: /* @__PURE__ */ new Date()
     }).where(eq(tenantQuotasTable.tenantId, tenantId));
+    logger.info({
+      ...logCtx,
+      event: "ai.call.allowed",
+      callsToday: quota.aiCallsToday + 1,
+      maxPerDay: quota.maxAiCallsPerDay,
+      callsThisMonth: quota.aiCallsThisMonth + 1,
+      maxPerMonth: quota.maxAiCallsPerMonth
+    }, "ai.call.allowed");
     return { allowed: true };
-  } catch {
-    return { allowed: true };
+  } catch (err) {
+    logger.error({ ...logCtx, err, event: "ai.quota.check.error" }, "ai.quota.check.error \u2014 failing closed");
+    return { allowed: false, reason: "Erreur de v\xE9rification du quota. R\xE9essayez dans un instant." };
   }
 }
 var quotas_default = router10;
@@ -67820,9 +67862,11 @@ function invalidateBriefingCache() {
 async function checkQuota(req, res) {
   const tenantId = req.tenantId;
   if (!tenantId) return true;
-  const guard = await checkAndIncrementAiCalls(tenantId);
+  const guard = await checkAndIncrementAiCalls(tenantId, {
+    userId: req.authUser?.id,
+    route: req.path
+  });
   if (!guard.allowed) {
-    logger.warn({ tenantId, path: req.path }, `AI quota exceeded on briefings: ${guard.reason}`);
     res.status(429).json({
       error: "Quota IA d\xE9pass\xE9.",
       detail: guard.reason,
@@ -68069,9 +68113,11 @@ router13.post("/ai/transcribe", async (req, res) => {
   }
   const tenantId = req.tenantId;
   if (tenantId) {
-    const guard = await checkAndIncrementAiCalls(tenantId);
+    const guard = await checkAndIncrementAiCalls(tenantId, {
+      userId: req.authUser?.id,
+      route: req.path
+    });
     if (!guard.allowed) {
-      logger.warn({ tenantId, path: req.path }, `AI quota exceeded: ${guard.reason}`);
       res.status(429).json({
         error: "Quota IA d\xE9pass\xE9.",
         detail: guard.reason,
@@ -68098,11 +68144,14 @@ function asStr(v, max2 = 500) {
   if (typeof v !== "string" || !v.trim()) return null;
   return v.trim().slice(0, max2);
 }
-async function checkQuota2(tenantId, res) {
+async function checkQuota2(req, res) {
+  const tenantId = req.tenantId;
   if (!tenantId) return true;
-  const guard = await checkAndIncrementAiCalls(tenantId);
+  const guard = await checkAndIncrementAiCalls(tenantId, {
+    userId: req.authUser?.id,
+    route: req.path
+  });
   if (!guard.allowed) {
-    logger.warn({ tenantId }, `AI quota exceeded on recordings: ${guard.reason}`);
     res.status(429).json({
       error: "Quota IA d\xE9pass\xE9.",
       detail: guard.reason,
@@ -68127,7 +68176,7 @@ router14.post("/recordings/analyze", recordingLimiter, async (req, res) => {
     res.status(413).json({ error: "Audio trop volumineux. Maximum ~45 minutes." });
     return;
   }
-  if (!await checkQuota2(req.tenantId, res)) return;
+  if (!await checkQuota2(req, res)) return;
   const safeMimeType = typeof mimeType === "string" ? mimeType : "audio/webm";
   const safeMeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
   const safeContext = asStr(context, 2e3);
@@ -68163,7 +68212,7 @@ router14.post("/recordings/analyze-text", recordingLimiter, async (req, res) => 
     res.status(400).json({ error: "title et transcript requis" });
     return;
   }
-  if (!await checkQuota2(req.tenantId, res)) return;
+  if (!await checkQuota2(req, res)) return;
   const safeMeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
   const safeContext = asStr(context, 2e3);
   const safeDuration = typeof durationSeconds === "number" && durationSeconds >= 0 ? Math.floor(durationSeconds) : null;

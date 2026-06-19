@@ -20,9 +20,11 @@ router.post("/ai/transcribe", async (req, res): Promise<void> => {
   // ── Cost guardrail ──────────────────────────────────────────────────────────
   const tenantId = req.tenantId;
   if (tenantId) {
-    const guard = await checkAndIncrementAiCalls(tenantId);
+    const guard = await checkAndIncrementAiCalls(tenantId, {
+      userId: req.authUser?.id,
+      route: req.path,
+    });
     if (!guard.allowed) {
-      logger.warn({ tenantId, path: req.path }, `AI quota exceeded: ${guard.reason}`);
       res.status(429).json({
         error: "Quota IA dépassé.",
         detail: guard.reason,

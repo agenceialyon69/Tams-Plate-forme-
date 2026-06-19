@@ -20,13 +20,15 @@ export function invalidateBriefingCache(): void {
   briefingCache = null;
 }
 
-/** Shared AI quota guard. Returns false and sends 429 if quota is exhausted. */
+/** Shared AI quota guard. Returns false and sends 429 if quota is exhausted. Fail-closed. */
 async function checkQuota(req: Request, res: Response): Promise<boolean> {
   const tenantId = req.tenantId;
   if (!tenantId) return true; // legacy / no-tenant mode: allow
-  const guard = await checkAndIncrementAiCalls(tenantId);
+  const guard = await checkAndIncrementAiCalls(tenantId, {
+    userId: req.authUser?.id,
+    route: req.path,
+  });
   if (!guard.allowed) {
-    logger.warn({ tenantId, path: req.path }, `AI quota exceeded on briefings: ${guard.reason}`);
     res.status(429).json({
       error: "Quota IA dépassé.",
       detail: guard.reason,

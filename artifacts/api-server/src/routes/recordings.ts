@@ -22,13 +22,19 @@ function asStr(v: unknown, max = 500): string | null {
   return v.trim().slice(0, max);
 }
 
-/** Shared quota guard — call before any LLM invocation. */
-async function checkQuota(tenantId: number | undefined, res: Parameters<typeof router.post>[1] extends (_: unknown, r: infer R, ..._a: unknown[]) => unknown ? R : never): Promise<boolean> {
+/** Shared quota guard — call before any LLM invocation. Fail-closed. */
+async function checkQuota(
+  req: import("express").Request,
+  res: import("express").Response,
+): Promise<boolean> {
+  const tenantId = req.tenantId;
   if (!tenantId) return true; // legacy / no-tenant mode: allow
-  const guard = await checkAndIncrementAiCalls(tenantId);
+  const guard = await checkAndIncrementAiCalls(tenantId, {
+    userId: req.authUser?.id,
+    route: req.path,
+  });
   if (!guard.allowed) {
-    logger.warn({ tenantId }, `AI quota exceeded on recordings: ${guard.reason}`);
-    (res as import("express").Response).status(429).json({
+    res.status(429).json({
       error: "Quota IA dépassé.",
       detail: guard.reason,
       code: "AI_QUOTA_EXCEEDED",
@@ -55,7 +61,7 @@ router.post("/recordings/analyze", recordingLimiter, async (req, res): Promise<v
 
   // ── Cost guardrail — transcribe (Groq) + analysis (Gemini) = 2 AI calls ──
   // We gate on 1 call; recording analysis is expensive, so it counts once.
-  if (!await checkQuota(req.tenantId, res)) return;
+  if (!await checkQuota(req, res)) return;
   // ─────────────────────────────────────────────────────────────────────────
 
   const safeMimeType = typeof mimeType === "string" ? mimeType : "audio/webm";
@@ -100,7 +106,7 @@ router.post("/recordings/analyze-text", recordingLimiter, async (req, res): Prom
   }
 
   // ── Cost guardrail ──────────────────────────────────────────────────────────
-  if (!await checkQuota(req.tenantId, res)) return;
+  if (!await checkQuota(req, res)) return;
   // ───────────────────────────────────────────────────────────────────────────
 
   const safeMeetingType: MeetingType = isMeetingType(meetingType) ? meetingType : "meeting";
