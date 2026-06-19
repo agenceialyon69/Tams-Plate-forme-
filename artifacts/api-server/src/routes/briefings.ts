@@ -96,7 +96,7 @@ router.get("/briefings/morning", async (req, res): Promise<void> => {
   else if (totalLoad > 6) estimatedLoad = "heavy";
   else if (totalLoad > 3) estimatedLoad = "moderate";
 
-  const koreMessage = await generateMorningKoreMessage({
+  const tamsMessage = await generateMorningKoreMessage({
     pendingTasks: activeTasks,
     highPriorityTasks: pendingHighPriorityTasks.length,
     overdueTasks: overdueTasks.length,
@@ -125,7 +125,7 @@ router.get("/briefings/morning", async (req, res): Promise<void> => {
     upcomingDeadlines,
     overdueTasks,
     estimatedLoad,
-    koreMessage,
+    tamsMessage,
     overloadAlert,
   };
 
@@ -143,7 +143,7 @@ router.post("/briefings/evening", async (req, res): Promise<void> => {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const koreResponse = await generateEveningResponse({
+  const tamsResponse = await generateEveningResponse({
     mostImportantThing: parsed.data.mostImportantThing,
     energyLevel: parsed.data.energyLevel,
     deferredItems: parsed.data.deferredItems ?? null,
@@ -157,7 +157,7 @@ router.post("/briefings/evening", async (req, res): Promise<void> => {
     deferredItems: parsed.data.deferredItems ?? null,
     abandonedItems: parsed.data.abandonedItems ?? null,
     freeReflection: parsed.data.freeReflection ?? null,
-    koreResponse,
+    tamsResponse,
     reviewDate: today,
   }).returning();
 

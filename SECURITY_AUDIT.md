@@ -1,4 +1,4 @@
-# Audit Red Team — KORE (Tams Plate-forme)
+# Audit Red Team — TAMS (Tams Plate-forme)
 
 **Date :** 2026-06-15
 **Périmètre :** `artifacts/api-server` (API Express 5), `lib/db` (Drizzle/PostgreSQL), `lib/api-*`, `artifacts/kore` (frontend React).
@@ -96,7 +96,7 @@ Les entrées utilisateur (`content`, `question`, `context`, `mostImportantThing`
 const prompt = `... Capture de l'utilisateur : "${content}" ...`;
 ```
 
-Un utilisateur peut détourner les instructions de « KORE », faire ignorer la boussole de priorités, manipuler le `koreComment` stocké, ou tenter d'extraire le prompt système. L'impact direct est limité (pas d'outils/actions branchés sur le LLM), mais l'intégrité des analyses et des données stockées est compromise.
+Un utilisateur peut détourner les instructions de « TAMS », faire ignorer la boussole de priorités, manipuler le `tamsComment` stocké, ou tenter d'extraire le prompt système. L'impact direct est limité (pas d'outils/actions branchés sur le LLM), mais l'intégrité des analyses et des données stockées est compromise.
 
 **Remédiation :** séparer instructions et données utilisateur (rôles/messages structurés), filtrer/échapper, et ne jamais traiter la sortie LLM comme de confiance.
 

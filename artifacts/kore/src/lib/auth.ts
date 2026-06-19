@@ -1,5 +1,5 @@
-const STORAGE_KEY = "gandal_auth_token";
-const USER_KEY = "gandal_auth_user";
+const STORAGE_KEY = "tams_auth_token";
+const USER_KEY = "tams_auth_user";
 
 export interface AuthUser {
   id: number;
@@ -15,9 +15,14 @@ let listeners: Array<() => void> = [];
 
 export function getToken(): string | null {
   try {
-    const legacy = localStorage.getItem("tams_api_token") ?? localStorage.getItem("kore_api_token");
+    // Migrate tokens from any legacy key names
+    const legacy =
+      localStorage.getItem("gandal_auth_token") ??
+      localStorage.getItem("tams_api_token") ??
+      localStorage.getItem("kore_api_token");
     if (legacy) {
       localStorage.setItem(STORAGE_KEY, legacy);
+      localStorage.removeItem("gandal_auth_token");
       localStorage.removeItem("tams_api_token");
       localStorage.removeItem("kore_api_token");
     }
@@ -38,6 +43,8 @@ export function clearToken(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem("gandal_auth_token");
+    localStorage.removeItem("gandal_auth_user");
     localStorage.removeItem("tams_api_token");
     localStorage.removeItem("kore_api_token");
   } catch { }

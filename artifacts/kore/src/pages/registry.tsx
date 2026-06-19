@@ -124,7 +124,7 @@ export default function Registry() {
             <h1 className="text-2xl font-serif font-semibold">Registry Central</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Tout ce que GANDAL sait faire — agents, prompts, playbooks, politiques, workflows, providers.
+            Tout ce que TAMS sait faire — agents, prompts, playbooks, politiques, workflows, providers.
           </p>
         </div>
         {canWrite && (

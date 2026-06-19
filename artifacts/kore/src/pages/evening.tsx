@@ -45,8 +45,8 @@ export default function Evening() {
         },
       });
       queryClient.invalidateQueries({ queryKey: getListEveningReviewsQueryKey() });
-      if (res.koreResponse) {
-        setTamsResponseText(res.koreResponse);
+      if (res.tamsResponse) {
+        setTamsResponseText(res.tamsResponse);
         setShowResponse(true);
       } else {
         toast({ description: "Revue enregistrée. Reposez-vous." });

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Api
   version: 0.1.0
-  description: KORE API - Life copilot
+  description: TAMS API - Life copilot
 servers:
   - url: /api
     description: Base API path
@@ -634,7 +634,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Learning"
-        koreComment:
+        tamsComment:
           type: ["string", "null"]
       required: [capture, tasks, events, learnings]
 
@@ -656,7 +656,7 @@ components:
           enum: [pending, done, dismissed]
         priorityDomain:
           type: ["string", "null"]
-          description: "KORE priority compass domain"
+          description: "TAMS priority compass domain"
         captureId:
           type: ["integer", "null"]
         createdAt:
@@ -904,7 +904,7 @@ components:
         estimatedLoad:
           type: string
           enum: [light, moderate, heavy, critical]
-        koreMessage:
+        tamsMessage:
           type: ["string", "null"]
         overloadAlert:
           type: ["string", "null"]
@@ -942,7 +942,7 @@ components:
           type: ["string", "null"]
         freeReflection:
           type: ["string", "null"]
-        koreResponse:
+        tamsResponse:
           type: ["string", "null"]
         reviewDate:
           type: string

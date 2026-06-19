@@ -162,7 +162,7 @@ function AppSidebar({ onCommandPalette }: { onCommandPalette: () => void }) {
               <GandalLogo />
               <div>
                 <h1 className="font-serif text-lg tracking-tight text-foreground font-semibold leading-none">
-                  GANDAL
+                  TAMS
                 </h1>
                 <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{today}</p>
               </div>

@@ -9,7 +9,7 @@ export const eveningReviewsTable = pgTable("evening_reviews", {
   deferredItems: text("deferred_items"),
   abandonedItems: text("abandoned_items"),
   freeReflection: text("free_reflection"),
-  koreResponse: text("kore_response"),
+  tamsResponse: text("kore_response"),
   reviewDate: text("review_date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

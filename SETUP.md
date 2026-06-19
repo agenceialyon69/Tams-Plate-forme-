@@ -1,6 +1,6 @@
-# Mettre KORE en service — guide débutant (objectif : l'utiliser sur ton téléphone)
+# Mettre TAMS en service — guide débutant (objectif : l'utiliser sur ton téléphone)
 
-KORE est une **application web** : une fois mise en ligne, tu obtiens un lien
+TAMS est une **application web** : une fois mise en ligne, tu obtiens un lien
 (une URL). Tu ouvres ce lien sur ton téléphone et tu l'ajoutes à l'écran
 d'accueil → elle se comporte comme une vraie app, **sans passer par l'App Store
 ni le Play Store**.
@@ -15,7 +15,7 @@ seule au premier démarrage.
 C'est un **mot de passe secret** que tu choisis toi-même (tu ne le récupères
 nulle part). Il sert à deux endroits, avec **la même valeur** :
 1. tu le mets dans la configuration du serveur (une variable `API_AUTH_TOKEN`) ;
-2. tu le colles dans l'app, dans la case « KORE — Accès » au premier lancement.
+2. tu le colles dans l'app, dans la case « TAMS — Accès » au premier lancement.
 
 Un token déjà prêt (tu peux l'utiliser tel quel) :
 ```
@@ -42,21 +42,21 @@ Faisable depuis un ordinateur **ou** depuis le navigateur de ton téléphone.
 5. **Déploie** (Railway le fait automatiquement). Quand c'est vert, ouvre
    l'onglet **Settings → Networking → Generate Domain** : tu obtiens ton URL
    publique (ex. `https://kore-production.up.railway.app`).
-6. **Ouvre cette URL**, colle ton token dans « KORE — Accès ». 🎉
+6. **Ouvre cette URL**, colle ton token dans « TAMS — Accès ». 🎉
 
 > Les variables `PORT`, `NODE_ENV` et `BASE_PATH` sont déjà fournies par le
 > fichier `railway.toml` du dépôt — tu n'as pas à t'en occuper.
 
 ---
 
-## Installer KORE sur ton téléphone (comme une app)
+## Installer TAMS sur ton téléphone (comme une app)
 
 Une fois l'URL ouverte sur le tél et le token saisi :
 
 - **iPhone (Safari)** : bouton **Partager** → **Sur l'écran d'accueil**.
 - **Android (Chrome)** : menu **⋮** → **Ajouter à l'écran d'accueil**.
 
-Une icône KORE apparaît. Tu l'ouvres comme n'importe quelle app, en plein écran.
+Une icône TAMS apparaît. Tu l'ouvres comme n'importe quelle app, en plein écran.
 
 ---
 

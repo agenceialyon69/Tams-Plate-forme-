@@ -93,7 +93,7 @@ router.post("/captures", captureLimiter, async (req, res): Promise<void> => {
     tasks,
     events,
     learnings,
-    koreComment: extracted.koreComment ?? null,
+    tamsComment: extracted.tamsComment ?? null,
   });
 });
 

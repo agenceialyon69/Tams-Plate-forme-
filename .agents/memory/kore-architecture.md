@@ -1,5 +1,5 @@
 ---
-name: KORE / GANDAL Architecture
+name: TAMS Architecture (formerly KORE/GANDAL)
 description: Full stack, Vite proxy wiring, auth flow, multi-tenant RBAC, DB migration pattern, kill switches, quotas
 ---
 
@@ -15,12 +15,22 @@ description: Full stack, Vite proxy wiring, auth flow, multi-tenant RBAC, DB mig
 - `getApiBase()` in kore/src/lib/api.ts returns empty string in dev (proxy), full URL in prod
 
 ## Auth flow (v3.0)
-- JWT issued on login/register, stored in localStorage
-- `getToken()` / `setToken()` / `clearToken()` / `setStoredUser()` / `onAuthChange()` in kore/src/lib/auth.ts
+- JWT issued on login/register, stored in localStorage key `tams_auth_token`
+- `getToken()` migrates from legacy keys: `gandal_auth_token`, `tams_api_token`, `kore_api_token`
+- `clearToken()` removes all legacy key variants
 - LoginGate tabs: login, register, forgot-password, reset-password
 - URL param `?reset=<token>` auto-switches LoginGate to reset tab
 - `SESSION_DURATION` env var configures JWT TTL (default "8h")
 - Password reset tokens: 1h TTL, single-use, stored in `password_reset_tokens` table
+- **IMPORTANT**: `gandal-jwt:` prefix in jwt.ts MUST NOT be renamed — changing it invalidates all existing tokens
+
+## Naming (post-rename)
+- Brand name: TAMS everywhere in UI, prompts, docs
+- Directory: `artifacts/kore/` kept as-is (technical build path — safe)
+- JWT secret derivation prefix: `gandal-jwt:` — intentionally frozen
+- DB column: `kore_response` in `evening_reviews` — stays (no migration needed); JS property is `tamsResponse`
+- API fields renamed: koreMessage→tamsMessage, koreComment→tamsComment, koreResponse→tamsResponse
+- Component names: `GandalMark`, `GandalLogo` kept as internal component names (not visible text)
 
 ## Multi-tenant RBAC
 - Roles: owner > admin > member > viewer

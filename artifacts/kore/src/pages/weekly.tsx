@@ -81,7 +81,7 @@ export default function Weekly() {
             <Card className="bg-card border-border shadow-sm">
               <CardContent className="p-8">
                 <p className="text-foreground/90 text-lg leading-relaxed font-serif">
-                  {summary.koreMessage || summary.tamsMessage}
+                  {summary.tamsMessage}
                 </p>
               </CardContent>
             </Card>

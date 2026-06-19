@@ -1,0 +1,199 @@
+Tu reprends le projet TAMS.
+
+OBJECTIF GLOBAL
+- Le projet reste personnel pour l’instant.
+- On garde une base propre pour pouvoir le transformer en produit plus tard si la valeur se confirme.
+- Toute amélioration doit rester utile, simple, robuste et livrable.
+- Tout doit être poussé sur la branche main.
+- Si tu ne peux pas pousser sur main, le lot ne compte pas.
+- Je n’arrive pas à me connecter : tu dois donc t’assurer que tout fonctionne maintenant, sans laisser de route cassée, d’auth cassée, ou d’état incomplet.
+
+RENOMMAGE GLOBAL
+- Remplace toutes les occurrences de KORE par TAMS dans le repo, y compris dans le code, les textes visibles, les docs, les commentaires et les artefacts générés si nécessaire.
+- Remplace toutes les occurrences de GANDAL par TAMS dans le repo.
+- Ne laisse aucune occurrence résiduelle de KORE ou GANDAL si elle fait référence au produit, au projet, au branding ou à un libellé utilisateur.
+- Si un nom technique doit rester inchangé pour une raison de build ou de dépendance, documente-le explicitement.
+
+RÈGLE ABSOLUE
+- Avant toute modification, vérifie la branche active.
+- Vérifie l’état exact du repo.
+- Vérifie que tu peux travailler sur main.
+- Compare l’état local avec origin/main.
+- Si nécessaire, rebase sur main.
+- Puis seulement : cartographie, plus petit fix utile, test, push.
+- Après un push réussi, passe au lot suivant.
+- Si le push échoue, stoppe-toi et documente le blocage au lieu de continuer.
+
+CONTRÔLE DE COMPLÉTUDE OBLIGATOIRE
+- Avant de modifier quoi que ce soit, dresse la liste des fichiers attendus pour le lot.
+- Compare cette liste aux fichiers réellement présents dans le repo.
+- Si un fichier attendu manque, crée-le ou régénère-le avant d’aller plus loin.
+- Si un artefact généré manque, relance le codegen ou le build jusqu’à cohérence.
+- Aucun lot n’est validé tant que tous les fichiers attendus, y compris les artefacts générés, ne sont pas présents et cohérents avec le schéma et le code source.
+- Si certains fichiers générés sont volontairement ignorés par git, assure-toi quand même qu’ils sont régénérés localement et cohérents avant le commit et le push.
+- Si main est inaccessible, si le push échoue, ou si un fichier obligatoire manque, stoppe immédiatement et documente le blocage.
+
+MODE RED TEAM
+- Commence toujours par cartographier le problème.
+- Cherche le bug réel, le faux signal réel, ou le désalignement réel.
+- Choisis le plus petit fix utile possible.
+- Ne fais jamais de refactor global caché dans un correctif ciblé.
+- Ne transforme jamais un lot en mini-reconstruction du produit.
+- Ne touche jamais au périmètre hors lot sans validation explicite.
+- Ne rajoute aucun bonus opportuniste.
+
+PRIORITÉS DE TRAVAIL
+1. Fiabilité des données.
+2. Visibilité des signaux utiles.
+3. Propreté TypeScript.
+4. Portabilité / build / install.
+5. Corrections de bugs visibles.
+6. Extensibilité seulement si elle ne dégrade pas la simplicité.
+
+LOT 1 — CONFIANCE DES DONNÉES DU DASHBOARD
+Cartographie :
+- Vérifier la source du timestamp de fraîcheur.
+- Vérifier si le dashboard affiche la vraie génération du briefing ou seulement l’heure du fetch client.
+- Vérifier si des signaux affichés peuvent être trompeurs.
+
+Fix minimal attendu si le problème existe encore :
+- Remplacer le faux signal de fraîcheur par le vrai timestamp de génération du briefing.
+- Utiliser le champ serveur correct s’il existe déjà.
+- Ne rien changer d’autre au dashboard.
+
+Validation :
+- typecheck
+- build si nécessaire
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+LOT 2 — DASHBOARD DÉCISIONNEL
+Cartographie :
+- Vérifier si la charge du jour est calculée mais pas affichée.
+- Vérifier si l’utilisateur voit un signal clair même en light / moderate.
+- Identifier le plus petit rendu utile.
+
+Fix minimal attendu si le problème existe encore :
+- Ajouter un badge ou indicateur simple dans l’en-tête.
+- 4 états maximum : light, moderate, heavy, critical.
+- Pas de refonte UI.
+- Pas de comparaisons avancées.
+
+Validation :
+- typecheck
+- build
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+LOT 3 — PROPRETÉ TYPESCRIPT
+Cartographie :
+- Relever les `as any`, `as BriefingExtended`, casts inutiles, champs fantômes, et schémas incomplets.
+- Vérifier si un cast masque un vrai désalignement de type.
+- Vérifier si un type peut être complété proprement au lieu d’être forcé.
+
+Fix minimal attendu si le problème existe encore :
+- Supprimer uniquement les casts qui cachent une erreur réelle.
+- Compléter le schéma si les champs existent réellement côté API.
+- Ne pas toucher aux fichiers hors périmètre si ce n’est pas indispensable.
+
+Validation :
+- typecheck obligatoire
+- build si pertinent
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+LOT 4 — PORTABILITÉ / RAILWAY / PNPM
+Cartographie :
+- Vérifier si des dépendances Replit privées sont encore référencées.
+- Vérifier `pnpm-workspace.yaml`.
+- Vérifier les `package.json` des artefacts concernés.
+- Vérifier que les configs Vite n’importent plus les plugins supprimés.
+
+Fix minimal attendu si le problème existe encore :
+- Retirer les entrées `@replit/vite-plugin-cartographer`, `@replit/vite-plugin-dev-banner`, `@replit/vite-plugin-runtime-error-modal` du `catalog:` si elles existent encore.
+- Retirer les références correspondantes dans les `package.json` concernés.
+- Régénérer le lockfile si nécessaire.
+- Objectif : `pnpm install` doit passer sur Railway.
+
+Validation :
+- install / typecheck / build
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+LOT 5 — CAPTURES
+Cartographie :
+- Vérifier si le badge de type des captures repose sur un champ fantôme.
+- Vérifier si le type affiché peut être déduit depuis des données réellement présentes.
+
+Fix minimal attendu si le problème existe encore :
+- Corriger le badge avec la source de vérité réelle.
+- Ne pas ajouter de tags, de filtres ou de recherche tant que ce n’est pas demandé explicitement.
+
+Validation :
+- typecheck
+- build
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+LOT 6 — INVITATIONS / AUTH
+Cartographie :
+- Vérifier les routes publiques d’invitation.
+- Vérifier le middleware d’auth.
+- Vérifier la table `member_invitations`.
+- Vérifier le handler exact qui provoque l’erreur serveur quand on essaie de contacter/inviter via la plateforme.
+- Vérifier que le bug n’est pas juste une route publique mal branchée ou un 500 lié à une migration manquante.
+- Vérifier pourquoi la connexion ne fonctionne pas actuellement et corriger la cause racine immédiatement.
+
+Fix minimal attendu si le problème existe encore :
+- Corriger uniquement la cause racine.
+- Ne pas élargir le périmètre à d’autres routes auth.
+- Ne pas réécrire le système d’invitation.
+- Ne pas laisser une route de connexion cassée.
+
+Validation :
+- typecheck
+- build
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+LOT 7 — BACKEND API
+Cartographie :
+- Vérifier `artifacts/api-server/src/routes/ai.ts`
+- Vérifier `artifacts/api-server/src/routes/briefings.ts`
+- Vérifier `artifacts/api-server/src/routes/quotas.ts`
+- Vérifier `artifacts/api-server/src/routes/recordings.ts`
+- Vérifier `artifacts/api-server/dist/index.mjs`
+- S’assurer que tous les artefacts attendus du backend sont bien présents et cohérents.
+
+Fix minimal attendu si le problème existe encore :
+- Ajouter ou intégrer seulement les fichiers manquants.
+- Régénérer les artefacts buildés si nécessaire.
+- Ne pas toucher à des routes non concernées.
+
+Validation :
+- typecheck
+- build
+- commit sur main
+- push sur main
+- puis seulement continuer
+
+SORTIE ATTENDUE À CHAQUE LOT
+1. Ce qui a été cartographié.
+2. Ce qui manquait.
+3. Le plus petit fix retenu.
+4. Les fichiers modifiés / ajoutés.
+5. Le résultat du typecheck / build.
+6. La confirmation explicite du commit et du push sur main.
+
+COMMENCE MAINTENANT
+- Vérifie que tu es bien sur main.
+- Vérifie que origin/main est accessible.
+- Fais l’inventaire des fichiers attendus pour le lot en cours.
+- Compare avec l’état réel.
+- Puis applique uniquement ce qui manque.

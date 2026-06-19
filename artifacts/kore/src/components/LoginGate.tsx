@@ -161,7 +161,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
         <div className="text-center space-y-3">
           <GandalMark />
           <div>
-            <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">GANDAL</h1>
+            <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">TAMS</h1>
             <p className="text-sm text-muted-foreground mt-1">Plateforme d'intelligence commerciale</p>
           </div>
         </div>
@@ -196,7 +196,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
             </CardTitle>
             <CardDescription className="text-xs">
               {tab === "login" && "Connecte-toi avec ton email et mot de passe."}
-              {tab === "register" && "Crée ton espace de travail GANDAL."}
+              {tab === "register" && "Crée ton espace de travail TAMS."}
               {tab === "forgot" && "Saisis ton email pour recevoir un lien de réinitialisation."}
               {tab === "reset" && "Saisis ton nouveau mot de passe."}
             </CardDescription>

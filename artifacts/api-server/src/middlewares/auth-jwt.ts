@@ -136,7 +136,7 @@ export async function requireAuthJwt(
     ) {
       req.authUser = {
         id: 0,
-        email: "system@gandal.local",
+        email: "system@tams.local",
         name: "System",
         role: "owner",
         tenantId: 1,

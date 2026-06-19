@@ -117,7 +117,7 @@ export default function Settings() {
     <div className="max-w-2xl mx-auto px-6 py-10 space-y-10">
       <div>
         <h1 className="text-2xl font-serif font-semibold text-foreground">Paramètres</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configuration de GANDAL</p>
+        <p className="text-sm text-muted-foreground mt-1">Configuration de TAMS</p>
       </div>
 
       {/* Provider IA */}
@@ -212,7 +212,7 @@ export default function Settings() {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notifications</h2>
         {!supported && (
           <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-            Les notifications ne sont pas supportées par ce navigateur. Installe GANDAL comme application (PWA) sur ton téléphone ou utilise Chrome/Edge.
+            Les notifications ne sont pas supportées par ce navigateur. Installe TAMS comme application (PWA) sur ton téléphone ou utilise Chrome/Edge.
           </div>
         )}
         {supported && (
@@ -322,7 +322,7 @@ export default function Settings() {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">À propos</h2>
         <div className="rounded-xl border border-border bg-card p-5 space-y-3 text-sm text-muted-foreground">
           <div className="flex items-center justify-between">
-            <p><span className="text-foreground font-medium">GANDAL</span> — Plateforme IA gouvernée</p>
+            <p><span className="text-foreground font-medium">TAMS</span> — Plateforme IA gouvernée</p>
             <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-mono text-muted-foreground">v{APP_VERSION}</span>
           </div>
           <p className="leading-relaxed">Mémoire persistante, red team intégré, observabilité complète, audit trail immuable.</p>

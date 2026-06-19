@@ -123,7 +123,7 @@ export default function Dashboard() {
           </div>
           <h1 className="text-3xl font-serif mb-2 text-foreground">{greeting}.</h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
-            {briefing?.koreMessage ||
+            {briefing?.tamsMessage ||
               "Prenons le temps de nous recentrer sur ce qui compte vraiment."}
           </p>
           {generatedAtStr && (
