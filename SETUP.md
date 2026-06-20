@@ -99,4 +99,7 @@ alors sur `http://localhost:5173`.)*
 - **Pas d'analyse IA / pas de dictée** → `GEMINI_API_KEY` / `GROQ_API_KEY`
   manquantes. L'app fonctionne quand même, sans ces fonctions.
 - **Vérifier que le serveur tourne** : ouvre `https://<ton-url>/api/healthz`,
-  ça doit afficher `{"status":"ok"}`.
+  ça doit afficher `{"status":"ok","db":"ready"}`.
+  Si `db` vaut **`"connecting"`**, le serveur tourne mais **n'arrive pas à
+  joindre la base** → vérifie la variable `DATABASE_URL` (et que la base
+  PostgreSQL existe et est reliée au service).

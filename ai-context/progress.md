@@ -3,6 +3,10 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Healthcheck honnête (observabilité)** : `/api/healthz` expose maintenant
+  l'état réel de la base (`db: "ready" | "connecting"`) tout en restant **200**
+  (healthcheck Railway préservé, démarrage résilient). Plus de « ok » trompeur
+  quand la base est down ; diagnostic immédiat. Aucune fuite. Vérifié les 2 états.
 - **`README.md` racine** : point d'entrée du template (démarrage rapide,
   fonctionnement, structure, stack, CI, comment adapter, liens vers `ai-context`
   / `SETUP.md`). Rend le projet « compréhensible sans contexte externe ».

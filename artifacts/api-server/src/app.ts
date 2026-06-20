@@ -112,8 +112,13 @@ const clientDir = clientDirCandidates.find((d) =>
 );
 
 // --- Healthcheck public ---
+// Always returns 200 so the platform healthcheck stays green even while the DB
+// is still connecting (resilient startup). The `db` field reports the real
+// readiness ("ready" once the schema is applied, "connecting" otherwise) — an
+// honest operational signal, with no secret/host leak. Liveness vs readiness.
 app.get("/api/healthz", (_req, res) => {
-  res.status(200).json({ status: "ok" });
+  const db = getDbStatus().dbReady ? "ready" : "connecting";
+  res.status(200).json({ status: "ok", db });
 });
 
 // --- Debug endpoint protégé ---

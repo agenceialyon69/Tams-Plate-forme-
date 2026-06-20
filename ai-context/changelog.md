@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Healthcheck honnête** : `/api/healthz` reporte l'état réel de la base
+  (`db: ready|connecting`), toujours 200 (Railway préservé).
 - **README.md** racine : point d'entrée du template.
 - **Nettoyage** : dé-suivi des artefacts `dist` commités (générés, reconstruits
   par Railway/CI ; fin de la friction « arbre sale »).
