@@ -3,6 +3,7 @@ import { db, tasksTable, eventsTable, eveningReviewsTable, energyLogsTable } fro
 import { SubmitEveningReviewBody } from "@workspace/api-zod";
 import { eq, and, gte, lte, lt, avg, count, desc, min, max } from "drizzle-orm";
 import { generateMorningTamsMessage, generateEveningResponse, generateWeeklySummary } from "../lib/ai";
+import { getConsecutiveActiveDays } from "../lib/signals";
 import { capturesTable, decisionsTable } from "@workspace/db";
 import { checkAndIncrementAiCalls } from "./quotas";
 import { logger } from "../lib/logger";
@@ -102,7 +103,7 @@ router.get("/briefings/morning", async (req, res): Promise<void> => {
     overdueTasks: overdueTasks.length,
     todayEvents: todayEvents.length,
     recentEnergyAvg,
-    consecutiveWorkDays: 0,
+    consecutiveWorkDays: await getConsecutiveActiveDays(),
   });
 
   const overloadAlert = overdueTasks.length >= 3

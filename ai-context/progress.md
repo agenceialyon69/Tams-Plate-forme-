@@ -3,6 +3,11 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Dashboard / signaux honnêtes** : suppression du faux `consecutiveWorkDays: 0`
+  codé en dur. Calcul réel des jours d'activité consécutifs (helper partagé
+  `lib/signals.ts`, dérivé de `energy_logs`), utilisé dans `/overload/status`
+  (affiché) et le briefing matinal (IA). Les états light/moderate/heavy/critical
+  restent calculés sur de vraies données. Vérifié (3 jours consécutifs → 3).
 - **Branding unifié TAMS** : `GandalLogo`/`GandalMark` → `TamsLogo`/`TamsMark`
   (lettre « G » → « T »), exports `gandal-export-*` → `tams-export-*`, clé prefs
   `gandal_ai_prefs` → `tams_ai_prefs` (avec migration), `generateMorningKoreMessage`
@@ -23,10 +28,9 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 - (rien — en attente de validation de la prochaine tâche)
 
 ## NEXT (une tâche à la fois)
-1. Dashboard : audit des signaux affichés (timestamps/charge réels, états
-   light/moderate/heavy/critical honnêtes).
-2. Settings : structurer compte / workspace / intégrations / branding.
-3. Analytics structure minimale (événements utiles, usage réel).
+1. Settings : structurer compte / workspace / intégrations / branding.
+2. Analytics structure minimale (événements utiles, usage réel).
+3. Onboarding minimal (réduire la friction d'entrée).
 
 ## BLOCKERS
 - **Isolation multi-tenant** absente sur les tables de données produit
