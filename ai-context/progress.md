@@ -3,6 +3,11 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Correctif UX login** : ré-ajout de l'option **« Accès propriétaire avec un
+  token »** sur l'écran de connexion (la doc demandait de coller `API_AUTH_TOKEN`
+  mais l'écran ne le permettait plus → blocage quand l'inscription est fermée).
+  Le owner peut de nouveau entrer avec le token maître, puis créer/inviter des
+  comptes depuis l'admin. Vérifié : typecheck + build.
 - **Décision produit (2026-06-20)** : mode **perso / test d'abord**. L'utilisateur
   valide l'app en solo avant de basculer en multi-tenant. Concept conservé :
   plan de migration détaillé dans `ai-context/multi-tenant-plan.md` (prêt à
