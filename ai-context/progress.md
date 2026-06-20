@@ -3,6 +3,9 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **`README.md` racine** : point d'entrée du template (démarrage rapide,
+  fonctionnement, structure, stack, CI, comment adapter, liens vers `ai-context`
+  / `SETUP.md`). Rend le projet « compréhensible sans contexte externe ».
 - **Nettoyage : dé-suivi des artefacts `dist` commités** (5 fichiers générés,
   déjà dans `.gitignore`, et incohérents — `index.html` commité pointait vers
   des assets non commités). Railway/CI reconstruisent `dist` à chaque build,

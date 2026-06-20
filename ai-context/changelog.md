@@ -3,6 +3,7 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **README.md** racine : point d'entrée du template.
 - **Nettoyage** : dé-suivi des artefacts `dist` commités (générés, reconstruits
   par Railway/CI ; fin de la friction « arbre sale »).
 - **Nettoyage** : suppression du middleware d'auth mort (`middlewares/auth.ts`,
