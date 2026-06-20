@@ -64259,7 +64259,7 @@ router3.delete("/users/:id", requireRole("owner"), async (req, res) => {
 var users_default = router3;
 
 // src/routes/captures.ts
-var import_express4 = __toESM(require_express2(), 1);
+var import_express5 = __toESM(require_express2(), 1);
 
 // ../../node_modules/.pnpm/groq-sdk@1.2.1/node_modules/groq-sdk/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
@@ -67610,422 +67610,10 @@ R\xE9ponds UNIQUEMENT avec ce JSON (aucun texte autour) :
   };
 }
 
-// src/middlewares/rate-limit.ts
-var memoryBuckets = /* @__PURE__ */ new Map();
-function memoryCount(key, windowMs, max2) {
-  const now = Date.now();
-  let bucket = memoryBuckets.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    bucket = { count: 0, resetAt: now + windowMs };
-    memoryBuckets.set(key, bucket);
-  }
-  bucket.count += 1;
-  const remaining = Math.max(0, max2 - bucket.count);
-  return {
-    ok: bucket.count <= max2,
-    remaining
-  };
-}
-function rateLimit(opts) {
-  const keyFn = opts.key ?? ((req) => req.ip ?? "unknown");
-  return (req, res, next) => {
-    const key = `ratelimit:${keyFn(req)}`;
-    const { ok, remaining } = memoryCount(key, opts.windowMs, opts.max);
-    res.setHeader("X-RateLimit-Limit", String(opts.max));
-    res.setHeader("X-RateLimit-Remaining", String(remaining));
-    if (!ok) {
-      logger.warn(
-        { ip: keyFn(req), url: req.url, method: req.method },
-        "Rate limit exceeded"
-      );
-      res.status(429).json({ error: "Too many requests" });
-      return;
-    }
-    next();
-  };
-}
-function rateLimitByTenant(opts) {
-  return rateLimit({
-    ...opts,
-    key: (req) => `tenant:${req.tenantId ?? req.ip ?? "unknown"}`
-  });
-}
-function rateLimitByUser(opts) {
-  return rateLimit({
-    ...opts,
-    key: (req) => `user:${req.authUser?.id ?? req.ip ?? "unknown"}`
-  });
-}
-
-// src/routes/captures.ts
+// src/routes/quotas.ts
+var import_express4 = __toESM(require_express2(), 1);
 init_drizzle_orm();
 var router4 = (0, import_express4.Router)();
-var captureLimiter = rateLimit({ windowMs: 6e4, max: 20 });
-router4.get("/captures", async (req, res) => {
-  const q = ListCapturesQueryParams.safeParse(req.query);
-  const limit = q.success ? q.data.limit ?? 50 : 50;
-  const offset = q.success ? q.data.offset ?? 0 : 0;
-  const captures = await db.select().from(capturesTable).orderBy(desc(capturesTable.createdAt)).limit(limit).offset(offset);
-  res.json(captures);
-});
-router4.get("/captures/:id", async (req, res) => {
-  const params = GetCaptureParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [capture] = await db.select().from(capturesTable).where(eq(capturesTable.id, params.data.id));
-  if (!capture) {
-    res.status(404).json({ error: "Capture not found" });
-    return;
-  }
-  res.json(capture);
-});
-router4.post("/captures", captureLimiter, async (req, res) => {
-  const parsed = CreateCaptureBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const extracted = await extractFromCapture(parsed.data.content);
-  const [capture] = await db.insert(capturesTable).values({
-    content: parsed.data.content,
-    source: parsed.data.source ?? "text",
-    extractedTasks: extracted.tasks.length,
-    extractedEvents: extracted.events.length,
-    extractedLearnings: extracted.learnings.length
-  }).returning();
-  const tasks = extracted.tasks.length > 0 ? await db.insert(tasksTable).values(
-    extracted.tasks.map((t) => ({
-      title: t.title,
-      dueDate: t.dueDate ?? null,
-      priority: t.priority,
-      priorityDomain: t.priorityDomain ?? null,
-      captureId: capture.id
-    }))
-  ).returning() : [];
-  const events = extracted.events.length > 0 ? await db.insert(eventsTable).values(
-    extracted.events.map((e) => ({
-      title: e.title,
-      eventDate: e.eventDate,
-      eventTime: e.eventTime ?? null,
-      category: e.category,
-      captureId: capture.id
-    }))
-  ).returning() : [];
-  const learnings = extracted.learnings.length > 0 ? await db.insert(learningsTable).values(
-    extracted.learnings.map((l) => ({
-      subject: l.subject,
-      content: l.content,
-      category: l.category,
-      captureId: capture.id
-    }))
-  ).returning() : [];
-  res.status(201).json({
-    capture,
-    tasks,
-    events,
-    learnings,
-    tamsComment: extracted.tamsComment ?? null
-  });
-});
-router4.delete("/captures/:id", async (req, res) => {
-  const params = DeleteCaptureParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  await db.delete(capturesTable).where(eq(capturesTable.id, params.data.id));
-  res.sendStatus(204);
-});
-var captures_default = router4;
-
-// src/routes/tasks.ts
-var import_express5 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router5 = (0, import_express5.Router)();
-router5.get("/tasks", async (req, res) => {
-  const q = ListTasksQueryParams.safeParse(req.query);
-  let query = db.select().from(tasksTable).$dynamic();
-  if (q.success) {
-    const conditions = [];
-    if (q.data.status) conditions.push(eq(tasksTable.status, q.data.status));
-    if (q.data.priority) conditions.push(eq(tasksTable.priority, q.data.priority));
-    if (conditions.length > 0) query = query.where(and(...conditions));
-  }
-  const tasks = await query.orderBy(desc(tasksTable.createdAt));
-  res.json(tasks);
-});
-router5.get("/tasks/summary", async (_req, res) => {
-  const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-  const [total] = await db.select({ count: count() }).from(tasksTable);
-  const [pending] = await db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "pending"));
-  const [done] = await db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "done"));
-  const [highPriority] = await db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.priority, "high"), eq(tasksTable.status, "pending")));
-  const [overdue] = await db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.status, "pending"), lt(tasksTable.dueDate, today)));
-  res.json({
-    total: total.count,
-    pending: pending.count,
-    done: done.count,
-    highPriority: highPriority.count,
-    overdue: overdue.count
-  });
-});
-router5.post("/tasks", async (req, res) => {
-  const parsed = CreateTaskBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [task] = await db.insert(tasksTable).values({
-    title: parsed.data.title,
-    dueDate: parsed.data.dueDate ?? null,
-    priority: parsed.data.priority ?? "medium",
-    priorityDomain: parsed.data.priorityDomain ?? null,
-    captureId: parsed.data.captureId ?? null
-  }).returning();
-  res.status(201).json(task);
-});
-router5.patch("/tasks/:id", async (req, res) => {
-  const params = UpdateTaskParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const parsed = UpdateTaskBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const updates = {};
-  if (parsed.data.title !== void 0) updates.title = parsed.data.title;
-  if (parsed.data.dueDate !== void 0) updates.dueDate = parsed.data.dueDate;
-  if (parsed.data.priority !== void 0) updates.priority = parsed.data.priority;
-  if (parsed.data.status !== void 0) updates.status = parsed.data.status;
-  if (parsed.data.priorityDomain !== void 0) updates.priorityDomain = parsed.data.priorityDomain;
-  const [task] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, params.data.id)).returning();
-  if (!task) {
-    res.status(404).json({ error: "Task not found" });
-    return;
-  }
-  res.json(task);
-});
-router5.delete("/tasks/:id", async (req, res) => {
-  const params = DeleteTaskParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  await db.delete(tasksTable).where(eq(tasksTable.id, params.data.id));
-  res.sendStatus(204);
-});
-var tasks_default = router5;
-
-// src/routes/events.ts
-var import_express6 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router6 = (0, import_express6.Router)();
-router6.get("/events", async (req, res) => {
-  const q = ListEventsQueryParams.safeParse(req.query);
-  let query = db.select().from(eventsTable).$dynamic();
-  if (q.success) {
-    const conditions = [];
-    if (q.data.from) conditions.push(gte(eventsTable.eventDate, q.data.from));
-    if (q.data.to) conditions.push(lte(eventsTable.eventDate, q.data.to));
-    if (conditions.length > 0) query = query.where(and(...conditions));
-  }
-  const events = await query.orderBy(eventsTable.eventDate);
-  res.json(events);
-});
-router6.post("/events", async (req, res) => {
-  const parsed = CreateEventBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [event] = await db.insert(eventsTable).values({
-    title: parsed.data.title,
-    eventDate: parsed.data.eventDate,
-    eventTime: parsed.data.eventTime ?? null,
-    category: parsed.data.category ?? "personal",
-    captureId: parsed.data.captureId ?? null
-  }).returning();
-  res.status(201).json(event);
-});
-router6.patch("/events/:id", async (req, res) => {
-  const params = UpdateEventParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const parsed = UpdateEventBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const updates = {};
-  if (parsed.data.title !== void 0) updates.title = parsed.data.title;
-  if (parsed.data.eventDate !== void 0) updates.eventDate = parsed.data.eventDate;
-  if (parsed.data.eventTime !== void 0) updates.eventTime = parsed.data.eventTime;
-  if (parsed.data.category !== void 0) updates.category = parsed.data.category;
-  const [event] = await db.update(eventsTable).set(updates).where(eq(eventsTable.id, params.data.id)).returning();
-  if (!event) {
-    res.status(404).json({ error: "Event not found" });
-    return;
-  }
-  res.json(event);
-});
-router6.delete("/events/:id", async (req, res) => {
-  const params = DeleteEventParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  await db.delete(eventsTable).where(eq(eventsTable.id, params.data.id));
-  res.sendStatus(204);
-});
-var events_default = router6;
-
-// src/routes/learnings.ts
-var import_express7 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router7 = (0, import_express7.Router)();
-router7.get("/learnings", async (req, res) => {
-  const q = ListLearningsQueryParams.safeParse(req.query);
-  let query = db.select().from(learningsTable).$dynamic();
-  if (q.success) {
-    const conditions = [];
-    if (q.data.category) conditions.push(eq(learningsTable.category, q.data.category));
-    if (q.data.search) conditions.push(ilike(learningsTable.subject, `%${q.data.search}%`));
-    if (conditions.length > 0) query = query.where(and(...conditions));
-  }
-  const items = await query.orderBy(desc(learningsTable.createdAt));
-  res.json(items);
-});
-router7.post("/learnings", async (req, res) => {
-  const parsed = CreateLearningBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [learning] = await db.insert(learningsTable).values({
-    subject: parsed.data.subject,
-    content: parsed.data.content,
-    category: parsed.data.category ?? "personal",
-    captureId: parsed.data.captureId ?? null
-  }).returning();
-  res.status(201).json(learning);
-});
-router7.delete("/learnings/:id", async (req, res) => {
-  const params = DeleteLearningParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  await db.delete(learningsTable).where(eq(learningsTable.id, params.data.id));
-  res.sendStatus(204);
-});
-var learnings_default = router7;
-
-// src/routes/decisions.ts
-var import_express8 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router8 = (0, import_express8.Router)();
-var decisionLimiter = rateLimit({ windowMs: 6e4, max: 20 });
-router8.get("/decisions", async (_req, res) => {
-  const decisions = await db.select().from(decisionsTable).orderBy(desc(decisionsTable.createdAt));
-  res.json(decisions);
-});
-router8.get("/decisions/:id", async (req, res) => {
-  const params = GetDecisionParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [decision] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, params.data.id));
-  if (!decision) {
-    res.status(404).json({ error: "Decision not found" });
-    return;
-  }
-  res.json(decision);
-});
-router8.post("/decisions", decisionLimiter, async (req, res) => {
-  const parsed = CreateDecisionBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const analysis = await analyzeDecision(parsed.data.question, parsed.data.context ?? null);
-  const [decision] = await db.insert(decisionsTable).values({
-    question: parsed.data.question,
-    context: parsed.data.context ?? null,
-    analysis: analysis.analysis,
-    priorityConflicts: analysis.priorityConflicts,
-    alternatives: analysis.alternatives,
-    blindSpots: analysis.blindSpots
-  }).returning();
-  res.status(201).json(decision);
-});
-router8.delete("/decisions/:id", async (req, res) => {
-  const params = DeleteDecisionParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  await db.delete(decisionsTable).where(eq(decisionsTable.id, params.data.id));
-  res.sendStatus(204);
-});
-var decisions_default = router8;
-
-// src/routes/memory.ts
-var import_express9 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router9 = (0, import_express9.Router)();
-router9.get("/memory", async (req, res) => {
-  const q = ListMemoryQueryParams.safeParse(req.query);
-  let query = db.select().from(memoryTable).$dynamic();
-  if (q.success) {
-    const conditions = [];
-    if (q.data.domain) conditions.push(eq(memoryTable.domain, q.data.domain));
-    if (q.data.search) conditions.push(ilike(memoryTable.title, `%${q.data.search}%`));
-    if (conditions.length > 0) query = query.where(and(...conditions));
-  }
-  const entries = await query.orderBy(desc(memoryTable.createdAt));
-  res.json(entries);
-});
-router9.post("/memory", async (req, res) => {
-  const parsed = CreateMemoryEntryBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [entry] = await db.insert(memoryTable).values({
-    domain: parsed.data.domain,
-    title: parsed.data.title,
-    content: parsed.data.content,
-    tags: parsed.data.tags ?? []
-  }).returning();
-  res.status(201).json(entry);
-});
-router9.delete("/memory/:id", async (req, res) => {
-  const params = DeleteMemoryEntryParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  await db.delete(memoryTable).where(eq(memoryTable.id, params.data.id));
-  res.sendStatus(204);
-});
-var memory_default = router9;
-
-// src/routes/briefings.ts
-var import_express11 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-
-// src/routes/quotas.ts
-var import_express10 = __toESM(require_express2(), 1);
-init_drizzle_orm();
-var router10 = (0, import_express10.Router)();
 var updateSchema = external_exports2.object({
   maxAiCallsPerDay: external_exports2.number().int().min(0).optional(),
   maxAiCallsPerMonth: external_exports2.number().int().min(0).optional(),
@@ -68040,7 +67628,7 @@ async function getOrCreateQuota(tenantId) {
   const [created] = await db.insert(tenantQuotasTable).values({ tenantId }).returning();
   return created;
 }
-router10.get("/quotas", async (req, res) => {
+router4.get("/quotas", async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68054,7 +67642,7 @@ router10.get("/quotas", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
-router10.patch("/quotas", requireRole("owner"), async (req, res) => {
+router4.patch("/quotas", requireRole("owner"), async (req, res) => {
   const tenantId = req.tenantId;
   if (!tenantId) {
     res.status(400).json({ error: "Tenant manquant." });
@@ -68141,9 +67729,434 @@ async function checkAndIncrementAiCalls(tenantId, ctx = {}) {
     return { allowed: false, reason: "Erreur de v\xE9rification du quota. R\xE9essayez dans un instant." };
   }
 }
-var quotas_default = router10;
+var quotas_default = router4;
+
+// src/middlewares/rate-limit.ts
+var memoryBuckets = /* @__PURE__ */ new Map();
+function memoryCount(key, windowMs, max2) {
+  const now = Date.now();
+  let bucket = memoryBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    bucket = { count: 0, resetAt: now + windowMs };
+    memoryBuckets.set(key, bucket);
+  }
+  bucket.count += 1;
+  const remaining = Math.max(0, max2 - bucket.count);
+  return {
+    ok: bucket.count <= max2,
+    remaining
+  };
+}
+function rateLimit(opts) {
+  const keyFn = opts.key ?? ((req) => req.ip ?? "unknown");
+  return (req, res, next) => {
+    if (opts.skip?.(req)) {
+      next();
+      return;
+    }
+    const key = `ratelimit:${keyFn(req)}`;
+    const { ok, remaining } = memoryCount(key, opts.windowMs, opts.max);
+    res.setHeader("X-RateLimit-Limit", String(opts.max));
+    res.setHeader("X-RateLimit-Remaining", String(remaining));
+    if (!ok) {
+      logger.warn(
+        { ip: keyFn(req), url: req.url, method: req.method },
+        "Rate limit exceeded"
+      );
+      res.status(429).json({ error: "Too many requests" });
+      return;
+    }
+    next();
+  };
+}
+function rateLimitByTenant(opts) {
+  return rateLimit({
+    ...opts,
+    key: (req) => `tenant:${req.tenantId ?? req.ip ?? "unknown"}`
+  });
+}
+function rateLimitByUser(opts) {
+  return rateLimit({
+    ...opts,
+    key: (req) => `user:${req.authUser?.id ?? req.ip ?? "unknown"}`
+  });
+}
+
+// src/routes/captures.ts
+init_drizzle_orm();
+var router5 = (0, import_express5.Router)();
+var captureLimiter = rateLimit({ windowMs: 6e4, max: 20 });
+router5.get("/captures", async (req, res) => {
+  const q = ListCapturesQueryParams.safeParse(req.query);
+  const limit = q.success ? q.data.limit ?? 50 : 50;
+  const offset = q.success ? q.data.offset ?? 0 : 0;
+  const captures = await db.select().from(capturesTable).orderBy(desc(capturesTable.createdAt)).limit(limit).offset(offset);
+  res.json(captures);
+});
+router5.get("/captures/:id", async (req, res) => {
+  const params = GetCaptureParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const [capture] = await db.select().from(capturesTable).where(eq(capturesTable.id, params.data.id));
+  if (!capture) {
+    res.status(404).json({ error: "Capture not found" });
+    return;
+  }
+  res.json(capture);
+});
+router5.post("/captures", captureLimiter, async (req, res) => {
+  const parsed = CreateCaptureBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const tenantId = req.tenantId ?? req.authUser?.tenantId;
+  if (tenantId) {
+    const guard = await checkAndIncrementAiCalls(tenantId, {
+      userId: req.authUser?.id,
+      route: "captures/create"
+    });
+    if (!guard.allowed) {
+      res.status(429).json({ error: "Quota IA atteint. R\xE9essaie demain." });
+      return;
+    }
+  }
+  const extracted = await extractFromCapture(parsed.data.content);
+  const [capture] = await db.insert(capturesTable).values({
+    content: parsed.data.content,
+    source: parsed.data.source ?? "text",
+    extractedTasks: extracted.tasks.length,
+    extractedEvents: extracted.events.length,
+    extractedLearnings: extracted.learnings.length
+  }).returning();
+  const tasks = extracted.tasks.length > 0 ? await db.insert(tasksTable).values(
+    extracted.tasks.map((t) => ({
+      title: t.title,
+      dueDate: t.dueDate ?? null,
+      priority: t.priority,
+      priorityDomain: t.priorityDomain ?? null,
+      captureId: capture.id
+    }))
+  ).returning() : [];
+  const events = extracted.events.length > 0 ? await db.insert(eventsTable).values(
+    extracted.events.map((e) => ({
+      title: e.title,
+      eventDate: e.eventDate,
+      eventTime: e.eventTime ?? null,
+      category: e.category,
+      captureId: capture.id
+    }))
+  ).returning() : [];
+  const learnings = extracted.learnings.length > 0 ? await db.insert(learningsTable).values(
+    extracted.learnings.map((l) => ({
+      subject: l.subject,
+      content: l.content,
+      category: l.category,
+      captureId: capture.id
+    }))
+  ).returning() : [];
+  res.status(201).json({
+    capture,
+    tasks,
+    events,
+    learnings,
+    tamsComment: extracted.tamsComment ?? null
+  });
+});
+router5.delete("/captures/:id", async (req, res) => {
+  const params = DeleteCaptureParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  await db.delete(capturesTable).where(eq(capturesTable.id, params.data.id));
+  res.sendStatus(204);
+});
+var captures_default = router5;
+
+// src/routes/tasks.ts
+var import_express6 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router6 = (0, import_express6.Router)();
+router6.get("/tasks", async (req, res) => {
+  const q = ListTasksQueryParams.safeParse(req.query);
+  let query = db.select().from(tasksTable).$dynamic();
+  if (q.success) {
+    const conditions = [];
+    if (q.data.status) conditions.push(eq(tasksTable.status, q.data.status));
+    if (q.data.priority) conditions.push(eq(tasksTable.priority, q.data.priority));
+    if (conditions.length > 0) query = query.where(and(...conditions));
+  }
+  const tasks = await query.orderBy(desc(tasksTable.createdAt));
+  res.json(tasks);
+});
+router6.get("/tasks/summary", async (_req, res) => {
+  const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  const [total] = await db.select({ count: count() }).from(tasksTable);
+  const [pending] = await db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "pending"));
+  const [done] = await db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "done"));
+  const [highPriority] = await db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.priority, "high"), eq(tasksTable.status, "pending")));
+  const [overdue] = await db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.status, "pending"), lt(tasksTable.dueDate, today)));
+  res.json({
+    total: total.count,
+    pending: pending.count,
+    done: done.count,
+    highPriority: highPriority.count,
+    overdue: overdue.count
+  });
+});
+router6.post("/tasks", async (req, res) => {
+  const parsed = CreateTaskBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const [task] = await db.insert(tasksTable).values({
+    title: parsed.data.title,
+    dueDate: parsed.data.dueDate ?? null,
+    priority: parsed.data.priority ?? "medium",
+    priorityDomain: parsed.data.priorityDomain ?? null,
+    captureId: parsed.data.captureId ?? null
+  }).returning();
+  res.status(201).json(task);
+});
+router6.patch("/tasks/:id", async (req, res) => {
+  const params = UpdateTaskParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const parsed = UpdateTaskBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const updates = {};
+  if (parsed.data.title !== void 0) updates.title = parsed.data.title;
+  if (parsed.data.dueDate !== void 0) updates.dueDate = parsed.data.dueDate;
+  if (parsed.data.priority !== void 0) updates.priority = parsed.data.priority;
+  if (parsed.data.status !== void 0) updates.status = parsed.data.status;
+  if (parsed.data.priorityDomain !== void 0) updates.priorityDomain = parsed.data.priorityDomain;
+  const [task] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, params.data.id)).returning();
+  if (!task) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  res.json(task);
+});
+router6.delete("/tasks/:id", async (req, res) => {
+  const params = DeleteTaskParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  await db.delete(tasksTable).where(eq(tasksTable.id, params.data.id));
+  res.sendStatus(204);
+});
+var tasks_default = router6;
+
+// src/routes/events.ts
+var import_express7 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router7 = (0, import_express7.Router)();
+router7.get("/events", async (req, res) => {
+  const q = ListEventsQueryParams.safeParse(req.query);
+  let query = db.select().from(eventsTable).$dynamic();
+  if (q.success) {
+    const conditions = [];
+    if (q.data.from) conditions.push(gte(eventsTable.eventDate, q.data.from));
+    if (q.data.to) conditions.push(lte(eventsTable.eventDate, q.data.to));
+    if (conditions.length > 0) query = query.where(and(...conditions));
+  }
+  const events = await query.orderBy(eventsTable.eventDate);
+  res.json(events);
+});
+router7.post("/events", async (req, res) => {
+  const parsed = CreateEventBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const [event] = await db.insert(eventsTable).values({
+    title: parsed.data.title,
+    eventDate: parsed.data.eventDate,
+    eventTime: parsed.data.eventTime ?? null,
+    category: parsed.data.category ?? "personal",
+    captureId: parsed.data.captureId ?? null
+  }).returning();
+  res.status(201).json(event);
+});
+router7.patch("/events/:id", async (req, res) => {
+  const params = UpdateEventParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const parsed = UpdateEventBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const updates = {};
+  if (parsed.data.title !== void 0) updates.title = parsed.data.title;
+  if (parsed.data.eventDate !== void 0) updates.eventDate = parsed.data.eventDate;
+  if (parsed.data.eventTime !== void 0) updates.eventTime = parsed.data.eventTime;
+  if (parsed.data.category !== void 0) updates.category = parsed.data.category;
+  const [event] = await db.update(eventsTable).set(updates).where(eq(eventsTable.id, params.data.id)).returning();
+  if (!event) {
+    res.status(404).json({ error: "Event not found" });
+    return;
+  }
+  res.json(event);
+});
+router7.delete("/events/:id", async (req, res) => {
+  const params = DeleteEventParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  await db.delete(eventsTable).where(eq(eventsTable.id, params.data.id));
+  res.sendStatus(204);
+});
+var events_default = router7;
+
+// src/routes/learnings.ts
+var import_express8 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router8 = (0, import_express8.Router)();
+router8.get("/learnings", async (req, res) => {
+  const q = ListLearningsQueryParams.safeParse(req.query);
+  let query = db.select().from(learningsTable).$dynamic();
+  if (q.success) {
+    const conditions = [];
+    if (q.data.category) conditions.push(eq(learningsTable.category, q.data.category));
+    if (q.data.search) conditions.push(ilike(learningsTable.subject, `%${q.data.search}%`));
+    if (conditions.length > 0) query = query.where(and(...conditions));
+  }
+  const items = await query.orderBy(desc(learningsTable.createdAt));
+  res.json(items);
+});
+router8.post("/learnings", async (req, res) => {
+  const parsed = CreateLearningBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const [learning] = await db.insert(learningsTable).values({
+    subject: parsed.data.subject,
+    content: parsed.data.content,
+    category: parsed.data.category ?? "personal",
+    captureId: parsed.data.captureId ?? null
+  }).returning();
+  res.status(201).json(learning);
+});
+router8.delete("/learnings/:id", async (req, res) => {
+  const params = DeleteLearningParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  await db.delete(learningsTable).where(eq(learningsTable.id, params.data.id));
+  res.sendStatus(204);
+});
+var learnings_default = router8;
+
+// src/routes/decisions.ts
+var import_express9 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router9 = (0, import_express9.Router)();
+var decisionLimiter = rateLimit({ windowMs: 6e4, max: 20 });
+router9.get("/decisions", async (_req, res) => {
+  const decisions = await db.select().from(decisionsTable).orderBy(desc(decisionsTable.createdAt));
+  res.json(decisions);
+});
+router9.get("/decisions/:id", async (req, res) => {
+  const params = GetDecisionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const [decision] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, params.data.id));
+  if (!decision) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  res.json(decision);
+});
+router9.post("/decisions", decisionLimiter, async (req, res) => {
+  const parsed = CreateDecisionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const analysis = await analyzeDecision(parsed.data.question, parsed.data.context ?? null);
+  const [decision] = await db.insert(decisionsTable).values({
+    question: parsed.data.question,
+    context: parsed.data.context ?? null,
+    analysis: analysis.analysis,
+    priorityConflicts: analysis.priorityConflicts,
+    alternatives: analysis.alternatives,
+    blindSpots: analysis.blindSpots
+  }).returning();
+  res.status(201).json(decision);
+});
+router9.delete("/decisions/:id", async (req, res) => {
+  const params = DeleteDecisionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  await db.delete(decisionsTable).where(eq(decisionsTable.id, params.data.id));
+  res.sendStatus(204);
+});
+var decisions_default = router9;
+
+// src/routes/memory.ts
+var import_express10 = __toESM(require_express2(), 1);
+init_drizzle_orm();
+var router10 = (0, import_express10.Router)();
+router10.get("/memory", async (req, res) => {
+  const q = ListMemoryQueryParams.safeParse(req.query);
+  let query = db.select().from(memoryTable).$dynamic();
+  if (q.success) {
+    const conditions = [];
+    if (q.data.domain) conditions.push(eq(memoryTable.domain, q.data.domain));
+    if (q.data.search) conditions.push(ilike(memoryTable.title, `%${q.data.search}%`));
+    if (conditions.length > 0) query = query.where(and(...conditions));
+  }
+  const entries = await query.orderBy(desc(memoryTable.createdAt));
+  res.json(entries);
+});
+router10.post("/memory", async (req, res) => {
+  const parsed = CreateMemoryEntryBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  const [entry] = await db.insert(memoryTable).values({
+    domain: parsed.data.domain,
+    title: parsed.data.title,
+    content: parsed.data.content,
+    tags: parsed.data.tags ?? []
+  }).returning();
+  res.status(201).json(entry);
+});
+router10.delete("/memory/:id", async (req, res) => {
+  const params = DeleteMemoryEntryParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  await db.delete(memoryTable).where(eq(memoryTable.id, params.data.id));
+  res.sendStatus(204);
+});
+var memory_default = router10;
 
 // src/routes/briefings.ts
+var import_express11 = __toESM(require_express2(), 1);
+init_drizzle_orm();
 var router11 = (0, import_express11.Router)();
 var briefingCache = null;
 var BRIEFING_CACHE_TTL = 36e5;
@@ -68782,7 +68795,7 @@ var leads_default = router15;
 var import_express16 = __toESM(require_express2(), 1);
 init_drizzle_orm();
 var router16 = (0, import_express16.Router)();
-router16.get("/audit", async (req, res) => {
+router16.get("/audit", requireRole("admin", "owner"), async (req, res) => {
   try {
     const limit = Math.min(parseInt(String(req.query.limit ?? "100"), 10), 500);
     const offset = parseInt(String(req.query.offset ?? "0"), 10);
@@ -68810,7 +68823,7 @@ var audit_default = router16;
 var import_express17 = __toESM(require_express2(), 1);
 init_drizzle_orm();
 var router17 = (0, import_express17.Router)();
-router17.get("/diagnostics", async (req, res) => {
+router17.get("/diagnostics", requireRole("admin", "owner"), async (req, res) => {
   const startTime = Date.now();
   const checks = {};
   try {
@@ -69724,6 +69737,7 @@ app.use(
 );
 app.use(securityHeaders);
 var allowedOrigins = (process.env.FRONTEND_URL ?? "").split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean);
+var SAFE_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$|^https?:\/\/[^.]+\.replit\.dev(:\d+)?$|^https?:\/\/[^.]+\.repl\.co(:\d+)?$/;
 var corsMiddleware = (0, import_cors.default)({
   origin(origin, callback) {
     if (!origin) {
@@ -69734,7 +69748,7 @@ var corsMiddleware = (0, import_cors.default)({
       callback(null, true);
       return;
     }
-    if (allowedOrigins.length === 0) {
+    if (allowedOrigins.length === 0 && SAFE_ORIGIN_RE.test(origin)) {
       callback(null, true);
       return;
     }
@@ -69745,7 +69759,12 @@ var corsMiddleware = (0, import_cors.default)({
   credentials: false,
   maxAge: 600
 });
-app.use(rateLimit({ windowMs: 6e4, max: 120 }));
+var isDev = process.env.NODE_ENV !== "production";
+app.use(rateLimit({
+  windowMs: 6e4,
+  max: 120,
+  skip: (req) => isDev && (req.ip === "127.0.0.1" || req.ip === "::1" || req.ip === "::ffff:127.0.0.1")
+}));
 var audioJson = import_express25.default.json({ limit: "10mb" });
 var textJson = import_express25.default.json({ limit: "512kb" });
 app.use(
@@ -69771,8 +69790,9 @@ app.get("/api/_debug", (_req, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  const debugToken = _req.query.debugToken;
-  if (debugToken !== process.env.DEBUG_TOKEN) {
+  const configuredToken = process.env.DEBUG_TOKEN;
+  const providedToken = _req.query.debugToken;
+  if (!configuredToken || providedToken !== configuredToken) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }

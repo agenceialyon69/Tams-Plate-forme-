@@ -1,0 +1,166 @@
+Tu construis TAMS, une plateforme perso sérieuse, mais conçue dès le départ comme une base produit propre, évolutive, multi-tenant à terme, avec un vrai agent copilot intégré.
+
+PRINCIPE DIRECTEUR
+- Le but n’est pas de faire une démo : le but est de construire une base utilisable, utile, robuste, testable, et extensible.
+- Le projet reste personnel au départ.
+- Le branding visible est TAMS partout.
+- Remplace toutes les occurrences de KORE et GANDAL par TAMS dans tout ce qui est visible, documenté, nommé, ou affiché à l’utilisateur.
+- Conserve uniquement les identifiants techniques qu’il serait dangereux de renommer immédiatement, et documente chaque exception.
+
+OBJECTIF COPILOT
+- Construire un vrai copilot utile au quotidien.
+- Le copilot doit pouvoir travailler avec plusieurs IA gratuites/connectées.
+- Il doit pouvoir choisir le meilleur modèle selon la tâche, ou basculer selon la disponibilité.
+- Il doit supporter le chat, le contexte de documents, les macros, les tâches d’audit, les résumés, les plans d’action, et les checklists.
+- Le copilot doit être conçu pour être utile sans halluciner, sans inventer de données, et sans donner de faux signaux.
+
+STRATÉGIE MULTI-IA
+- Prévoir une couche d’abstraction pour plusieurs providers/modèles.
+- Chaque modèle doit être référencé proprement par provider/model.
+- Le système doit permettre :
+  - un modèle rapide et gratuit pour les tâches simples,
+  - un modèle plus fort pour les analyses complexes,
+  - un fallback si un provider tombe,
+  - un routage par type de tâche,
+  - une configuration simple par agent ou par action.
+- Les prompts système doivent être versionnés et séparés du code métier.
+- Les réponses doivent pouvoir être structurées si nécessaire via schema JSON.
+- La configuration des modèles doit rester remplaçable sans refactor massif.
+
+CAS D’USAGE COPILOT
+- Audit de workload.
+- Priorisation des tâches.
+- Détection de risques.
+- Planification de déploiement.
+- Génération de checklists.
+- Revue hebdomadaire.
+- Aide à la décision.
+- Résumés de documents.
+- Analyse de contexte.
+- Suggestion de prochains pas.
+- Support au debug et à la maintenance.
+- Recherche dans l’historique et dans les documents injectés.
+
+CONTRAINTE SÉCURITÉ / RED TEAM
+- Le copilot ne doit jamais supprimer ou modifier des données critiques sans confirmation explicite.
+- Il doit détecter les faux signaux.
+- Il doit distinguer le contexte utilisateur du contexte injecté.
+- Il doit résister à l’injection de prompt dans les documents.
+- Il doit signaler l’incertitude plutôt que d’inventer.
+- Il doit privilégier le plus petit changement utile.
+- Il ne doit pas réécrire tout un système pour corriger un bug local.
+- Il ne doit pas masquer les problèmes par des casts, des hacks, ou des faux succès.
+
+CONTRÔLE DE QUALITÉ OBLIGATOIRE
+- Avant toute modification, cartographie le problème.
+- Vérifie l’état du repo et la branche active.
+- Compare l’état local avec origin/main.
+- Vérifie que les fichiers attendus existent vraiment.
+- Si un fichier manque, crée-le ou régénère-le.
+- Si un artefact généré manque, régénère-le.
+- Aucun lot n’est validé tant que les fichiers attendus, y compris les générés, sont présents et cohérents.
+- Si un fichier généré est ignoré par git, il doit quand même être cohérent localement.
+- Si main est inaccessible ou si le push échoue, stoppe-toi et documente le blocage.
+
+METHODE D’EXÉCUTION
+- Commencer par cartographier.
+- Lister les fichiers attendus.
+- Comparer aux fichiers réels.
+- Réparer uniquement ce qui manque.
+- Faire le plus petit fix utile.
+- Tester.
+- Commit sur main.
+- Push sur main.
+- Puis seulement passer au lot suivant.
+- Pas de refactor global caché.
+- Pas de bonus opportuniste.
+
+ARCHITECTURE PRODUIT
+1. Auth
+- Login, register, logout, session, migration de clés si nécessaire.
+- Ne pas casser les sessions existantes sans raison.
+- Corriger immédiatement tout branding erroné dans les pages d’auth.
+- S’assurer que le parcours de connexion fonctionne réellement.
+
+2. Invitations
+- Support des invitations par tenant à terme.
+- `member_invitations` si utile.
+- Routes publiques uniquement là où c’est nécessaire.
+- Le moindre 500 sur invitation/contact doit être corrigé à la racine.
+
+3. Dashboard
+- Afficher des signaux vrais.
+- Pas de faux timestamps.
+- Pas de faux état de charge.
+- Afficher clairement les états light / moderate / heavy / critical.
+- Les signaux doivent aider à décider, pas à tromper.
+
+4. Briefings
+- Timestamp de génération réel.
+- Champs bien typés.
+- Pas de champ fantôme.
+- Les briefings doivent alimenter le dashboard proprement.
+
+5. Captures
+- Badge de type basé sur une vraie source de vérité.
+- Pas de champ imaginaire.
+- Pas de surcharge UI inutile.
+
+6. Revue du soir / hebdo
+- Aider à décider quoi garder, reporter, déléguer ou supprimer.
+- Toujours partir des données réelles.
+- Toujours rester actionnable.
+
+7. Maintenance / échéances
+- Les éléments à échéance doivent être triés, filtrés et urgents visuellement.
+- Les dates invalides doivent être gérées proprement.
+- Le système doit permettre l’undo quand c’est utile.
+
+8. Copilot / chat
+- Historique des messages.
+- Macros d’actions.
+- Upload de documents.
+- Contexte injecté.
+- Réponse markdown structurée.
+- Support multi-conversation à terme.
+- Vrai pipeline contextuel à terme, pas juste une simulation.
+
+9. Portabilité
+- Fonctionner hors environnement propriétaire.
+- Supprimer les dépendances privées non essentielles.
+- Garder le build propre et reproductible.
+- Préparer Railway ou équivalent.
+- Conserver un lockfile cohérent.
+
+10. TypeScript / codegen
+- Aucun `as any` qui masque un problème.
+- Aucun cast inutile.
+- Si le schéma est incomplet, le corriger au lieu de tricher.
+- Si le codegen est utilisé, il doit être régénéré et validé.
+
+11. Branding / rename
+- TAMS partout dans les textes visibles.
+- KORE et GANDAL doivent disparaître du branding visible.
+- Les exceptions techniques doivent être documentées.
+- Les noms techniques internes ne doivent rester que s’ils sont indispensables à la compatibilité.
+
+COMPATIBILITÉ ET EVOLUTION
+- Prévoir le passage vers un vrai produit plus tard.
+- Prévoir plusieurs tenants plus tard.
+- Prévoir plusieurs IA / providers.
+- Prévoir l’historique, les permissions, les rôles, les espaces de travail et les documents.
+- Ne pas surconcevoir, mais ne pas bloquer l’évolution.
+
+SORTIE ATTENDUE À CHAQUE LOT
+1. Cartographie.
+2. Fichiers attendus.
+3. Fichiers réellement présents.
+4. Manquants détectés.
+5. Plus petit fix retenu.
+6. Tests.
+7. Commit sur main.
+8. Push sur main.
+9. Confirmation claire que le lot est livré.
+
+RÉSULTAT FINAL ATTENDU
+Une plateforme TAMS perso, intelligente, multi-IA, utile, propre, fiable, et prête à évoluer vers un vrai produit sans tout réécrire.

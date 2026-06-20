@@ -25,12 +25,14 @@ interface RateOptions {
   windowMs: number;
   max: number;
   key?: (req: Request) => string;
+  skip?: (req: Request) => boolean;
 }
 
 export function rateLimit(opts: RateOptions) {
   const keyFn = opts.key ?? ((req: Request) => req.ip ?? "unknown");
 
   return (req: Request, res: Response, next: NextFunction): void => {
+    if (opts.skip?.(req)) { next(); return; }
     const key = `ratelimit:${keyFn(req)}`;
     const { ok, remaining } = memoryCount(key, opts.windowMs, opts.max);
 

@@ -57,15 +57,18 @@ const allowedOrigins = (process.env.FRONTEND_URL ?? "")
   .map((o) => o.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
+// Safe local/dev patterns: localhost variants + Replit dev domains
+const SAFE_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$|^https?:\/\/[^.]+\.replit\.dev(:\d+)?$|^https?:\/\/[^.]+\.repl\.co(:\d+)?$/;
+
 const corsMiddleware = cors({
   origin(origin, callback) {
     // No Origin header = server-to-server or same-origin simple request → allow.
     if (!origin) { callback(null, true); return; }
     // Explicit allowlist (FRONTEND_URL) → allow.
     if (allowedOrigins.includes(origin)) { callback(null, true); return; }
-    // In single-service mode (no FRONTEND_URL) every browser request comes
-    // from the same origin as the API — allow it.
-    if (allowedOrigins.length === 0) { callback(null, true); return; }
+    // No allowlist configured: only allow localhost and Replit dev domains.
+    // Reject any external/unknown origin even in single-service mode.
+    if (allowedOrigins.length === 0 && SAFE_ORIGIN_RE.test(origin)) { callback(null, true); return; }
     callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
@@ -75,7 +78,14 @@ const corsMiddleware = cors({
 });
 
 // --- Global baseline rate limit (per IP) ---
-app.use(rateLimit({ windowMs: 60_000, max: 120 }));
+// In dev all traffic appears as 127.0.0.1 (Vite proxy) — skip localhost to avoid
+// the Red Team test suite exhausting the quota for normal page loads.
+const isDev = process.env.NODE_ENV !== "production";
+app.use(rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  skip: (req) => isDev && (req.ip === "127.0.0.1" || req.ip === "::1" || req.ip === "::ffff:127.0.0.1"),
+}));
 
 // --- Body size caps ---
 const audioJson = express.json({ limit: "10mb" });
@@ -108,15 +118,17 @@ app.get("/api/healthz", (_req, res) => {
 
 // --- Debug endpoint protégé ---
 app.get("/api/_debug", (_req, res) => {
-  // Option 1 : désactiver en production
+  // Always forbidden in production.
   if (process.env.NODE_ENV === "production") {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
 
-  // Option 2 : token obligatoire (si tu veux le garder en prod)
-  const debugToken = _req.query.debugToken as string;
-  if (debugToken !== process.env.DEBUG_TOKEN) {
+  // In dev: DEBUG_TOKEN must be explicitly configured AND provided.
+  // If DEBUG_TOKEN is not set, nobody can access this endpoint (safe default).
+  const configuredToken = process.env.DEBUG_TOKEN;
+  const providedToken = _req.query.debugToken;
+  if (!configuredToken || providedToken !== configuredToken) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
