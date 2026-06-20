@@ -3,6 +3,7 @@ import { db, tasksTable, energyLogsTable } from "@workspace/db";
 import { LogEnergyLevelBody } from "@workspace/api-zod";
 import { eq, count, avg, gte, desc } from "drizzle-orm";
 import { detectOverload } from "../lib/ai";
+import { getConsecutiveActiveDays } from "../lib/signals";
 import { invalidateBriefingCache } from "./briefings";
 
 const router: IRouter = Router();
@@ -30,17 +31,18 @@ router.get("/overload/status", async (_req, res): Promise<void> => {
   const doneTasks = doneTasksResult[0].count;
   const recentEnergyAvg = energyResult[0]?.avg ? parseFloat(String(energyResult[0].avg)) : null;
   const ratio = doneTasks > 0 ? activeTasks / doneTasks : activeTasks > 0 ? 3 : 1;
+  const consecutiveWorkDays = await getConsecutiveActiveDays();
 
   const overload = await detectOverload({
     activeTasks,
-    consecutiveWorkDays: 0,
+    consecutiveWorkDays,
     recentEnergyAvg,
     taskAddedVsCompletedRatio: ratio,
   });
 
   const data = {
     riskLevel: overload.riskLevel,
-    consecutiveWorkDays: 0,
+    consecutiveWorkDays,
     activeTasks,
     averageEnergyLastWeek: recentEnergyAvg,
     alerts: overload.alerts,

@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Dashboard honnête** : remplacement du faux `consecutiveWorkDays` (codé à 0)
+  par un calcul réel des jours d'activité consécutifs (`lib/signals.ts`).
 - **Branding unifié TAMS** : remplacement des occurrences visibles KORE/GANDAL
   par TAMS (logos/lettres, noms d'export, clé de prefs avec migration, fonction
   interne). Exceptions techniques conservées et documentées.
