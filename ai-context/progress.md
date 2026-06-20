@@ -3,6 +3,12 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Onboarding minimal** : endpoint public `GET /api/auth/status`
+  (`bootstrap` = aucun utilisateur encore, `selfRegistrationEnabled`). L'écran de
+  connexion s'adapte : indice « premier lancement → crée ton compte
+  propriétaire » + onglet inscription masqué quand l'inscription est fermée
+  (plus de cul-de-sac 403). Vérifié (base vide → bootstrap true, après 1er
+  compte → false ; smoke 5/5).
 - **Healthcheck honnête (observabilité)** : `/api/healthz` expose maintenant
   l'état réel de la base (`db: "ready" | "connecting"`) tout en restant **200**
   (healthcheck Railway préservé, démarrage résilient). Plus de « ok » trompeur
@@ -49,10 +55,9 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 - (rien — en attente de validation de la prochaine tâche)
 
 ## NEXT (une tâche à la fois)
-1. Settings : structurer compte / workspace / intégrations / branding.
-2. Analytics structure minimale (événements utiles, usage réel).
-3. Onboarding minimal (réduire la friction d'entrée).
-4. Docker de base (optionnel — le déploiement actuel utilise nixpacks).
+1. Analytics structure minimale (événements utiles, usage réel).
+2. Docker de base (optionnel — le déploiement actuel utilise nixpacks).
+3. (Différé, hors-scope perso) isolation multi-tenant — prérequis multi-clients.
 
 ## BLOCKERS
 - **Isolation multi-tenant** absente sur les tables de données produit

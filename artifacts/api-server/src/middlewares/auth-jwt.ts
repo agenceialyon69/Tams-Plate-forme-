@@ -57,6 +57,8 @@ const PUBLIC_PATHS = new Set([
   "/api/healthz",
   "/_debug",
   "/api/_debug",
+  "/auth/status",
+  "/api/auth/status",
   "/auth/login",
   "/api/auth/login",
   "/auth/register",

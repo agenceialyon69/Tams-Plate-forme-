@@ -368,4 +368,19 @@ router.post("/auth/reset-password", authLimiter, async (req, res) => {
   }
 });
 
+// Public onboarding signal for the login screen: whether this is a fresh
+// install (no users yet → the first account becomes owner) and whether
+// self-registration is open. No secret/data leaked.
+router.get("/auth/status", async (_req, res) => {
+  const selfRegistrationEnabled = process.env.SELF_REGISTRATION_ENABLED === "true";
+  try {
+    const [anyUser] = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
+    res.json({ bootstrap: !anyUser, selfRegistrationEnabled });
+  } catch {
+    // Users table not ready yet (fresh install, schema still applying) → treat
+    // as bootstrap so the first owner account can be created once it's ready.
+    res.json({ bootstrap: true, selfRegistrationEnabled });
+  }
+});
+
 export default router;
