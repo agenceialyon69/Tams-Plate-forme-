@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **CI + smoke test** : GitHub Actions (typecheck + build web/API + smoke
+  runtime sur Postgres) → la croix rouge/verte devient significative.
 - **Dashboard honnête** : remplacement du faux `consecutiveWorkDays` (codé à 0)
   par un calcul réel des jours d'activité consécutifs (`lib/signals.ts`).
 - **Branding unifié TAMS** : remplacement des occurrences visibles KORE/GANDAL

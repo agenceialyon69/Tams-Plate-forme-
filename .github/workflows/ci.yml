@@ -1,0 +1,60 @@
+name: CI
+
+# Stability gate: runs the same checks that have broken deploys before
+# (typecheck, web+API build) plus a runtime smoke test (health, auth, login),
+# so a red/green on a commit is a meaningful signal.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tams_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/tams_ci
+      API_AUTH_TOKEN: ci-master-token-0123456789abcdef
+      JWT_SECRET: ci-jwt-secret-at-least-32-characters-long-xx
+      PORT: "8080"
+      BASE_PATH: /
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile --prod=false
+
+      - name: Typecheck (all packages)
+        run: pnpm run typecheck
+
+      - name: Build web app + API
+        run: |
+          pnpm --filter @workspace/kore run build
+          pnpm --filter @workspace/api-server run build
+
+      - name: Smoke test (health, auth, login)
+        run: node scripts/smoke.mjs

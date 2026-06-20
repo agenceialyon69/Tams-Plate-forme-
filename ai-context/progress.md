@@ -3,6 +3,12 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Harnais de stabilité (CI + smoke)** : workflow GitHub Actions
+  (`.github/workflows/ci.yml`) → install + typecheck + build (web+API) + smoke
+  test runtime sur un Postgres de service. Script `scripts/smoke.mjs` (santé,
+  auth requise, bootstrap register, login, route protégée). Rend la croix
+  rouge/verte enfin **significative** et attrape la classe de pannes qui cassait
+  les déploiements. Vérifié en local : SMOKE OK (5/5).
 - **Dashboard / signaux honnêtes** : suppression du faux `consecutiveWorkDays: 0`
   codé en dur. Calcul réel des jours d'activité consécutifs (helper partagé
   `lib/signals.ts`, dérivé de `energy_logs`), utilisé dans `/overload/status`
@@ -31,6 +37,7 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 1. Settings : structurer compte / workspace / intégrations / branding.
 2. Analytics structure minimale (événements utiles, usage réel).
 3. Onboarding minimal (réduire la friction d'entrée).
+4. Docker de base (optionnel — le déploiement actuel utilise nixpacks).
 
 ## BLOCKERS
 - **Isolation multi-tenant** absente sur les tables de données produit
