@@ -266,6 +266,26 @@ const STATEMENTS = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
+
+  /* ---------- Schema-drift migrations (heal databases created by older
+     versions). CREATE TABLE IF NOT EXISTS does NOT add columns to a table that
+     already exists, so we add any later-added columns explicitly. Only columns
+     that are nullable or have a default are added (safe on tables with rows). */
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS status tenant_status NOT NULL DEFAULT 'active'`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS self_service_enabled BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS role user_role NOT NULL DEFAULT 'member'`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS status user_status NOT NULL DEFAULT 'active'`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`,
+  `ALTER TABLE password_reset_tokens ADD COLUMN IF NOT EXISTS used_at TIMESTAMPTZ`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS score INTEGER`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS conversion_probability INTEGER`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS next_best_action TEXT`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS red_team_warning TEXT`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS scored_at TIMESTAMPTZ`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`,
+  `ALTER TABLE recordings ADD COLUMN IF NOT EXISTS tams_message TEXT`,
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -345,18 +365,36 @@ async function waitForDatabase(attempts = 30, delayMs = 2000): Promise<void> {
 export async function ensureSchema(): Promise<boolean> {
   try {
     await waitForDatabase();
-    for (const sql of STATEMENTS) {
-      await pool.query(sql);
-    }
-    dbReady = true;
-    lastDbError = null;
-    return true;
   } catch (err) {
     lastDbError = formatErr(err);
     console.error(
-      `[db] Could not prepare schema — DB-backed routes will fail until the ` +
-        `database is reachable. Check DATABASE_URL. Last error: ${lastDbError}`,
+      `[db] Database not reachable — DB-backed routes will fail. ` +
+        `Check DATABASE_URL. Last error: ${lastDbError}`,
     );
     return false;
   }
+
+  // Run each statement independently: a single failure (e.g. one ALTER on an
+  // older schema) must NOT prevent the remaining tables/columns from being
+  // created. This is what lets login/users tables get created even if an
+  // earlier statement fails on a drifted production database.
+  let failures = 0;
+  for (const sql of STATEMENTS) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      failures += 1;
+      const detail = formatErr(err);
+      const head = sql.replace(/\s+/g, " ").slice(0, 70);
+      console.error(`[db] schema statement failed (continuing): ${head}… :: ${detail}`);
+      lastDbError = detail;
+    }
+  }
+
+  // The database is reachable; schema is best-effort applied. Report ready so
+  // the app serves normally (any residual issue is visible in the logs above).
+  dbReady = true;
+  if (failures === 0) lastDbError = null;
+  else console.error(`[db] schema applied with ${failures} non-fatal statement error(s).`);
+  return failures === 0;
 }
