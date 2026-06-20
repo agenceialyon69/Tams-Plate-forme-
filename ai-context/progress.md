@@ -3,6 +3,10 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Nettoyage : dé-suivi des artefacts `dist` commités** (5 fichiers générés,
+  déjà dans `.gitignore`, et incohérents — `index.html` commité pointait vers
+  des assets non commités). Railway/CI reconstruisent `dist` à chaque build,
+  donc aucun impact runtime ; supprime le bruit et la friction « arbre sale ».
 - **Nettoyage : suppression du middleware mort `middlewares/auth.ts`** (~270
   lignes, `requireAuth` non importé nulle part — l'app utilise `requireAuthJwt`).
   Réduit la confusion/dette du template. Vérifié : typecheck + build + smoke
