@@ -39,6 +39,7 @@ import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
 import { CommandPalette } from "@/components/CommandPalette";
 import { LoginGate } from "@/components/LoginGate";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { useEffect, useState } from "react";
 import { loadPrefs } from "@/hooks/useNotifications";
 import { clearToken, getStoredUser } from "@/lib/auth";
@@ -336,6 +337,7 @@ function App() {
           </WouterRouter>
         </LoginGate>
         <Toaster />
+        <InstallPrompt />
       </TooltipProvider>
     </QueryClientProvider>
   );
