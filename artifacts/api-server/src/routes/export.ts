@@ -67,7 +67,7 @@ router.get("/export", requireRole("admin", "owner"), async (req, res): Promise<v
       },
     };
 
-    const filename = `gandal-export-${new Date().toISOString().split("T")[0]}.json`;
+    const filename = `tams-export-${new Date().toISOString().split("T")[0]}.json`;
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.json(exportData);

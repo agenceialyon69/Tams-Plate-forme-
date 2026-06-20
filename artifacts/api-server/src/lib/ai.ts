@@ -247,7 +247,7 @@ Réponds en JSON :
   }
 }
 
-export async function generateMorningKoreMessage(data: {
+export async function generateMorningTamsMessage(data: {
   pendingTasks: number;
   highPriorityTasks: number;
   overdueTasks: number;
