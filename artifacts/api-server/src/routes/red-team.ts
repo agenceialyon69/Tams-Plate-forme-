@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, capturesTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { requireRole } from "../middlewares/auth-jwt";
 
 const router: IRouter = Router();
 
@@ -15,7 +16,7 @@ export interface RedTeamTest {
   severity: "critical" | "high" | "medium" | "low" | "info";
 }
 
-router.post("/red-team/run", async (req, res): Promise<void> => {
+router.post("/red-team/run", requireRole("admin", "owner"), async (req, res): Promise<void> => {
   const results: RedTeamTest[] = [];
   const baseUrl = `http://localhost:${process.env.PORT ?? 8080}`;
 
