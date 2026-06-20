@@ -3,6 +3,10 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Nettoyage : suppression du middleware mort `middlewares/auth.ts`** (~270
+  lignes, `requireAuth` non importé nulle part — l'app utilise `requireAuthJwt`).
+  Réduit la confusion/dette du template. Vérifié : typecheck + build + smoke
+  (5/5) OK, l'auth fonctionne toujours.
 - **Harnais de stabilité (CI + smoke)** : workflow GitHub Actions
   (`.github/workflows/ci.yml`) → install + typecheck + build (web+API) + smoke
   test runtime sur un Postgres de service. Script `scripts/smoke.mjs` (santé,

@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Nettoyage** : suppression du middleware d'auth mort (`middlewares/auth.ts`,
+  non utilisé). L'auth reste assurée par `requireAuthJwt`.
 - **CI + smoke test** : GitHub Actions (typecheck + build web/API + smoke
   runtime sur Postgres) → la croix rouge/verte devient significative.
 - **Dashboard honnête** : remplacement du faux `consecutiveWorkDays` (codé à 0)
