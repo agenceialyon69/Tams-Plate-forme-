@@ -3,6 +3,10 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Décision produit (2026-06-20)** : mode **perso / test d'abord**. L'utilisateur
+  valide l'app en solo avant de basculer en multi-tenant. Concept conservé :
+  plan de migration détaillé dans `ai-context/multi-tenant-plan.md` (prêt à
+  exécuter, aucun changement de code maintenant).
 - **Filet anti-régression renforcé** : `scripts/smoke.mjs` couvre maintenant
   10 invariants (santé, `bootstrap` avant/après 1er compte, auth requise,
   register, **2ᵉ inscription bloquée 403**, login, route protégée, logout,

@@ -23,7 +23,8 @@ implémentation → tests → commit/push → maj progress.md). Stabilité d'abo
 
 ## V2 (Phase 2 — capacités équipe & gouvernance)
 - **Isolation multi-tenant complète** (`tenantId` sur toutes les tables data) —
-  prérequis avant tout usage multi-clients.
+  prérequis avant tout usage multi-clients. **Différé** (mode perso/test
+  d'abord) ; plan d'exécution détaillé prêt dans `ai-context/multi-tenant-plan.md`.
 - Workspace / team management.
 - Audit logs (présent) consolidé, Notifications, Feature flags.
 - Seed / reset / bootstrap propres, template versioning.

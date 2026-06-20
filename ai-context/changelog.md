@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Décision** : mode perso/test d'abord ; plan de migration multi-tenant
+  documenté (`ai-context/multi-tenant-plan.md`), exécution différée.
 - **Tests** : smoke test renforcé (10 invariants : auth, onboarding, inscription
   fermée, logout, healthz db=ready).
 - **Onboarding** : `GET /api/auth/status` + écran de connexion adaptatif
