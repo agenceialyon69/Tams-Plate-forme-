@@ -28,6 +28,8 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
   const [loading, setLoading] = useState(false);
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [bootstrap, setBootstrap] = useState(false);
+  const [canRegister, setCanRegister] = useState(true);
 
   useEffect(() => onAuthChange(() => setAuthed(Boolean(getToken()))), []);
 
@@ -45,6 +47,21 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
       setResetToken(resetParam);
       setTab("reset");
     }
+  }, []);
+
+  // Onboarding: ask the server whether this is a fresh install and whether
+  // self-registration is open, to adapt the screen (no friction / no dead end).
+  useEffect(() => {
+    fetch(`${getApiBase()}/api/auth/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (!s) return;
+        const isBootstrap = Boolean(s.bootstrap);
+        setBootstrap(isBootstrap);
+        setCanRegister(isBootstrap || Boolean(s.selfRegistrationEnabled));
+        if (isBootstrap) setTab("register");
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -166,7 +183,13 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
           </div>
         </div>
 
-        {tab !== "forgot" && tab !== "reset" && (
+        {bootstrap && tab !== "forgot" && tab !== "reset" && (
+          <div className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-muted-foreground">
+            Premier lancement : crée ton <span className="font-medium text-foreground">compte propriétaire</span> pour démarrer.
+          </div>
+        )}
+
+        {canRegister && tab !== "forgot" && tab !== "reset" && (
           <div className="flex rounded-lg border border-border/50 p-1 bg-muted/30">
             <button
               onClick={() => switchTab("login")}

@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Onboarding** : `GET /api/auth/status` + écran de connexion adaptatif
+  (indice premier lancement, masquage inscription si fermée).
 - **Healthcheck honnête** : `/api/healthz` reporte l'état réel de la base
   (`db: ready|connecting`), toujours 200 (Railway préservé).
 - **README.md** racine : point d'entrée du template.
