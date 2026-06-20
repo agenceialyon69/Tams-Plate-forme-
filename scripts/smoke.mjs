@@ -40,9 +40,21 @@ async function waitForHealth(timeoutMs = 30_000) {
   return false;
 }
 
+async function getJson(path, init) {
+  const r = await fetch(`${BASE}${path}`, init);
+  const body = await r.json().catch(() => ({}));
+  return { status: r.status, body };
+}
+
 async function main() {
   if (!(await waitForHealth())) { ko("server did not become healthy"); return; }
   ok("server healthy (/api/healthz)");
+
+  // Fresh install → onboarding reports bootstrap before any account exists.
+  const status0 = await getJson("/api/auth/status");
+  status0.body.bootstrap === true
+    ? ok("auth status: bootstrap=true on fresh DB")
+    : ko(`expected bootstrap=true, got ${JSON.stringify(status0.body)}`);
 
   // Auth required on data routes.
   const noAuth = await fetch(`${BASE}/api/tasks`);
@@ -50,28 +62,57 @@ async function main() {
 
   // Bootstrap the first account (owner) — register is open only for the first user.
   const email = `smoke+${Date.now()}@example.com`;
-  const reg = await fetch(`${BASE}/api/auth/register`, {
+  const reg = await getJson("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password: "smokepassword1", name: "Smoke" }),
   });
-  const regBody = await reg.json().catch(() => ({}));
-  const token = regBody.token;
+  const token = reg.body.token;
   reg.status === 201 && token ? ok("bootstrap register (201 + token)") : ko(`register failed (${reg.status})`);
 
+  // After bootstrap → onboarding reports no longer bootstrap.
+  const status1 = await getJson("/api/auth/status");
+  status1.body.bootstrap === false
+    ? ok("auth status: bootstrap=false after first account")
+    : ko(`expected bootstrap=false, got ${JSON.stringify(status1.body)}`);
+
+  // Self-registration is closed after the first account (security invariant).
+  const reg2 = await getJson("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: `intruder+${Date.now()}@example.com`, password: "smokepassword1", name: "X" }),
+  });
+  reg2.status === 403 ? ok("second registration blocked (403)") : ko(`expected 403, got ${reg2.status}`);
+
   // Login with the same credentials.
-  const login = await fetch(`${BASE}/api/auth/login`, {
+  const login = await getJson("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password: "smokepassword1" }),
   });
   login.status === 200 ? ok("login (200)") : ko(`login failed (${login.status})`);
 
-  // Authenticated data route works.
   if (token) {
+    // Authenticated data route works.
     const tasks = await fetch(`${BASE}/api/tasks`, { headers: { Authorization: `Bearer ${token}` } });
     tasks.status === 200 ? ok("authenticated data route (200)") : ko(`tasks failed (${tasks.status})`);
+
+    // Logout works (authenticated route).
+    const logout = await fetch(`${BASE}/api/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    logout.status === 200 ? ok("logout (200)") : ko(`logout failed (${logout.status})`);
   }
+
+  // Health reports DB ready once the schema is applied (poll briefly).
+  let dbReady = false;
+  for (let i = 0; i < 20; i++) {
+    const h = await getJson("/api/healthz");
+    if (h.body.db === "ready") { dbReady = true; break; }
+    await sleep(500);
+  }
+  dbReady ? ok("healthz reports db=ready") : ko("healthz never reported db=ready");
 }
 
 try {

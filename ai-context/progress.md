@@ -3,6 +3,10 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Filet anti-régression renforcé** : `scripts/smoke.mjs` couvre maintenant
+  10 invariants (santé, `bootstrap` avant/après 1er compte, auth requise,
+  register, **2ᵉ inscription bloquée 403**, login, route protégée, logout,
+  `healthz db=ready`). Exécuté par la CI sur chaque PR. 10/10 OK.
 - **Onboarding minimal** : endpoint public `GET /api/auth/status`
   (`bootstrap` = aucun utilisateur encore, `selfRegistrationEnabled`). L'écran de
   connexion s'adapte : indice « premier lancement → crée ton compte
