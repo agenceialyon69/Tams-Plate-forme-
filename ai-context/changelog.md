@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Tests** : smoke test renforcé (10 invariants : auth, onboarding, inscription
+  fermée, logout, healthz db=ready).
 - **Onboarding** : `GET /api/auth/status` + écran de connexion adaptatif
   (indice premier lancement, masquage inscription si fermée).
 - **Healthcheck honnête** : `/api/healthz` reporte l'état réel de la base
