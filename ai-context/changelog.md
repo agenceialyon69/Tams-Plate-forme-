@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Login** : ré-ajout de l'accès propriétaire par token sur l'écran de
+  connexion (corrige le blocage quand l'inscription est fermée).
 - **Décision** : mode perso/test d'abord ; plan de migration multi-tenant
   documenté (`ai-context/multi-tenant-plan.md`), exécution différée.
 - **Tests** : smoke test renforcé (10 invariants : auth, onboarding, inscription

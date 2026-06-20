@@ -30,6 +30,8 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
   const [newPassword, setNewPassword] = useState("");
   const [bootstrap, setBootstrap] = useState(false);
   const [canRegister, setCanRegister] = useState(true);
+  const [showTokenAccess, setShowTokenAccess] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
 
   useEffect(() => onAuthChange(() => setAuthed(Boolean(getToken()))), []);
 
@@ -238,6 +240,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
                 )}
               </div>
             ) : tab === "login" ? (
+              <>
               <form onSubmit={handleLogin} className="space-y-3">
                 <Input
                   type="email" autoComplete="email" placeholder="Email"
@@ -263,6 +266,45 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
                   Mot de passe oublié ?
                 </button>
               </form>
+
+              <div className="mt-4 pt-3 border-t border-border/40">
+                {!showTokenAccess ? (
+                  <button
+                    type="button"
+                    onClick={() => { setShowTokenAccess(true); setError(null); }}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center"
+                  >
+                    Accès propriétaire avec un token
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Colle ton token d'accès (variable <span className="font-mono">API_AUTH_TOKEN</span>).
+                    </p>
+                    <Input
+                      type="password"
+                      autoComplete="off"
+                      placeholder="Token d'accès"
+                      value={accessToken}
+                      onChange={(e) => { setAccessToken(e.target.value); setError(null); }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={accessToken.trim().length < 16}
+                      onClick={() => {
+                        const t = accessToken.trim();
+                        if (t.length >= 16) setToken(t);
+                        else setError("Token trop court (16 caractères minimum).");
+                      }}
+                    >
+                      Entrer avec le token
+                    </Button>
+                  </div>
+                )}
+              </div>
+              </>
             ) : tab === "register" ? (
               <form onSubmit={handleRegister} className="space-y-3">
                 <Input
