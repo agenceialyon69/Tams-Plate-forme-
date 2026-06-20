@@ -23,12 +23,18 @@ const AI_MODELS: Record<string, string[]> = {
   none: [],
 };
 
-const PREF_KEY = "gandal_ai_prefs";
+const PREF_KEY = "tams_ai_prefs";
+const LEGACY_PREF_KEY = "gandal_ai_prefs";
 
 function loadAiPrefs() {
   try {
-    const raw = localStorage.getItem(PREF_KEY);
-    if (raw) return JSON.parse(raw) as { provider: string; model: string; ollamaUrl: string };
+    // Migrate prefs from the legacy key name so existing settings are kept.
+    const raw = localStorage.getItem(PREF_KEY) ?? localStorage.getItem(LEGACY_PREF_KEY);
+    if (raw) {
+      localStorage.setItem(PREF_KEY, raw);
+      localStorage.removeItem(LEGACY_PREF_KEY);
+      return JSON.parse(raw) as { provider: string; model: string; ollamaUrl: string };
+    }
   } catch {}
   return { provider: "gemini", model: "gemini-2.5-flash", ollamaUrl: "http://localhost:11434" };
 }
@@ -102,7 +108,7 @@ export default function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `gandal-export-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `tams-export-${new Date().toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast({ description: "Export téléchargé." });

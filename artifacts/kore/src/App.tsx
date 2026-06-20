@@ -75,7 +75,7 @@ function useScheduleNotifications() {
   }, []);
 }
 
-function GandalLogo() {
+function TamsLogo() {
   return (
     <svg
       width="28"
@@ -95,7 +95,7 @@ function GandalLogo() {
         fontWeight="600"
         fill="hsl(var(--background))"
       >
-        G
+        T
       </text>
     </svg>
   );
@@ -160,7 +160,7 @@ function AppSidebar({ onCommandPalette }: { onCommandPalette: () => void }) {
         <Sidebar>
           <SidebarHeader className="py-5 px-4 border-b border-border/40">
             <div className="flex items-center gap-2.5 px-1">
-              <GandalLogo />
+              <TamsLogo />
               <div>
                 <h1 className="font-serif text-lg tracking-tight text-foreground font-semibold leading-none">
                   TAMS

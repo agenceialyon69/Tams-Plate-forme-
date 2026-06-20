@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, tasksTable, eventsTable, eveningReviewsTable, energyLogsTable } from "@workspace/db";
 import { SubmitEveningReviewBody } from "@workspace/api-zod";
 import { eq, and, gte, lte, lt, avg, count, desc, min, max } from "drizzle-orm";
-import { generateMorningKoreMessage, generateEveningResponse, generateWeeklySummary } from "../lib/ai";
+import { generateMorningTamsMessage, generateEveningResponse, generateWeeklySummary } from "../lib/ai";
 import { capturesTable, decisionsTable } from "@workspace/db";
 import { checkAndIncrementAiCalls } from "./quotas";
 import { logger } from "../lib/logger";
@@ -96,7 +96,7 @@ router.get("/briefings/morning", async (req, res): Promise<void> => {
   else if (totalLoad > 6) estimatedLoad = "heavy";
   else if (totalLoad > 3) estimatedLoad = "moderate";
 
-  const tamsMessage = await generateMorningKoreMessage({
+  const tamsMessage = await generateMorningTamsMessage({
     pendingTasks: activeTasks,
     highPriorityTasks: pendingHighPriorityTasks.length,
     overdueTasks: overdueTasks.length,

@@ -3,6 +3,9 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Branding unifié TAMS** : remplacement des occurrences visibles KORE/GANDAL
+  par TAMS (logos/lettres, noms d'export, clé de prefs avec migration, fonction
+  interne). Exceptions techniques conservées et documentées.
 - **ai-context** : création du système de mémoire/gouvernance
   (vision, architecture, roadmap, progress, rules, changelog).
 - **Fix login 500** : réparation de la dérive de schéma (ALTER ADD COLUMN

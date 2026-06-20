@@ -3,6 +3,12 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Branding unifié TAMS** : `GandalLogo`/`GandalMark` → `TamsLogo`/`TamsMark`
+  (lettre « G » → « T »), exports `gandal-export-*` → `tams-export-*`, clé prefs
+  `gandal_ai_prefs` → `tams_ai_prefs` (avec migration), `generateMorningKoreMessage`
+  → `generateMorningTamsMessage`. Exceptions conservées : préfixe JWT `gandal-jwt:`,
+  colonne DB `kore_response`, clés legacy de migration, dossier `artifacts/kore`.
+  Vérifié : typecheck + build OK, 0 « Gandal » dans le bundle front.
 - Auth JWT (login/register/reset) + token maître owner.
 - Déploiement Railway service unique (API sert le front) ; build nixpacks ;
   image allégée (~80 Mo) ; healthcheck robuste.
@@ -16,13 +22,11 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 ## IN PROGRESS
 - (rien — en attente de validation de la prochaine tâche)
 
-## NEXT (proposé, à valider — une tâche à la fois)
-1. **Branding unifié TAMS** : remplacer occurrences visibles KORE/GANDAL
-   (~27 dans le code : `GandalLogo`, `GandalMark`, `gandal-export-*`,
-   `gandal_ai_prefs`, etc.). Conserver les identifiants techniques risqués
-   (clé localStorage déjà migrée, secret `gandal-jwt:` côté JWT — à documenter).
-2. Dashboard : audit des signaux (timestamps/charge réels).
-3. Settings : structurer compte / workspace / intégrations / branding.
+## NEXT (une tâche à la fois)
+1. Dashboard : audit des signaux affichés (timestamps/charge réels, états
+   light/moderate/heavy/critical honnêtes).
+2. Settings : structurer compte / workspace / intégrations / branding.
+3. Analytics structure minimale (événements utiles, usage réel).
 
 ## BLOCKERS
 - **Isolation multi-tenant** absente sur les tables de données produit

@@ -6,10 +6,10 @@ import { Lock, Eye, EyeOff, AlertCircle, Loader2, ArrowLeft, CheckCircle2 } from
 import { getToken, setToken, clearToken, setStoredUser, onAuthChange, type AuthUser } from "@/lib/auth";
 import { getApiBase } from "@/lib/api";
 
-function GandalMark() {
+function TamsMark() {
   return (
     <div className="mx-auto w-14 h-14 rounded-2xl bg-foreground flex items-center justify-center shadow-lg">
-      <span className="font-serif text-3xl font-semibold text-background">G</span>
+      <span className="font-serif text-3xl font-semibold text-background">T</span>
     </div>
   );
 }
@@ -159,7 +159,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-3">
-          <GandalMark />
+          <TamsMark />
           <div>
             <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">TAMS</h1>
             <p className="text-sm text-muted-foreground mt-1">Plateforme d'intelligence commerciale</p>
