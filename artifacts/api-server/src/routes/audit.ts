@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db, auditLogsTable } from "@workspace/db";
 import { desc, gte, lte, and } from "drizzle-orm";
+import { requireRole } from "../middlewares/auth-jwt";
 
 const router: IRouter = Router();
 
-router.get("/audit", async (req, res): Promise<void> => {
+router.get("/audit", requireRole("admin", "owner"), async (req, res): Promise<void> => {
   try {
     const limit = Math.min(parseInt(String(req.query.limit ?? "100"), 10), 500);
     const offset = parseInt(String(req.query.offset ?? "0"), 10);

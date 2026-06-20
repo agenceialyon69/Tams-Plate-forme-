@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db, getDbStatus } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { requireRole } from "../middlewares/auth-jwt";
 
 const router: IRouter = Router();
 
-router.get("/diagnostics", async (req, res): Promise<void> => {
+router.get("/diagnostics", requireRole("admin", "owner"), async (req, res): Promise<void> => {
   const startTime = Date.now();
   const checks: Record<string, { status: "ok" | "warn" | "error"; detail?: string; latencyMs?: number }> = {};
 

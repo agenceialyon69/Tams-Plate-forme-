@@ -7,6 +7,7 @@ import {
   ListCapturesQueryParams,
 } from "@workspace/api-zod";
 import { extractFromCapture } from "../lib/ai";
+import { checkAndIncrementAiCalls } from "./quotas";
 import { rateLimit } from "../middlewares/rate-limit";
 import { desc, eq } from "drizzle-orm";
 
@@ -42,6 +43,18 @@ router.get("/captures/:id", async (req, res): Promise<void> => {
 router.post("/captures", captureLimiter, async (req, res): Promise<void> => {
   const parsed = CreateCaptureBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request" }); return; }
+
+  const tenantId = req.tenantId ?? req.authUser?.tenantId;
+  if (tenantId) {
+    const guard = await checkAndIncrementAiCalls(tenantId, {
+      userId: req.authUser?.id,
+      route: "captures/create",
+    });
+    if (!guard.allowed) {
+      res.status(429).json({ error: "Quota IA atteint. Réessaie demain." });
+      return;
+    }
+  }
 
   const extracted = await extractFromCapture(parsed.data.content);
 
