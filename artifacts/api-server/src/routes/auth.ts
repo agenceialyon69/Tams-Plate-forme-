@@ -7,8 +7,18 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
 import { getJwtSecret, signUserJwt, SESSION_DURATION } from "../lib/jwt";
+import { rateLimit } from "../middlewares/rate-limit";
 
 const router = Router();
+
+// Dedicated throttle for credential endpoints (brute-force / abuse protection),
+// keyed by IP. Applied to login, register, forgot-password and reset-password.
+const authLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+
+/** Hash a reset token before storing/looking it up (never store it in clear). */
+function hashResetToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -31,7 +41,7 @@ const resetPasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", authLimiter, async (req, res) => {
   const parse = loginSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: "Email et mot de passe requis." });
@@ -97,7 +107,7 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register", authLimiter, async (req, res) => {
   const parse = registerSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: "Données invalides.", details: parse.error.flatten() });
@@ -107,6 +117,21 @@ router.post("/auth/register", async (req, res) => {
   const { email, password, name, tenantSlug } = parse.data;
 
   try {
+    // ── Registration gate ────────────────────────────────────────────────────
+    // Open self-registration would let anyone create an account and, until full
+    // per-tenant data isolation exists, read all data. So registration is closed
+    // by default. It is allowed only to bootstrap the very first account, or when
+    // SELF_REGISTRATION_ENABLED=true is set explicitly (e.g. going multi-user).
+    const [anyUser] = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
+    const isBootstrap = !anyUser;
+    const selfRegEnabled = process.env.SELF_REGISTRATION_ENABLED === "true";
+    if (!isBootstrap && !selfRegEnabled) {
+      res.status(403).json({
+        error: "L'inscription est désactivée. Demande une invitation à un administrateur.",
+      });
+      return;
+    }
+
     let tenant = tenantSlug
       ? (await db.select().from(tenantsTable).where(eq(tenantsTable.slug, tenantSlug)).limit(1))[0]
       : null;
@@ -242,13 +267,14 @@ router.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-router.post("/auth/forgot-password", async (req, res) => {
+router.post("/auth/forgot-password", authLimiter, async (req, res) => {
   const parse = forgotPasswordSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: "Email invalide." });
     return;
   }
 
+  // Identical response whether or not the account exists (no user enumeration).
   const always = { ok: true, message: "Si ce compte existe, un lien de réinitialisation a été généré." };
 
   try {
@@ -266,22 +292,36 @@ router.post("/auth/forgot-password", async (req, res) => {
     const rawToken = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
+    // Store only the HASH of the token — a DB leak must not yield usable tokens.
     await db.insert(passwordResetTokensTable).values({
       userId: user.id,
-      token: rawToken,
+      token: hashResetToken(rawToken),
       expiresAt,
     });
 
-    logger.info({ userId: user.id, email: user.email }, "Password reset token generated");
+    // The raw token must NOT be returned in the HTTP response (that would let
+    // anyone knowing an email take over the account). It is logged server-side
+    // so the operator can retrieve it when no email transport is configured.
+    logger.warn(
+      { userId: user.id, email: user.email, resetToken: rawToken },
+      "Password reset token generated (retrieve from logs — not exposed via API)",
+    );
 
-    res.json({ ...always, resetToken: rawToken });
+    // Opt-in escape hatch for a single-user setup with no email: only when the
+    // operator explicitly accepts the risk via RESET_TOKEN_IN_RESPONSE=true.
+    if (process.env.RESET_TOKEN_IN_RESPONSE === "true") {
+      res.json({ ...always, resetToken: rawToken });
+      return;
+    }
+
+    res.json(always);
   } catch (err) {
     logger.error({ err }, "Forgot password error");
     res.json(always);
   }
 });
 
-router.post("/auth/reset-password", async (req, res) => {
+router.post("/auth/reset-password", authLimiter, async (req, res) => {
   const parse = resetPasswordSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: "Données invalides." });
@@ -291,10 +331,11 @@ router.post("/auth/reset-password", async (req, res) => {
   const { token, newPassword } = parse.data;
 
   try {
+    // Tokens are stored hashed — hash the incoming token to look it up.
     const [resetRecord] = await db
       .select()
       .from(passwordResetTokensTable)
-      .where(eq(passwordResetTokensTable.token, token))
+      .where(eq(passwordResetTokensTable.token, hashResetToken(token)))
       .limit(1);
 
     if (!resetRecord || resetRecord.usedAt) {

@@ -3,6 +3,7 @@ import { db, leadsTable, leadActivitiesTable } from "@workspace/db";
 import { scoreLead } from "../lib/ai";
 import { desc, eq, asc } from "drizzle-orm";
 import { rateLimit } from "../middlewares/rate-limit";
+import { requireRole } from "../middlewares/auth-jwt";
 
 const router: IRouter = Router();
 const scoreLimiter = rateLimit({ windowMs: 60_000, max: 15 });
@@ -189,7 +190,7 @@ router.delete("/leads/:id", async (req, res): Promise<void> => {
 });
 
 /** GET /api/leads/export.csv */
-router.get("/leads/export.csv", async (_req, res): Promise<void> => {
+router.get("/leads/export.csv", requireRole("admin", "owner"), async (_req, res): Promise<void> => {
   const leads = await db.select().from(leadsTable).orderBy(desc(leadsTable.score), desc(leadsTable.createdAt));
   const headers = ["id","name","company","role","email","phone","industry","source","status","priority","score","conversion_probability","next_best_action","red_team_warning","budget","decision_timeline","company_size","signals","notes","next_action_date","created_at"];
   const escape = (v: unknown) => {

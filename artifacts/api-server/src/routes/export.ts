@@ -12,10 +12,11 @@ import {
   auditLogsTable,
 } from "@workspace/db";
 import { desc } from "drizzle-orm";
+import { requireRole } from "../middlewares/auth-jwt";
 
 const router: IRouter = Router();
 
-router.get("/export", async (req, res): Promise<void> => {
+router.get("/export", requireRole("admin", "owner"), async (req, res): Promise<void> => {
   try {
     const [
       captures,
