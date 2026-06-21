@@ -3,6 +3,12 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Recherche web (Copilot)** : `lib/integrations/web-search.ts` (Tavily/Brave/
+  SearXNG + **DuckDuckGo keyless** par défaut). Bouton **Web** dans le Copilot
+  (grounding + sources cliquables), `GET /web-search/status`, `POST /web-search`.
+  **Fix** d'un bug de portée du rate-limiter IA (mounté globalement → débordait
+  sur les routes non-IA montées après ; désormais appliqué une seule fois, en
+  fin de chaîne, scoping correct).
 - **Créateur de vidéos produit (gratuit)** : `lib/integrations/video-maker.ts`
   (FFmpeg : images → slideshow vertical 9:16). `POST /video/from-prompt`
   (prompt → N images → vidéo) et `POST /video/slideshow` (images fournies).

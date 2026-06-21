@@ -3,6 +3,16 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Recherche web (Copilot peut chercher sur Internet)** :
+  `lib/integrations/web-search.ts` — providers **Tavily / Brave / SearXNG**
+  (clé/URL gratuites) + **DuckDuckGo keyless** en repli (marche sans config).
+  Bouton **Web** dans le Copilot → recherche sur le dernier message, injecte les
+  résultats comme contexte (grounding) et affiche les **sources cliquables**.
+  `GET /web-search/status`, `POST /web-search`. **Bug corrigé** : le rate-limiter
+  IA était monté en `router.use(aiLimiter, X)` (×3, portée globale « / ») →
+  débordait sur les routes non-IA montées après (integrations) et comptait 3× →
+  faux 429. Désormais : routes IA en fin de chaîne + `aiLimiter` appliqué une
+  seule fois, sans débordement. Vérifié : smoke **20/20**.
 - **Créateur de vidéos produit (gratuit, FFmpeg)** : `lib/integrations/video-maker.ts`
   assemble des images en vidéo verticale (slideshow). `POST /video/from-prompt`
   (prompt → N images via le générateur → vidéo) et `POST /video/slideshow`
