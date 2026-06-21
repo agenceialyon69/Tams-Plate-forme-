@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Viewer d'événements (front)** : page admin `/events` (filtres source/gravité,
+  badges, métadonnées, rafraîchissement) au-dessus de `GET /api/app-events`.
 - **Système d'événements applicatifs** : table `app_events` + helper unique
   `trackEvent()` (fire-and-forget) avec `source` (front/backend/copilot/jobs),
   `severity` (info/warning/critical), `workspaceId` (réservé futur), `metadata`.
