@@ -9,4 +9,4 @@ cmds = ["pnpm install --no-frozen-lockfile --prod=false"]
 # free, account-less binary; the integration stays disabled at runtime until
 # the binary is present, so this is the only thing needed to enable it.
 [phases.setup]
-aptPkgs = ["ffmpeg"]
+aptPkgs = ["ffmpeg", "fonts-dejavu-core"]

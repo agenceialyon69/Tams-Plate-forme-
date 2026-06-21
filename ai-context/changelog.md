@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Éditeur de vidéo produit (Shopify/Reels)** : mode **« Mes photos »** dans le
+  Studio — upload de tes vraies photos produit + **texte par photo** (nom, prix,
+  accroche, via FFmpeg `drawtext`) + musique + format 9:16/1:1/16:9. Marche
+  **sans Internet** (pur FFmpeg). Police installée dans l'image (nixpacks
+  `fonts-dejavu-core`) ; body media porté à 64 Mo pour les uploads multi-photos.
 - **Triage outils/modèles IA (ADR-012)** : adoptés (Ollama, Llama/Qwen/DeepSeek
   R1 via gateway, Whisper, images HF/Pollinations) ; différés (n8n, LlamaIndex,
   SD local) ; **refusés sans besoin** (LangChain/CrewAI/AutoGPT, Make, ChatGLM).

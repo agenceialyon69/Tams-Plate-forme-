@@ -9,7 +9,7 @@ import {
 } from "../lib/integrations/github";
 import { ffmpegStatus, probeBase64, extractAudioBase64 } from "../lib/integrations/ffmpeg";
 import { generateImage, imageProviders, isImageGenAvailable } from "../lib/integrations/image-gen";
-import { makeSlideshow } from "../lib/integrations/video-maker";
+import { makeSlideshow, captionsAvailable } from "../lib/integrations/video-maker";
 import { searchProviders } from "../lib/integrations/web-search";
 import { configuredProviders } from "../lib/llm";
 import { trackMediaGenerated } from "../lib/events";
@@ -285,12 +285,15 @@ router.post(
   videoLimiter,
   async (req, res): Promise<void> => {
     if (!(await ensureFfmpeg(res))) return;
-    const body = (req.body ?? {}) as { images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown };
+    const body = (req.body ?? {}) as { images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown; captions?: unknown };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
       res.status(400).json({ error: "Au moins une image est requise." });
       return;
     }
+    const captions = Array.isArray(body.captions)
+      ? body.captions.map((c) => (typeof c === "string" ? c : ""))
+      : undefined;
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
     try {
       const video = await makeSlideshow(images, {
@@ -298,6 +301,7 @@ router.post(
         height: fmt.height,
         secondsPerImage: Number(body.secondsPerImage) || undefined,
         musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
+        captions,
       });
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);

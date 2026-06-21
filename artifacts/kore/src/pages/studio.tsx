@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Wand2, Loader2, Download, ImageIcon, Film, Clapperboard } from "lucide-react";
+import { Wand2, Loader2, Download, ImageIcon, Film, Clapperboard, Plus, X, Sparkles } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface GeneratedImage {
@@ -137,10 +137,19 @@ const VIDEO_FORMATS = [
   { label: "Paysage 16:9", value: "16:9", hint: "YouTube" },
 ];
 
+interface Photo {
+  url: string;     // data URL for preview
+  base64: string;  // raw base64 for the API
+  caption: string;
+}
+
 function VideoPanel() {
+  const [mode, setMode] = useState<"prompt" | "photos">("photos");
   const [prompt, setPrompt] = useState("");
   const [format, setFormat] = useState("9:16");
   const [scenes, setScenes] = useState(4);
+  const [seconds, setSeconds] = useState(2.5);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [video, setVideo] = useState<{ videoBase64: string; mimeType: string; durationSec: number } | null>(null);
@@ -163,68 +172,158 @@ function VideoPanel() {
     reader.readAsDataURL(file);
   }
 
+  async function onPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    setError(null);
+    const slots = 8 - photos.length;
+    for (const file of files.slice(0, slots)) {
+      if (file.size > 6 * 1024 * 1024) { setError("Photo trop lourde (max 6 Mo)."); continue; }
+      const url = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(new Error("read"));
+        r.readAsDataURL(file);
+      });
+      setPhotos((ps) => (ps.length >= 8 ? ps : [...ps, { url, base64: url.split(",").pop() ?? "", caption: "" }]));
+    }
+  }
+
+  function setCaption(i: number, caption: string) {
+    setPhotos((ps) => ps.map((p, j) => (j === i ? { ...p, caption } : p)));
+  }
+  function removePhoto(i: number) {
+    setPhotos((ps) => ps.filter((_, j) => j !== i));
+  }
+
   async function generate() {
-    const p = prompt.trim();
-    if (!p || loading) return;
+    if (loading) return;
     setError(null);
     setLoading(true);
     setVideo(null);
     try {
-      const res = await apiFetch<{ videoBase64: string; mimeType: string; durationSec: number }>(
-        "/integrations/video/from-prompt",
-        { method: "POST", body: JSON.stringify({ prompt: p, scenes, format, musicBase64: musicBase64 ?? undefined }) }
-      );
+      let res: { videoBase64: string; mimeType: string; durationSec: number };
+      if (mode === "prompt") {
+        const p = prompt.trim();
+        if (!p) { setLoading(false); return; }
+        res = await apiFetch("/integrations/video/from-prompt", {
+          method: "POST",
+          body: JSON.stringify({ prompt: p, scenes, format, musicBase64: musicBase64 ?? undefined }),
+        });
+      } else {
+        if (photos.length === 0) { setLoading(false); return; }
+        res = await apiFetch("/integrations/video/slideshow", {
+          method: "POST",
+          body: JSON.stringify({
+            images: photos.map((p) => p.base64),
+            captions: photos.map((p) => p.caption),
+            format,
+            secondsPerImage: seconds,
+            musicBase64: musicBase64 ?? undefined,
+          }),
+        });
+      }
       setVideo(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Génération vidéo impossible.");
+      setError(e instanceof Error ? e.message : "Création vidéo impossible.");
     } finally {
       setLoading(false);
     }
   }
 
   const dataUrl = video ? `data:${video.mimeType};base64,${video.videoBase64}` : null;
+  const canGenerate = mode === "prompt" ? prompt.trim().length > 0 : photos.length > 0;
 
   return (
     <div className="space-y-4">
-      <Textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Décris ta vidéo produit… ex : présentation d'une bougie artisanale, ambiance cosy, plans rapprochés"
-        rows={3}
-        className="resize-none"
-        disabled={loading}
-      />
+      {/* Mode: mes photos (éditeur) vs prompt IA (générateur) */}
+      <div className="inline-flex rounded-lg border border-border/60 p-0.5">
+        <button
+          onClick={() => setMode("photos")}
+          className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md transition-colors ${
+            mode === "photos" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted/40"
+          }`}
+        >
+          <ImageIcon className="w-4 h-4" /> Mes photos
+        </button>
+        <button
+          onClick={() => setMode("prompt")}
+          className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md transition-colors ${
+            mode === "prompt" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted/40"
+          }`}
+        >
+          <Sparkles className="w-4 h-4" /> Prompt IA
+        </button>
+      </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Format</p>
-          <div className="grid grid-cols-3 gap-2">
-            {VIDEO_FORMATS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFormat(f.value)}
-                className={`text-left px-3 py-2 rounded-lg border transition-colors ${
-                  format === f.value ? "border-accent bg-accent/5" : "border-border/50 hover:bg-muted/40"
-                }`}
-              >
-                <span className="block text-sm text-foreground">{f.label}</span>
-                <span className="block text-[10px] text-muted-foreground">{f.hint}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="sm:w-40">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Scènes : {scenes}</p>
-          <input
-            type="range"
-            min={2}
-            max={6}
-            value={scenes}
-            onChange={(e) => setScenes(Number(e.target.value))}
-            className="w-full accent-accent"
+      {mode === "prompt" ? (
+        <>
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Décris ta vidéo produit… ex : présentation d'une bougie artisanale, ambiance cosy, plans rapprochés"
+            rows={3}
+            className="resize-none"
             disabled={loading}
           />
-          <p className="text-[10px] text-muted-foreground mt-1">~{(scenes * 2.5).toFixed(0)}s de vidéo</p>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Scènes : {scenes}</p>
+            <input type="range" min={2} max={6} value={scenes} onChange={(e) => setScenes(Number(e.target.value))} className="w-full sm:w-60 accent-accent" disabled={loading} />
+          </div>
+        </>
+      ) : (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">
+            Tes photos produit ({photos.length}/8) — ajoute un texte par photo (nom, prix, accroche)
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {photos.map((p, i) => (
+              <div key={i} className="flex gap-2 items-start rounded-lg border border-border/50 p-2">
+                <img src={p.url} alt="" className="w-14 h-14 object-cover rounded-md shrink-0" />
+                <input
+                  type="text"
+                  value={p.caption}
+                  onChange={(e) => setCaption(i, e.target.value)}
+                  placeholder="Texte (ex : Bougie — 19,90€)"
+                  maxLength={120}
+                  className="flex-1 min-w-0 bg-background border border-border rounded-md px-2 py-1.5 text-sm"
+                  disabled={loading}
+                />
+                <button onClick={() => removePhoto(i)} className="text-muted-foreground hover:text-destructive mt-1.5" title="Retirer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {photos.length < 8 && (
+              <label className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border/60 py-6 cursor-pointer hover:bg-muted/30 text-muted-foreground">
+                <Plus className="w-5 h-5" />
+                <span className="text-xs">Ajouter des photos</span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={onPhotos} disabled={loading} />
+              </label>
+            )}
+          </div>
+          <div className="mt-3">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Durée par photo : {seconds}s</p>
+            <input type="range" min={1.5} max={5} step={0.5} value={seconds} onChange={(e) => setSeconds(Number(e.target.value))} className="w-full sm:w-60 accent-accent" disabled={loading} />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-2">Format</p>
+        <div className="grid grid-cols-3 gap-2 max-w-md">
+          {VIDEO_FORMATS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFormat(f.value)}
+              className={`text-left px-3 py-2 rounded-lg border transition-colors ${
+                format === f.value ? "border-accent bg-accent/5" : "border-border/50 hover:bg-muted/40"
+              }`}
+            >
+              <span className="block text-sm text-foreground">{f.label}</span>
+              <span className="block text-[10px] text-muted-foreground">{f.hint}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -242,14 +341,12 @@ function VideoPanel() {
         )}
       </div>
 
-      <Button onClick={generate} disabled={loading || !prompt.trim()} className="w-full sm:w-auto">
+      <Button onClick={generate} disabled={loading || !canGenerate} className="w-full sm:w-auto">
         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Clapperboard className="w-4 h-4 mr-2" />}
         {loading ? "Création de la vidéo…" : "Créer la vidéo"}
       </Button>
-      {loading && (
-        <p className="text-xs text-muted-foreground">
-          Génération de {scenes} visuels puis montage… cela peut prendre une minute.
-        </p>
+      {loading && mode === "prompt" && (
+        <p className="text-xs text-muted-foreground">Génération de {scenes} visuels puis montage… ~1 min.</p>
       )}
 
       {error && <p className="text-sm text-destructive bg-destructive/5 rounded-lg px-3 py-2">{error}</p>}
@@ -259,7 +356,7 @@ function VideoPanel() {
           <div>
             <video src={dataUrl} controls loop className="w-full bg-black max-h-[70vh]" />
             <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
-              <span className="text-xs text-muted-foreground">{video?.durationSec}s · prête pour Shopify</span>
+              <span className="text-xs text-muted-foreground">{video?.durationSec}s · prête pour Shopify / Reels</span>
               <a
                 href={dataUrl}
                 download={`tams-video-${Date.now()}.mp4`}
