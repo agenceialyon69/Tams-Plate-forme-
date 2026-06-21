@@ -128,6 +128,17 @@ async function main() {
       ? ok("ffmpeg integration: status answers gracefully")
       : ko(`expected ffmpeg status, got ${ff.status} ${JSON.stringify(ffBody)}`);
 
+    // Processing route is mounted + guarded: missing media → 400 (ffmpeg
+    // present) or 503 (absent). Either way it must not 404/500.
+    const ffx = await fetch(`${BASE}/api/integrations/ffmpeg/extract-audio`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+    [400, 503].includes(ffx.status)
+      ? ok("ffmpeg extract-audio: mounted + validates input")
+      : ko(`expected 400/503 from extract-audio, got ${ffx.status}`);
+
     // Logout works (authenticated route).
     const logout = await fetch(`${BASE}/api/auth/logout`, {
       method: "POST",

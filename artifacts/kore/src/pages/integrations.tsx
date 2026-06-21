@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plug, Github, CheckCircle2, XCircle, ExternalLink, Loader2, GitFork, Star, Film } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -156,6 +157,44 @@ function FfmpegCard() {
   });
 
   const available = status.data?.configured;
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setErr(null);
+    setResult(null);
+    if (file.size > 24 * 1024 * 1024) {
+      setErr("Fichier trop volumineux (max 24 Mo pour cette démo).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",").pop() ?? "");
+        reader.onerror = () => reject(new Error("read"));
+        reader.readAsDataURL(file);
+      });
+      const res = await apiFetch<{ transcript?: string; metadata?: { durationSec?: number | null } }>(
+        "/integrations/ffmpeg/extract-audio?transcribe=1",
+        { method: "POST", body: JSON.stringify({ mediaBase64: base64 }) }
+      );
+      const dur = res.metadata?.durationSec ? `${Math.round(res.metadata.durationSec)}s` : "";
+      setResult(
+        res.transcript
+          ? res.transcript
+          : `Audio extrait ${dur ? `(${dur}) ` : ""}— ajoute GROQ_API_KEY pour obtenir la transcription automatiquement.`
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Échec du traitement.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
@@ -179,12 +218,25 @@ function FfmpegCard() {
           </span>
         )}
       </div>
-      <div className="px-5 py-4 text-sm text-muted-foreground">
+      <div className="px-5 py-4 text-sm text-muted-foreground space-y-3">
         {available ? (
-          <p>
-            FFmpeg est installé{status.data?.version ? <> (version <span className="font-mono text-xs">{status.data.version}</span>)</> : null}.
-            Les outils vidéo (extraction audio, découpage, conversion) sont actifs côté serveur.
-          </p>
+          <>
+            <p>
+              FFmpeg est installé{status.data?.version ? <> (version <span className="font-mono text-xs">{status.data.version.split(" ")[0]}</span>)</> : null}.
+              Convertis une <strong>vidéo en texte</strong> : extraction audio + transcription.
+            </p>
+            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-background/40 hover:bg-muted/40 transition-colors cursor-pointer text-sm text-foreground">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Film className="w-4 h-4" />}
+              {busy ? "Traitement…" : "Choisir une vidéo/audio"}
+              <input type="file" accept="video/*,audio/*" className="hidden" onChange={handleFile} disabled={busy} />
+            </label>
+            {result && (
+              <div className="text-sm text-foreground bg-muted/40 rounded-lg px-3 py-2 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                {result}
+              </div>
+            )}
+            {err && <p className="text-xs text-destructive">{err}</p>}
+          </>
         ) : (
           <p>
             FFmpeg n'est pas encore disponible dans l'environnement. Il est installé automatiquement

@@ -58,7 +58,7 @@ export default function Copilot() {
   }
 
   return (
-    <div className="flex flex-col h-screen max-w-3xl mx-auto">
+    <div className="flex flex-col h-[100dvh] max-w-3xl mx-auto pb-16 md:pb-0">
       <header className="px-6 md:px-8 pt-8 pb-4 border-b border-border/40">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">

@@ -3,6 +3,13 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **FFmpeg — traitement réel** : endpoints `POST /ffmpeg/probe` (métadonnées) et
+  `POST /ffmpeg/extract-audio` (vidéo → mp3, option `?transcribe=1` → texte via
+  Whisper existant). Fichiers temp nettoyés systématiquement, cap 25 Mo,
+  uploader « vidéo → texte » sur la page Intégrations. Testé bout-en-bout.
+- **Fix UX Copilot** : le bouton de capture flottant masquait le bouton d'envoi
+  du chat → masqué sur `/copilot` (⌘J marche toujours) + input du chat au-dessus
+  de la nav mobile (hauteur `100dvh`). Ajout de `ai-context/README.md` (index).
 - **Intégration FFmpeg** (vidéo/audio, alternative libre à CapCut) : binaire
   installé dans l'image (nixpacks `aptPkgs`), module `lib/integrations/ffmpeg.ts`
   (statut/version, ffprobe, extraction audio, découpage — exec sans shell),

@@ -7,7 +7,8 @@ import {
   listIssues,
   createIssue,
 } from "../lib/integrations/github";
-import { ffmpegStatus } from "../lib/integrations/ffmpeg";
+import { ffmpegStatus, probeBase64, extractAudioBase64 } from "../lib/integrations/ffmpeg";
+import { transcribeAudio } from "../lib/ai";
 
 const router: IRouter = Router();
 
@@ -113,6 +114,79 @@ router.get(
   async (_req, res): Promise<void> => {
     const status = await ffmpegStatus();
     res.json({ configured: status.available, version: status.version });
+  }
+);
+
+async function ensureFfmpeg(res: import("express").Response): Promise<boolean> {
+  if (!(await ffmpegStatus()).available) {
+    res.status(503).json({ error: "FFmpeg n'est pas disponible dans cet environnement." });
+    return false;
+  }
+  return true;
+}
+
+function readMediaBase64(body: unknown): string | null {
+  const b = (body ?? {}) as { mediaBase64?: unknown };
+  if (typeof b.mediaBase64 !== "string" || b.mediaBase64.trim().length === 0) return null;
+  // Strip a possible data-URL prefix (e.g. "data:video/mp4;base64,").
+  return b.mediaBase64.includes(",") ? b.mediaBase64.split(",").pop()! : b.mediaBase64;
+}
+
+/** POST /api/integrations/ffmpeg/probe — metadata of an uploaded media file. */
+router.post(
+  "/integrations/ffmpeg/probe",
+  requireRole("owner", "admin"),
+  async (req, res): Promise<void> => {
+    if (!(await ensureFfmpeg(res))) return;
+    const media = readMediaBase64(req.body);
+    if (!media) {
+      res.status(400).json({ error: "mediaBase64 requis." });
+      return;
+    }
+    try {
+      res.json({ metadata: await probeBase64(media) });
+    } catch (err) {
+      res.status(422).json({ error: "Média illisible.", detail: String(err).slice(0, 200) });
+    }
+  }
+);
+
+/**
+ * POST /api/integrations/ffmpeg/extract-audio — extract the audio track from
+ * an uploaded video. With ?transcribe=1 (and a transcription provider), also
+ * returns the transcript (video → audio → text).
+ */
+router.post(
+  "/integrations/ffmpeg/extract-audio",
+  requireRole("owner", "admin"),
+  async (req, res): Promise<void> => {
+    if (!(await ensureFfmpeg(res))) return;
+    const media = readMediaBase64(req.body);
+    if (!media) {
+      res.status(400).json({ error: "mediaBase64 requis." });
+      return;
+    }
+    try {
+      const { audioBase64, mimeType, metadata } = await extractAudioBase64(media);
+      const wantTranscript = req.query.transcribe === "1" || req.query.transcribe === "true";
+      let transcript: string | undefined;
+      if (wantTranscript) {
+        try {
+          transcript = await transcribeAudio(audioBase64, mimeType);
+        } catch {
+          // Transcription is optional (needs GROQ_API_KEY) — keep the audio.
+          transcript = undefined;
+        }
+      }
+      res.json({ audioBase64, mimeType, metadata, transcript });
+    } catch (err) {
+      const msg = String(err);
+      if (msg.includes("NO_AUDIO_TRACK")) {
+        res.status(422).json({ error: "Ce média ne contient pas de piste audio." });
+        return;
+      }
+      res.status(422).json({ error: "Extraction audio impossible.", detail: msg.slice(0, 200) });
+    }
   }
 );
 

@@ -17,6 +17,7 @@ import { Mic, Square, Send, Loader2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLocation } from "wouter";
 
 export function QuickCapture() {
   const [open, setOpen] = useState(false);
@@ -28,6 +29,10 @@ export function QuickCapture() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location] = useLocation();
+  // The Copilot page has its own bottom input bar; the floating capture button
+  // would overlap its send button, so hide the FAB there (⌘J still works).
+  const hideFab = location === "/copilot";
 
   const createCapture = useCreateCapture();
   const transcribeAudio = useTranscribeAudio();
@@ -118,23 +123,25 @@ export function QuickCapture() {
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            className="fixed bottom-20 md:bottom-8 right-4 md:right-8 h-14 w-14 rounded-full shadow-lg z-50 bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={() => setOpen(true)}
-            aria-label="Capture rapide (⌘K)"
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="hidden md:flex items-center gap-2">
-          Capture rapide
-          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium">
-            ⌘J
-          </kbd>
-        </TooltipContent>
-      </Tooltip>
+      {!hideFab && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="fixed bottom-20 md:bottom-8 right-4 md:right-8 h-14 w-14 rounded-full shadow-lg z-50 bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={() => setOpen(true)}
+              aria-label="Capture rapide (⌘K)"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="hidden md:flex items-center gap-2">
+            Capture rapide
+            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium">
+              ⌘J
+            </kbd>
+          </TooltipContent>
+        </Tooltip>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md bg-card border-card-border">
