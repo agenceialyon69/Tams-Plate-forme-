@@ -146,6 +146,17 @@ async function main() {
       ? ok("image generate: validates prompt")
       : ko(`expected 400 from image generate, got ${imgGen.status}`);
 
+    // Video maker routes are mounted + validate input (empty → 400, or 503 if
+    // ffmpeg absent). Never 404/500.
+    const vid = await fetch(`${BASE}/api/integrations/video/slideshow`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ images: [] }),
+    });
+    [400, 503].includes(vid.status)
+      ? ok("video maker: mounted + validates input")
+      : ko(`expected 400/503 from video slideshow, got ${vid.status}`);
+
     // FFmpeg status endpoint answers without crashing whether or not the
     // binary is installed (configured is a boolean either way).
     const ff = await fetch(`${BASE}/api/integrations/ffmpeg/status`, {

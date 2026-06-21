@@ -94,7 +94,9 @@ const mediaJson = express.json({ limit: "25mb" });
 const textJson = express.json({ limit: "512kb" });
 const mediaPaths = new Set(["/api/ai/transcribe"]);
 app.use((req, res, next) =>
-  mediaPaths.has(req.path) || req.path.startsWith("/api/integrations/ffmpeg/")
+  mediaPaths.has(req.path) ||
+  req.path.startsWith("/api/integrations/ffmpeg/") ||
+  req.path.startsWith("/api/integrations/video/")
     ? mediaJson(req, res, next)
     : textJson(req, res, next),
 );

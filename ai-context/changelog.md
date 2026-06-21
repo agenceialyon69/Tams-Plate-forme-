@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Créateur de vidéos produit (gratuit)** : `lib/integrations/video-maker.ts`
+  (FFmpeg : images → slideshow vertical 9:16). `POST /video/from-prompt`
+  (prompt → N images → vidéo) et `POST /video/slideshow` (images fournies).
+  Onglet **Vidéo** dans Studio. La voie gratuite/sans-GPU vers « texte → vidéo »
+  (texte→vidéo IA réel = payant). Testé bout-en-bout.
 - **Génération d'images (texte → image, gratuit)** : `lib/integrations/image-gen.ts`
   (Pollinations sans clé + Hugging Face optionnel), `GET /image/status` +
   `POST /image/generate` (owner/admin, rate-limité), page **Studio** (prompt →
