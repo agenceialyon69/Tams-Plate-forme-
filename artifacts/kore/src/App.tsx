@@ -122,6 +122,7 @@ const navItems = [
   { href: "/registry", label: "Registry", icon: BookOpen },
   { href: "/approvals", label: "Approbations", icon: Bell },
   { href: "/observability", label: "Observabilité", icon: Eye },
+  { href: "/events", label: "Événements", icon: Activity },
   { label: "divider", href: "", icon: Home },
   { href: "/audit", label: "Audit Trail", icon: FileText },
   { href: "/red-team", label: "Red Team", icon: Swords },
@@ -302,6 +303,7 @@ function Router() {
           <Route path="/registry" component={RegistryPage} />
           <Route path="/approvals" component={ApprovalsPage} />
           <Route path="/observability" component={ObservabilityPage} />
+          <Route path="/events" component={EventsPage} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/integrations" component={IntegrationsPage} />
           <Route path="/admin/users" component={AdminUsersPage} />
@@ -334,6 +336,7 @@ import GovernancePage from "./pages/governance";
 import RegistryPage from "./pages/registry";
 import ApprovalsPage from "./pages/approvals";
 import ObservabilityPage from "./pages/observability";
+import EventsPage from "./pages/events";
 import ProfilePage from "./pages/profile";
 import IntegrationsPage from "./pages/integrations";
 import AdminUsersPage from "./pages/admin-users";
