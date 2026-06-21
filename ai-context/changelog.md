@@ -3,6 +3,10 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Gouvernance enrichie** : ajout de `decisions.md` (ADR léger), `schemas.md`
+  (modèle de données), `runbook.md` (exploitation/incidents), `free-stack.md`
+  (politique gratuit-d'abord + outils). Section **« Non-objectifs actifs »**
+  rendue bien visible dans `vision.md`. Règle « gratuit d'abord » dans `rules.md`.
 - **Page Paramètres → Configuration IA & Intégrations** : remplace l'ancien
   sélecteur de provider cosmétique (localStorage, Gemini/Ollama seulement, +
   avertissement GEMINI_API_KEY figé) par un **état réel serveur** via

@@ -15,8 +15,15 @@ règles **sans contexte externe**, et de reprendre le travail à tout moment.
 | **`roadmap.md`** | La direction à moyen terme (phases, grandes étapes). | Quand les priorités évoluent. |
 | **`progress.md`** | L'état **vivant** : `DONE` / `IN PROGRESS` / `NEXT` / `BLOCKERS`. C'est le fichier le plus consulté au quotidien. | **À chaque cycle / feature.** |
 | **`changelog.md`** | L'historique daté des changements majeurs (réf. PR). | À chaque feature livrée. |
-| **`rules.md`** | Les règles d'exécution : boucle Analyse→RedTeam→…→Commit, sécurité, « 1 feature = 1 commit ». | Rarement. |
+| **`rules.md`** | Les règles d'exécution : boucle Analyse→RedTeam→…→Commit, sécurité, « 1 feature = 1 commit », free-first. | Rarement. |
+| **`decisions.md`** | Registre des décisions (ADR léger) : *pourquoi* le code est ainsi. | À chaque décision structurante. |
+| **`schemas.md`** | Modèle de données (tables PostgreSQL, conventions). | À chaque changement de schéma. |
+| **`runbook.md`** | Exploitation & incidents : déploiement, secrets, pannes fréquentes, rollback. | Quand l'ops évolue. |
+| **`free-stack.md`** | Politique « gratuit d'abord » + outils/alternatives gratuits retenus. | Quand un outil change. |
 | **`multi-tenant-plan.md`** | Plan de migration multi-tenant (différé : l'app est en mode perso/test). Concept conservé. | Avant d'ouvrir le multi-clients. |
+
+> ⚠️ Avant toute nouvelle feature, relire les **« Non-objectifs actifs »** de
+> `vision.md` : si la demande y retombe, elle est reportée, pas codée.
 
 ## Boucle d'exécution (résumé de `rules.md`)
 

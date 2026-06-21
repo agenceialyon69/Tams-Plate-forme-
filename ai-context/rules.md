@@ -6,6 +6,10 @@
 3. Une action à la fois — une feature = un cycle complet.
 4. Stabilité avant intelligence — pas d'optimisation/automatisation prématurée.
 5. Template avant expérimentation — base propre d'abord, IA ensuite.
+6. **Gratuit d'abord** — tout outil/IA doit être gratuit (voir `free-stack.md`).
+   Payant = exception seulement si le gratuit est insuffisant/instable/incompatible
+   avec une contrainte documentée (à inscrire dans `decisions.md`).
+7. **Relire les non-objectifs actifs** (`vision.md`) avant toute feature.
 
 ## Red Team checklist (avant toute implémentation)
 - Indispensable ? Peut-on la supprimer ? Existe-t-il plus simple ?

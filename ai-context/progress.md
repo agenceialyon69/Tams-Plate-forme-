@@ -3,6 +3,13 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Gouvernance enrichie (docs)** : `decisions.md` (registre ADR : pourquoi le
+  code est ainsi), `schemas.md` (modèle de données + distinction
+  `audit_logs`/`app_events`), `runbook.md` (déploiement, secrets, incidents,
+  rollback), `free-stack.md` (politique gratuit-d'abord + alternatives gratuites).
+  Section **« Non-objectifs actifs »** visible dans `vision.md` (multi-tenant
+  différé, pas de payant, pas de natif mobile, etc.). Règle free-first ajoutée à
+  `rules.md`. Index `README.md` à jour.
 - **Page Paramètres honnête (config IA & intégrations)** : nouvel endpoint
   `GET /api/integrations/status` (owner/admin) = source de vérité serveur des
   fournisseurs/intégrations réellement configurés. La page Paramètres affiche
