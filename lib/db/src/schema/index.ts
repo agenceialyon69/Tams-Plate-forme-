@@ -12,6 +12,7 @@ export * from "./recordings";
 export * from "./leads";
 export * from "./audit_logs";
 export * from "./app_events";
+export * from "./copilot_messages";
 export * from "./password_reset_tokens";
 export * from "./registry_entries";
 export * from "./approval_requests";

@@ -3,6 +3,15 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Mémoire conversationnelle du Copilot** : table `copilot_messages`
+  (ensure-schema idempotent + index) ; chaque tour persiste message + réponse
+  sous un `conversationId`. Endpoints `GET /copilot/conversations` (liste avec
+  titre/date/compteur), `GET /copilot/conversations/:id` (messages),
+  `DELETE` (oublier). Le chat renvoie/réutilise le `conversationId`. UI Copilot :
+  tiroir d'historique, reprise d'une conversation, « nouvelle conversation »,
+  reprise automatique au chargement (persistance localStorage). → le Copilot
+  **se souvient** entre sessions/appareils (plus besoin de tout réexpliquer).
+  Testé bout-en-bout (2 tours → 4 messages ordonnés récupérés). Smoke 23/23.
 - **Gouvernance formalisée (free-first + checklists)** : règle **free-first**
   enregistrée (ADR-008, `rules.md`). `non-objectifs.md` dédié. 5 checklists
   opérationnelles + règle finale dans `rules.md`. `project-config.md` (modes,
