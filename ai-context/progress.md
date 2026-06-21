@@ -3,6 +3,11 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Copilot IA minimal (chat)** : nouvelle page `/copilot` (UI de chat) + endpoint
+  `POST /api/copilot/chat` (auth + quota IA), branché sur Gemini via un provider
+  isolé (`lib/ai.ts copilotChat`) prêt à accueillir Ollama/local plus tard.
+  Dégrade proprement si `GEMINI_API_KEY` absente. Ajouté à la navigation
+  (sidebar + mobile). Vérifié : typecheck, build, smoke 11/11.
 - **Inscription propriétaire pro (email/mot de passe)** : l'onglet « Créer un
   compte » est toujours dispo ; quand l'inscription est fermée, un **code
   propriétaire** (= `API_AUTH_TOKEN`, comparé en temps constant) permet de créer

@@ -22,6 +22,7 @@ import approvalsRouter from "./approvals";
 import killSwitchRouter from "./kill-switch";
 import profileRouter from "./profile";
 import quotasRouter from "./quotas";
+import copilotRouter from "./copilot";
 import { rateLimit, rateLimitByTenant, rateLimitByUser } from "../middlewares/rate-limit";
 import { auditMiddleware } from "../middlewares/audit";
 
@@ -49,6 +50,7 @@ router.use(memoryRouter);
 router.use(briefingsRouter);
 router.use(overloadRouter);
 router.use(aiLimiter, aiRouter);
+router.use(aiLimiter, copilotRouter);
 router.use(aiLimiter, recordingsRouter);
 router.use(leadsRouter);
 router.use(auditRouter);
