@@ -36,6 +36,7 @@ import {
   UsersRound,
   Sparkles,
   Plug,
+  Wand2,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
@@ -106,6 +107,7 @@ function TamsLogo() {
 const navItems = [
   { href: "/", label: "Aperçu", icon: Home },
   { href: "/copilot", label: "Copilot", icon: Sparkles },
+  { href: "/studio", label: "Studio", icon: Wand2 },
   { href: "/capture", label: "Capture", icon: Mic },
   { href: "/recordings", label: "Enregistrements", icon: Radio },
   { href: "/prospects", label: "Prospection", icon: Users },
@@ -282,6 +284,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/copilot" component={Copilot} />
+          <Route path="/studio" component={Studio} />
           <Route path="/capture" component={Capture} />
           <Route path="/recordings" component={Recordings} />
           <Route path="/prospects" component={Prospects} />
@@ -313,6 +316,7 @@ function Router() {
 
 import Dashboard from "./pages/dashboard";
 import Copilot from "./pages/copilot";
+import Studio from "./pages/studio";
 import Capture from "./pages/capture";
 import Recordings from "./pages/recordings";
 import Prospects from "./pages/prospects";
