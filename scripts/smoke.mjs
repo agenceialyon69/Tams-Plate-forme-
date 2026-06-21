@@ -166,6 +166,16 @@ async function main() {
       ? ok("video maker: mounted + validates input")
       : ko(`expected 400/503 from video slideshow, got ${vid.status}`);
 
+    // Copilot conversation memory: the conversations list is reachable and
+    // returns an array (empty until a chat happens; chat needs an LLM key).
+    const conv = await fetch(`${BASE}/api/copilot/conversations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const convBody = await conv.json().catch(() => ({}));
+    conv.status === 200 && Array.isArray(convBody.conversations)
+      ? ok("copilot memory: conversations list returns")
+      : ko(`expected conversations list, got ${conv.status} ${JSON.stringify(convBody)}`);
+
     // App events admin viewer is owner-only and returns the events array.
     const ev = await fetch(`${BASE}/api/app-events`, {
       headers: { Authorization: `Bearer ${token}` },

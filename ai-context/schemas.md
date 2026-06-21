@@ -44,6 +44,7 @@ colonne doit y être ajoutée en `ALTER ... ADD COLUMN IF NOT EXISTS`.
 | `approval_requests` | Demandes d'approbation | id, tenantId, action, status, requestedBy |
 | `kill_switches` | Coupe-circuits par fonctionnalité | id, key, enabled |
 | `registry_entries` | Registre (prompts/agents/outils) | id, key, value, version |
+| `copilot_messages` | **Mémoire de conversation du Copilot** (historique persistant) | id, conversationId, userId, tenantId, productId, role, content, createdAt |
 
 ### `audit_logs` vs `app_events`
 - **`audit_logs`** : automatique, généré par `auditMiddleware` sur chaque requête

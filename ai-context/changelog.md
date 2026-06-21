@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Mémoire conversationnelle du Copilot** : les conversations sont persistées
+  (table `copilot_messages`) → le Copilot se souvient entre sessions/appareils.
+  Endpoints `/copilot/conversations` (liste/détail/suppression), `conversationId`
+  round-trip dans le chat ; UI : tiroir d'historique, reprise, nouvelle
+  conversation, reprise auto au chargement.
 - **Standard d'événements aligné (ADR-010)** : `source` standardisés
   (frontend/backend/copilot/agent/workflow/search/system/job), `severity` en
   **low/medium/high/critical**, ajout du champ **`importance`**. `app_events` +

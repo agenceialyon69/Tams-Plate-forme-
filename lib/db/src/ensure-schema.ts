@@ -167,6 +167,18 @@ const STATEMENTS = [
   `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'backend'`,
   `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS severity TEXT NOT NULL DEFAULT 'low'`,
   `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS importance TEXT NOT NULL DEFAULT 'medium'`,
+  `CREATE TABLE IF NOT EXISTS copilot_messages (
+    id SERIAL PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    user_id INTEGER,
+    tenant_id INTEGER,
+    product_id TEXT,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS copilot_messages_conv_idx ON copilot_messages (conversation_id)`,
+  `CREATE INDEX IF NOT EXISTS copilot_messages_user_idx ON copilot_messages (user_id, created_at)`,
   /* ---------- Enum types (Drizzle pgEnum — must exist before tables) ----------
      PostgreSQL has no IF NOT EXISTS for CREATE TYPE, so we use a DO block
      that catches the "already exists" error and silently continues.          */
