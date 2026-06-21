@@ -3,6 +3,15 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Verticales produit (AI Startup OS)** : couche de personas modulaire
+  (`lib/products.ts`) transformant la plateforme en n'importe quel assistant
+  métier sans nouvelle app. 6 verticales : TAMS (générique), **Claire**
+  (assistant dentaire), **Shopify** (e-commerce), **Garage**, **CRM** local,
+  **SaaS** (sur mesure). Chacune = nom + tagline + system prompt + suggestions.
+  `GET /api/products` (filtré par `ENABLED_PRODUCTS`), sélecteur de persona dans
+  le Copilot (pills), `productId` envoyé au chat → bonne persona. Guard
+  d'injection partagé extrait dans `lib/prompt-guard.ts`. Vérifié : typecheck
+  (web+API), build, smoke **15/15** (6 verticales listées).
 - **FFmpeg — traitement réel (vidéo → texte)** : `POST /ffmpeg/probe` et
   `POST /ffmpeg/extract-audio` (option `?transcribe=1` chaîne sur Whisper).
   Fichiers temporaires nettoyés (finally), cap body 25 Mo sur les routes ffmpeg,
