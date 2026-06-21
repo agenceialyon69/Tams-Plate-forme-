@@ -3,6 +3,15 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Intégration FFmpeg (vidéo/audio, gratuit, sans compte)** : binaire ffmpeg
+  installé dans l'image de déploiement (nixpacks `[phases.setup] aptPkgs`),
+  module `lib/integrations/ffmpeg.ts` (statut/version, `probeMedia`,
+  `extractAudio`, `trimMedia` — `execFile` avec tableau d'args, pas de shell),
+  endpoint `/api/integrations/ffmpeg/status` (owner/admin) + carte sur la page
+  `/integrations`. Désactivé proprement tant que le binaire est absent
+  (`configured:false`). Vérifié : typecheck (web+API), build, smoke **13/13**.
+  Prochaine étape : endpoints de traitement (upload → extraction audio →
+  transcription Whisper existante, découpage).
 - **Intégration GitHub (modulaire, feature-flag)** : module
   `lib/integrations/github.ts` (token-based, REST officielle) + routes
   `/api/integrations/github/*` (statut, dépôts, issues, création d'issue,
@@ -96,9 +105,10 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 - (rien — en attente de validation de la prochaine tâche)
 
 ## NEXT (une tâche à la fois)
-1. Outils gratuits (suite) : recherche web (SearXNG/DuckDuckGo), traitement
-   vidéo FFmpeg (alternative libre à CapCut), génération d'images (ComfyUI),
-   transcription Whisper (déjà via Groq) — chacun modulaire + feature-flag.
+1. FFmpeg (suite) : endpoints de traitement réels (upload borné → extraction
+   audio → transcription Whisper, découpage, format réseaux sociaux).
+2. Outils gratuits (suite) : recherche web (SearXNG/DuckDuckGo), génération
+   d'images (ComfyUI) — chacun modulaire + feature-flag.
 2. Sélecteur de fournisseur IA dans Paramètres (surface `AI_PROVIDER` +
    fournisseurs configurés via un endpoint de diagnostic).
 3. Analytics structure minimale (événements utiles, usage réel).

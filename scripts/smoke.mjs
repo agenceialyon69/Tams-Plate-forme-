@@ -118,6 +118,16 @@ async function main() {
       ? ok("github integration: disabled gracefully without token")
       : ko(`expected github disabled, got ${gh.status} ${JSON.stringify(ghBody)}`);
 
+    // FFmpeg status endpoint answers without crashing whether or not the
+    // binary is installed (configured is a boolean either way).
+    const ff = await fetch(`${BASE}/api/integrations/ffmpeg/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const ffBody = await ff.json().catch(() => ({}));
+    ff.status === 200 && typeof ffBody.configured === "boolean"
+      ? ok("ffmpeg integration: status answers gracefully")
+      : ko(`expected ffmpeg status, got ${ff.status} ${JSON.stringify(ffBody)}`);
+
     // Logout works (authenticated route).
     const logout = await fetch(`${BASE}/api/auth/logout`, {
       method: "POST",

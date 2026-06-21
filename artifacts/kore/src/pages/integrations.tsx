@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Plug, Github, CheckCircle2, XCircle, ExternalLink, Loader2, GitFork, Star } from "lucide-react";
+import { Plug, Github, CheckCircle2, XCircle, ExternalLink, Loader2, GitFork, Star, Film } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 interface GithubViewer {
@@ -149,6 +149,53 @@ function GithubCard() {
   );
 }
 
+function FfmpegCard() {
+  const status = useQuery<{ configured: boolean; version: string | null }>({
+    queryKey: ["ffmpeg-status"],
+    queryFn: () => apiFetch<{ configured: boolean; version: string | null }>("/integrations/ffmpeg/status"),
+  });
+
+  const available = status.data?.configured;
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border/40">
+        <div className="w-10 h-10 rounded-xl bg-foreground/5 flex items-center justify-center shrink-0">
+          <Film className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-foreground leading-none">FFmpeg</h2>
+          <p className="text-xs text-muted-foreground mt-1">Traitement vidéo/audio (alternative libre à CapCut)</p>
+        </div>
+        {status.isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+        ) : available ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-4 h-4" /> Disponible
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <XCircle className="w-4 h-4" /> Indisponible
+          </span>
+        )}
+      </div>
+      <div className="px-5 py-4 text-sm text-muted-foreground">
+        {available ? (
+          <p>
+            FFmpeg est installé{status.data?.version ? <> (version <span className="font-mono text-xs">{status.data.version}</span>)</> : null}.
+            Les outils vidéo (extraction audio, découpage, conversion) sont actifs côté serveur.
+          </p>
+        ) : (
+          <p>
+            FFmpeg n'est pas encore disponible dans l'environnement. Il est installé automatiquement
+            au déploiement (Railway) ; aucune variable ni compte requis.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function IntegrationsPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 md:px-8 py-8">
@@ -164,6 +211,7 @@ export default function IntegrationsPage() {
 
       <div className="space-y-4">
         <GithubCard />
+        <FfmpegCard />
       </div>
     </div>
   );
