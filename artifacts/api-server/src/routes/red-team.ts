@@ -3,6 +3,7 @@ import { db, capturesTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { requireRole } from "../middlewares/auth-jwt";
+import { trackAuditRun } from "../lib/events";
 
 const router: IRouter = Router();
 
@@ -17,6 +18,7 @@ export interface RedTeamTest {
 }
 
 router.post("/red-team/run", requireRole("admin", "owner"), async (req, res): Promise<void> => {
+  const startedAt = Date.now();
   const results: RedTeamTest[] = [];
   const baseUrl = `http://localhost:${process.env.PORT ?? 8080}`;
 
@@ -261,6 +263,15 @@ router.post("/red-team/run", requireRole("admin", "owner"), async (req, res): Pr
     skip: results.filter((r) => r.status === "skip").length,
     critical: results.filter((r) => r.status === "fail" && r.severity === "critical").length,
   };
+
+  trackAuditRun({
+    userId: req.authUser?.id,
+    tenantId: req.tenantId,
+    testsRun: summary.total,
+    failures: summary.fail,
+    durationMs: Date.now() - startedAt,
+    req,
+  });
 
   res.json({ results, summary, runAt: new Date().toISOString() });
 });

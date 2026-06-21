@@ -3,6 +3,15 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Système d'événements applicatifs (analytics/observabilité)** : table
+  `app_events` (ensure-schema idempotent) + `lib/events.ts` : `trackEvent()`
+  unique (fire-and-forget, ne throw jamais) avec `source`
+  (front/backend/copilot/jobs), `severity` (info/warning/critical),
+  `workspaceId` (réservé futur), `metadata`. Helpers typés **`trackAuditRun`**,
+  `trackCopilotMessage`, `trackMediaGenerated` (anti-duplication). Câblé :
+  red-team run, copilot chat, génération image/vidéo. **Viewer admin**
+  `GET /api/app-events` (owner/admin, filtres). Testé bout-en-bout (red-team →
+  event `audit_run` écrit). Smoke 22/22. _Suite : page front du viewer._
 - **Gouvernance enrichie (docs)** : `decisions.md` (registre ADR : pourquoi le
   code est ainsi), `schemas.md` (modèle de données + distinction
   `audit_logs`/`app_events`), `runbook.md` (déploiement, secrets, incidents,

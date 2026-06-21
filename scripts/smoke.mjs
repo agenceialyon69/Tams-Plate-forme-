@@ -166,6 +166,15 @@ async function main() {
       ? ok("video maker: mounted + validates input")
       : ko(`expected 400/503 from video slideshow, got ${vid.status}`);
 
+    // App events admin viewer is owner-only and returns the events array.
+    const ev = await fetch(`${BASE}/api/app-events`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const evBody = await ev.json().catch(() => ({}));
+    ev.status === 200 && Array.isArray(evBody.events)
+      ? ok("app events: admin viewer returns list")
+      : ko(`expected app-events list, got ${ev.status} ${JSON.stringify(evBody)}`);
+
     // Aggregate config status: single source of truth for the Settings page.
     const cfg = await fetch(`${BASE}/api/integrations/status`, {
       headers: { Authorization: `Bearer ${token}` },
