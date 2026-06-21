@@ -128,14 +128,53 @@ const ollamaProvider: Provider = {
   },
 };
 
+// --- OpenRouter (cloud, OpenAI-compatible — free DeepSeek R1 / Qwen) --------
+
+const openrouterProvider: Provider = {
+  name: "openrouter",
+  isConfigured: () => Boolean(process.env.OPENROUTER_API_KEY),
+  async chat(messages, opts) {
+    const payload = [
+      ...(opts.system ? [{ role: "system", content: opts.system }] : []),
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ];
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        // Optional attribution headers recommended by OpenRouter.
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://tams.app",
+        "X-Title": "TAMS",
+      },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1:free",
+        messages: payload,
+        temperature: opts.temperature ?? 0.6,
+        max_tokens: opts.maxTokens ?? 1024,
+      }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!res.ok) {
+      throw new Error(`OpenRouter responded ${res.status}`);
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    return (data.choices?.[0]?.message?.content ?? "").trim();
+  },
+};
+
 const ALL_PROVIDERS: Record<string, Provider> = {
   gemini: geminiProvider,
   groq: groqProvider,
+  openrouter: openrouterProvider,
   ollama: ollamaProvider,
 };
 
-// Order used in "auto" mode. Cloud free tiers first (zero setup), local last.
-const AUTO_ORDER = ["gemini", "groq", "ollama"] as const;
+// Order used in "auto" mode. Fast cloud free tiers first (zero setup), then
+// OpenRouter (free reasoning models, slower), local Ollama last.
+const AUTO_ORDER = ["gemini", "groq", "openrouter", "ollama"] as const;
 
 /** Resolve the ordered list of providers to try, based on env + config. */
 function resolveProviders(): Provider[] {
