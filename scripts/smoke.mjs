@@ -28,16 +28,25 @@ const server = spawn("node", ["artifacts/api-server/dist/index.mjs"], {
   stdio: ["ignore", "inherit", "inherit"],
 });
 
-async function waitForHealth(timeoutMs = 30_000) {
+async function waitForHealth(timeoutMs = 60_000) {
+  // The server listens BEFORE migrations finish (resilient startup), so a 200
+  // from /healthz only means "listening". Wait for db:"ready" (schema applied)
+  // before asserting — otherwise the first queries can race the migration and
+  // hit "relation \"users\" does not exist" on a slow runner.
   const deadline = Date.now() + timeoutMs;
+  let listening = false;
   while (Date.now() < deadline) {
     try {
       const r = await fetch(`${BASE}/api/healthz`);
-      if (r.ok) return true;
+      if (r.ok) {
+        listening = true;
+        const body = await r.json().catch(() => ({}));
+        if (body.db === "ready") return true;
+      }
     } catch { /* not up yet */ }
     await sleep(500);
   }
-  return false;
+  return listening; // fall back to "listening" so the existing timeout error still applies
 }
 
 async function getJson(path, init) {

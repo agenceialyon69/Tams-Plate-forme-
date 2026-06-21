@@ -258,7 +258,7 @@ router.post(
   videoLimiter,
   async (req, res): Promise<void> => {
     if (!(await ensureFfmpeg(res))) return;
-    const body = (req.body ?? {}) as { images?: unknown; format?: unknown; secondsPerImage?: unknown };
+    const body = (req.body ?? {}) as { images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
       res.status(400).json({ error: "Au moins une image est requise." });
@@ -270,6 +270,7 @@ router.post(
         width: fmt.width,
         height: fmt.height,
         secondsPerImage: Number(body.secondsPerImage) || undefined,
+        musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
       });
       res.json(video);
     } catch (err) {
@@ -293,7 +294,7 @@ router.post(
       res.status(503).json({ error: "Génération d'images désactivée — requise pour la vidéo." });
       return;
     }
-    const body = (req.body ?? {}) as { prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown };
+    const body = (req.body ?? {}) as { prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
       res.status(400).json({ error: "Prompt requis." });
@@ -311,7 +312,12 @@ router.post(
       );
       const video = await makeSlideshow(
         images.map((im) => im.imageBase64),
-        { width: fmt.width, height: fmt.height, secondsPerImage: Number(body.secondsPerImage) || undefined }
+        {
+          width: fmt.width,
+          height: fmt.height,
+          secondsPerImage: Number(body.secondsPerImage) || undefined,
+          musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
+        }
       );
       res.json(video);
     } catch (err) {

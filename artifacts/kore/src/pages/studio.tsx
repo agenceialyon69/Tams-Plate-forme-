@@ -144,6 +144,24 @@ function VideoPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [video, setVideo] = useState<{ videoBase64: string; mimeType: string; durationSec: number } | null>(null);
+  const [musicBase64, setMusicBase64] = useState<string | null>(null);
+  const [musicName, setMusicName] = useState<string | null>(null);
+
+  function onMusic(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Musique trop volumineuse (max 8 Mo).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setMusicBase64((reader.result as string).split(",").pop() ?? null);
+      setMusicName(file.name);
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function generate() {
     const p = prompt.trim();
@@ -154,7 +172,7 @@ function VideoPanel() {
     try {
       const res = await apiFetch<{ videoBase64: string; mimeType: string; durationSec: number }>(
         "/integrations/video/from-prompt",
-        { method: "POST", body: JSON.stringify({ prompt: p, scenes, format }) }
+        { method: "POST", body: JSON.stringify({ prompt: p, scenes, format, musicBase64: musicBase64 ?? undefined }) }
       );
       setVideo(res);
     } catch (e) {
@@ -208,6 +226,20 @@ function VideoPanel() {
           />
           <p className="text-[10px] text-muted-foreground mt-1">~{(scenes * 2.5).toFixed(0)}s de vidéo</p>
         </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-2">Musique (optionnel)</p>
+        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-background/40 hover:bg-muted/40 transition-colors cursor-pointer text-sm text-foreground">
+          <Film className="w-4 h-4" />
+          {musicName ? `🎵 ${musicName.slice(0, 30)}` : "Ajouter un fichier audio (mp3)"}
+          <input type="file" accept="audio/*" className="hidden" onChange={onMusic} disabled={loading} />
+        </label>
+        {musicName && (
+          <button onClick={() => { setMusicBase64(null); setMusicName(null); }} className="ml-2 text-xs text-muted-foreground hover:text-destructive">
+            retirer
+          </button>
+        )}
       </div>
 
       <Button onClick={generate} disabled={loading || !prompt.trim()} className="w-full sm:w-auto">

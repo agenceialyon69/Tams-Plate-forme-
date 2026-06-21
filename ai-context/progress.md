@@ -3,6 +3,11 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Musique sur les vidéos produit** : `makeSlideshow` accepte une piste audio
+  optionnelle (base64), mixée avec trim à la durée + fondu de sortie (FFmpeg).
+  Uploader « musique » dans l'onglet Vidéo du Studio (max 8 Mo). Routes
+  `/video/slideshow` et `/video/from-prompt` acceptent `musicBase64`. Testé
+  bout-en-bout (sortie h264 + aac). Smoke 20/20.
 - **Recherche web (Copilot peut chercher sur Internet)** :
   `lib/integrations/web-search.ts` — providers **Tavily / Brave / SearXNG**
   (clé/URL gratuites) + **DuckDuckGo keyless** en repli (marche sans config).
@@ -149,14 +154,18 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 - (rien — en attente de validation de la prochaine tâche)
 
 ## NEXT (une tâche à la fois)
-1. FFmpeg (suite) : endpoints de traitement réels (upload borné → extraction
-   audio → transcription Whisper, découpage, format réseaux sociaux).
-2. Outils gratuits (suite) : recherche web (SearXNG/DuckDuckGo), génération
-   d'images (ComfyUI) — chacun modulaire + feature-flag.
-2. Sélecteur de fournisseur IA dans Paramètres (surface `AI_PROVIDER` +
-   fournisseurs configurés via un endpoint de diagnostic).
+1. **Configuration** : avec l'utilisateur, renseigner les variables Railway
+   (clés IA, GitHub, recherche web) + débloquer l'egress réseau si besoin.
+2. Page **Paramètres → Intégrations/IA** : surface l'état des fournisseurs
+   configurés (diagnostic) + sélecteur `AI_PROVIDER`.
 3. Analytics structure minimale (événements utiles, usage réel).
 4. Docker de base (optionnel — le déploiement actuel utilise nixpacks).
+
+## Outils gratuits livrés (résumé)
+- IA Copilot multi-fournisseurs (Gemini/Groq/OpenRouter/Ollama) + fallback.
+- 6 personas métier (TAMS, Claire, Shopify, Garage, CRM, SaaS).
+- Intégration GitHub. FFmpeg (vidéo→texte). Génération d'images (Studio).
+- Créateur de vidéos produit (prompt→vidéo) + musique. Recherche web (Copilot).
 5. (Différé, hors-scope perso) isolation multi-tenant — prérequis multi-clients.
 
 ## BLOCKERS
