@@ -3,6 +3,13 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Page Paramètres honnête (config IA & intégrations)** : nouvel endpoint
+  `GET /api/integrations/status` (owner/admin) = source de vérité serveur des
+  fournisseurs/intégrations réellement configurés. La page Paramètres affiche
+  l'état réel (Gemini/Groq/OpenRouter/Ollama, recherche web, image, GitHub,
+  FFmpeg) en vert/rouge avec rafraîchissement, à la place de l'ancien sélecteur
+  cosmétique (localStorage) + avertissement GEMINI_API_KEY figé. Retrait du
+  « lien de connexion rapide » (`?token=` URL) obsolète. Smoke 21/21.
 - **Musique sur les vidéos produit** : `makeSlideshow` accepte une piste audio
   optionnelle (base64), mixée avec trim à la durée + fondu de sortie (FFmpeg).
   Uploader « musique » dans l'onglet Vidéo du Studio (max 8 Mo). Routes

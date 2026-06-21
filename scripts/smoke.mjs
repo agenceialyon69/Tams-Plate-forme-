@@ -166,6 +166,15 @@ async function main() {
       ? ok("video maker: mounted + validates input")
       : ko(`expected 400/503 from video slideshow, got ${vid.status}`);
 
+    // Aggregate config status: single source of truth for the Settings page.
+    const cfg = await fetch(`${BASE}/api/integrations/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const cfgBody = await cfg.json().catch(() => ({}));
+    cfg.status === 200 && cfgBody.ai && Array.isArray(cfgBody.ai.providers) && cfgBody.webSearch && cfgBody.ffmpeg
+      ? ok("config status: aggregate reported")
+      : ko(`expected config status, got ${cfg.status} ${JSON.stringify(cfgBody)}`);
+
     // Web search: status lists providers (keyless duckduckgo always present),
     // and the raw search route validates input (empty query → 400).
     const ws = await fetch(`${BASE}/api/web-search/status`, {
