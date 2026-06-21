@@ -649,3 +649,47 @@ Réponds UNIQUEMENT avec ce JSON (aucun texte autour) :
     rationale: String(parsed.rationale ?? ""),
   };
 }
+
+export interface CopilotMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * General conversational copilot. Uses Gemini today; the provider is isolated
+ * here so other backends (Ollama/local LLMs) can be added later without
+ * touching the route. Never throws — degrades to a clear message.
+ */
+export async function copilotChat(messages: CopilotMessage[]): Promise<string> {
+  if (!process.env.GEMINI_API_KEY) {
+    return "L'assistant IA n'est pas configuré (GEMINI_API_KEY manquante). Ajoute la clé dans les variables pour activer le Copilot.";
+  }
+
+  const trimmed = messages
+    .slice(-20)
+    .map((m) => ({ role: m.role, content: asString(m.content, 4000) }))
+    .filter((m) => m.content.length > 0);
+
+  const last = trimmed[trimmed.length - 1];
+  if (!last || last.role !== "user") {
+    return "Pose-moi une question pour commencer.";
+  }
+
+  const systemInstruction = `Tu es le Copilot de TAMS, un assistant professionnel qui aide à piloter une activité (tâches, prospection, décisions, organisation).
+${INJECTION_GUARD}
+RÈGLES : honnête, concis, concret. Tu n'inventes jamais de données ; si tu ne sais pas, dis-le. Propose des actions claires quand c'est utile. Réponds en français, en texte simple.`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction });
+    const history = trimmed.slice(0, -1).map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(last.content);
+    return result.response.text().trim() || "Je n'ai pas de réponse pour le moment.";
+  } catch (err) {
+    logger.error({ err }, "Copilot chat failed");
+    return "Désolé, l'assistant a rencontré une erreur. Réessaie dans un instant.";
+  }
+}

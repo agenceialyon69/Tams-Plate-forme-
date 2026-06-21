@@ -3,6 +3,8 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Copilot IA** : chat conversationnel minimal (`/copilot` + `/api/copilot/chat`,
+  Gemini, provider isolé pour multi-LLM futur).
 - **Inscription propriétaire** : création de compte email/mot de passe via code
   propriétaire (one-time) quand l'inscription est fermée. Corrige aussi un
   register 500 (slug tenant dupliqué) et une collision de rate-limiters.
