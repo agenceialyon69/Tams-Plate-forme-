@@ -9,11 +9,14 @@ import {
 } from "../lib/integrations/github";
 import { ffmpegStatus, probeBase64, extractAudioBase64 } from "../lib/integrations/ffmpeg";
 import { generateImage, imageProviders, isImageGenAvailable } from "../lib/integrations/image-gen";
+import { makeSlideshow } from "../lib/integrations/video-maker";
 import { transcribeAudio } from "../lib/ai";
 import { rateLimitByUser } from "../middlewares/rate-limit";
 
 // Tight limit for the (external, heavier) image generation endpoint.
 const imageLimiter = rateLimitByUser({ windowMs: 60_000, max: 15 });
+// Video assembly is CPU-heavy; keep it modest.
+const videoLimiter = rateLimitByUser({ windowMs: 60_000, max: 6 });
 
 const router: IRouter = Router();
 
@@ -236,6 +239,87 @@ router.post(
         ? " (le serveur n'a peut-être pas accès à Internet — vérifie la politique réseau)."
         : "";
       res.status(502).json({ error: `Génération impossible${hint}`, detail: msg.slice(0, 200) });
+    }
+  }
+);
+
+// --- Product video maker (images → vertical slideshow, free via FFmpeg) -----
+
+const VIDEO_FORMATS: Record<string, { width: number; height: number }> = {
+  "9:16": { width: 1080, height: 1920 },
+  "1:1": { width: 1080, height: 1080 },
+  "16:9": { width: 1920, height: 1080 },
+};
+
+/** POST /api/integrations/video/slideshow — build a video from given images. */
+router.post(
+  "/integrations/video/slideshow",
+  requireRole("owner", "admin"),
+  videoLimiter,
+  async (req, res): Promise<void> => {
+    if (!(await ensureFfmpeg(res))) return;
+    const body = (req.body ?? {}) as { images?: unknown; format?: unknown; secondsPerImage?: unknown };
+    const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
+    if (images.length === 0) {
+      res.status(400).json({ error: "Au moins une image est requise." });
+      return;
+    }
+    const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
+    try {
+      const video = await makeSlideshow(images, {
+        width: fmt.width,
+        height: fmt.height,
+        secondsPerImage: Number(body.secondsPerImage) || undefined,
+      });
+      res.json(video);
+    } catch (err) {
+      res.status(422).json({ error: "Création vidéo impossible.", detail: String(err).slice(0, 200) });
+    }
+  }
+);
+
+/**
+ * POST /api/integrations/video/from-prompt — generate N images from a prompt
+ * then assemble them into a vertical slideshow video. The free, no-GPU path to
+ * "video from a prompt" (ideal for Shopify product clips).
+ */
+router.post(
+  "/integrations/video/from-prompt",
+  requireRole("owner", "admin"),
+  videoLimiter,
+  async (req, res): Promise<void> => {
+    if (!(await ensureFfmpeg(res))) return;
+    if (!isImageGenAvailable()) {
+      res.status(503).json({ error: "Génération d'images désactivée — requise pour la vidéo." });
+      return;
+    }
+    const body = (req.body ?? {}) as { prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown };
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    if (!prompt) {
+      res.status(400).json({ error: "Prompt requis." });
+      return;
+    }
+    const scenes = Math.min(Math.max(Number(body.scenes) || 4, 2), 6);
+    const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
+
+    try {
+      // Generate scenes in parallel; vary the seed so they differ.
+      const images = await Promise.all(
+        Array.from({ length: scenes }, (_, i) =>
+          generateImage(`${prompt} — plan ${i + 1}`, { width: fmt.width, height: fmt.height, seed: 1000 + i })
+        )
+      );
+      const video = await makeSlideshow(
+        images.map((im) => im.imageBase64),
+        { width: fmt.width, height: fmt.height, secondsPerImage: Number(body.secondsPerImage) || undefined }
+      );
+      res.json(video);
+    } catch (err) {
+      const msg = String(err);
+      const hint = msg.includes("allowlist") || msg.includes("ENOTFOUND") || msg.includes("fetch")
+        ? " (le serveur n'a peut-être pas accès à Internet pour générer les images)."
+        : "";
+      res.status(502).json({ error: `Vidéo impossible${hint}`, detail: msg.slice(0, 200) });
     }
   }
 );

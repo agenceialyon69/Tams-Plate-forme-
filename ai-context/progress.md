@@ -3,6 +3,14 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Créateur de vidéos produit (gratuit, FFmpeg)** : `lib/integrations/video-maker.ts`
+  assemble des images en vidéo verticale (slideshow). `POST /video/from-prompt`
+  (prompt → N images via le générateur → vidéo) et `POST /video/slideshow`
+  (images fournies). Onglet **Vidéo** dans Studio (format 9:16/1:1/16:9, nb de
+  scènes, lecteur + téléchargement). Body cap 25 Mo sur `/video/*`, rate-limit
+  6/min, fichiers temp nettoyés. **La voie gratuite/sans-GPU vers texte→vidéo**
+  (les vrais générateurs texte→vidéo sont payants). Testé bout-en-bout en local
+  (3 images → mp4 1080×1920 valide). Smoke **18/18**.
 - **Génération d'images (texte → image, gratuit)** : `lib/integrations/image-gen.ts`
   — **Pollinations** (sans clé, sans compte) par défaut + **Hugging Face**
   optionnel (token gratuit, FLUX/SDXL). `GET /image/status`, `POST /image/generate`
