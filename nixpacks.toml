@@ -4,3 +4,9 @@
 # are present for the build.
 [phases.install]
 cmds = ["pnpm install --no-frozen-lockfile --prod=false"]
+
+# Install FFmpeg in the image for the (optional) video/audio tools. It is a
+# free, account-less binary; the integration stays disabled at runtime until
+# the binary is present, so this is the only thing needed to enable it.
+[phases.setup]
+aptPkgs = ["ffmpeg"]

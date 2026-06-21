@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Intégration FFmpeg** (vidéo/audio, alternative libre à CapCut) : binaire
+  installé dans l'image (nixpacks `aptPkgs`), module `lib/integrations/ffmpeg.ts`
+  (statut/version, ffprobe, extraction audio, découpage — exec sans shell),
+  endpoint `/api/integrations/ffmpeg/status` + carte sur `/integrations`. Aucun
+  compte ni clé requis ; désactivé tant que le binaire est absent.
 - **Intégration GitHub** (modulaire, feature-flag `GITHUB_TOKEN`, owner/admin) :
   module `lib/integrations/github.ts` + routes `/api/integrations/github/*`
   (statut, dépôts, issues, création d'issue) + page `/integrations`. Désactivée

@@ -7,6 +7,7 @@ import {
   listIssues,
   createIssue,
 } from "../lib/integrations/github";
+import { ffmpegStatus } from "../lib/integrations/ffmpeg";
 
 const router: IRouter = Router();
 
@@ -100,6 +101,18 @@ router.post(
     } catch (err) {
       res.status(502).json({ error: "Création de l'issue impossible.", detail: String(err).slice(0, 200) });
     }
+  }
+);
+
+// --- FFmpeg (video/audio toolkit — free, local, no account) ----------------
+
+/** GET /api/integrations/ffmpeg/status — is ffmpeg available? + version. */
+router.get(
+  "/integrations/ffmpeg/status",
+  requireRole("owner", "admin"),
+  async (_req, res): Promise<void> => {
+    const status = await ffmpegStatus();
+    res.json({ configured: status.available, version: status.version });
   }
 );
 
