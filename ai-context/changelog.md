@@ -3,6 +3,12 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Page Paramètres → Configuration IA & Intégrations** : remplace l'ancien
+  sélecteur de provider cosmétique (localStorage, Gemini/Ollama seulement, +
+  avertissement GEMINI_API_KEY figé) par un **état réel serveur** via
+  `GET /api/integrations/status` (fournisseurs IA détectés, recherche web,
+  image, GitHub, FFmpeg en vert/rouge). Suppression du « lien de connexion
+  rapide » (`?token=` dans l'URL) devenu obsolète et non désiré.
 - **Musique sur les vidéos** : piste audio optionnelle (upload) mixée dans le
   slideshow (trim + fondu de sortie via FFmpeg), uploader dans l'onglet Vidéo
   du Studio. Testé bout-en-bout (vidéo h264 + audio aac).

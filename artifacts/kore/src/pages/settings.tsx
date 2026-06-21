@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import {
-  Bell, BellOff, CheckCircle2, Copy, LogOut, Shield, Link as LinkIcon,
-  Cpu, Globe, Server, Download, AlertTriangle,
+  Bell, BellOff, CheckCircle2, XCircle, LogOut, Shield,
+  Cpu, Download, AlertTriangle, RefreshCw,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
 import { clearToken, getToken } from "@/lib/auth";
 import { useLocation } from "wouter";
@@ -11,36 +12,95 @@ import { useToast } from "@/hooks/use-toast";
 
 const APP_VERSION = "2.0.0";
 
-const AI_PROVIDERS = [
-  { value: "gemini", label: "Gemini 2.5 Flash", description: "Google — IA par défaut, analyses et briefings", icon: "🤖" },
-  { value: "local", label: "Ollama (local)", description: "Modèle local — aucune donnée envoyée en cloud", icon: "🏠" },
-  { value: "none", label: "Désactivé", description: "Aucun provider IA — fonctions AI indisponibles", icon: "⛔" },
-];
-
-const AI_MODELS: Record<string, string[]> = {
-  gemini: ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
-  local: ["llama3.2", "mistral", "phi3", "codellama", "llama3.1:8b"],
-  none: [],
-};
-
-const PREF_KEY = "tams_ai_prefs";
-const LEGACY_PREF_KEY = "gandal_ai_prefs";
-
-function loadAiPrefs() {
-  try {
-    // Migrate prefs from the legacy key name so existing settings are kept.
-    const raw = localStorage.getItem(PREF_KEY) ?? localStorage.getItem(LEGACY_PREF_KEY);
-    if (raw) {
-      localStorage.setItem(PREF_KEY, raw);
-      localStorage.removeItem(LEGACY_PREF_KEY);
-      return JSON.parse(raw) as { provider: string; model: string; ollamaUrl: string };
-    }
-  } catch {}
-  return { provider: "gemini", model: "gemini-2.5-flash", ollamaUrl: "http://localhost:11434" };
+interface IntegrationsStatus {
+  ai: { preferred: string; providers: string[] };
+  webSearch: { providers: string[] };
+  imageGeneration: { configured: boolean; providers: string[] };
+  github: { configured: boolean };
+  ffmpeg: { available: boolean; version: string | null };
 }
 
-function saveAiPrefs(prefs: { provider: string; model: string; ollamaUrl: string }) {
-  try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch {}
+const PROVIDER_LABEL: Record<string, string> = {
+  gemini: "Gemini (Google)",
+  groq: "Groq (Llama/Qwen)",
+  openrouter: "OpenRouter (DeepSeek R1/Qwen)",
+  ollama: "Ollama (local)",
+  tavily: "Tavily",
+  brave: "Brave",
+  searxng: "SearXNG",
+  duckduckgo: "DuckDuckGo (sans clé)",
+  pollinations: "Pollinations (sans clé)",
+  huggingface: "Hugging Face",
+};
+
+function StatusRow({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
+  return (
+    <div className="flex items-center gap-2.5 py-1.5">
+      {ok ? (
+        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+      ) : (
+        <XCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+      )}
+      <span className="text-sm text-foreground">{label}</span>
+      {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
+    </div>
+  );
+}
+
+function ConfigStatusPanel() {
+  const { data, isLoading, refetch, isFetching } = useQuery<IntegrationsStatus>({
+    queryKey: ["integrations-status"],
+    queryFn: () => apiFetch<IntegrationsStatus>("/integrations/status"),
+  });
+
+  const aiProviders = data?.ai.providers ?? [];
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">État réel détecté côté serveur (variables Railway).</p>
+        <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground" title="Rafraîchir">
+          <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Chargement…</p>
+      ) : !data ? (
+        <p className="text-sm text-destructive">Impossible de lire l'état (réservé owner/admin).</p>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Copilot IA</p>
+            {aiProviders.length === 0 ? (
+              <div className="flex items-start gap-2 text-xs text-yellow-500 bg-yellow-500/10 rounded-lg p-3">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>Aucun fournisseur IA détecté. Ajoute <code className="font-mono">GEMINI_API_KEY</code>, <code className="font-mono">GROQ_API_KEY</code> ou <code className="font-mono">OPENROUTER_API_KEY</code> sur Railway.</span>
+              </div>
+            ) : (
+              <>
+                {["gemini", "groq", "openrouter", "ollama"].map((p) => (
+                  <StatusRow key={p} ok={aiProviders.includes(p)} label={PROVIDER_LABEL[p] ?? p} />
+                ))}
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Préférence <code className="font-mono">AI_PROVIDER</code> : <strong>{data.ai.preferred}</strong>
+                  {data.ai.preferred === "auto" && " (essaie dans l'ordre : gemini → groq → openrouter → ollama)"}
+                </p>
+              </>
+            )}
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Outils</p>
+            <StatusRow ok={data.imageGeneration.configured} label="Génération d'images" detail={data.imageGeneration.providers.map((p) => PROVIDER_LABEL[p] ?? p).join(", ")} />
+            <StatusRow ok={data.ffmpeg.available} label="Vidéo (FFmpeg)" detail={data.ffmpeg.version ? data.ffmpeg.version.split(" ")[0] : undefined} />
+            <StatusRow ok={data.webSearch.providers.length > 0} label="Recherche web" detail={data.webSearch.providers.map((p) => PROVIDER_LABEL[p] ?? p).join(", ")} />
+            <StatusRow ok={data.github.configured} label="GitHub" detail={data.github.configured ? undefined : "GITHUB_TOKEN manquant"} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Settings() {
@@ -49,12 +109,9 @@ export default function Settings() {
   const [evening, setEvening] = useState(prefs.eveningTime);
   const [saved, setSaved] = useState(false);
   const [enabling, setEnabling] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  const [aiPrefs, setAiPrefs] = useState(loadAiPrefs);
-  const [aiSaved, setAiSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => { setMorning(prefs.morningTime); setEvening(prefs.eveningTime); }, [prefs]);
@@ -75,25 +132,7 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  async function handleCopyLink() {
-    const token = getToken();
-    if (!token) return;
-    const url = `${window.location.origin}/?token=${token}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {}
-  }
-
   function handleLogout() { clearToken(); navigate("/"); }
-
-  function handleSaveAiPrefs() {
-    saveAiPrefs(aiPrefs);
-    setAiSaved(true);
-    setTimeout(() => setAiSaved(false), 2000);
-    toast({ description: "Configuration IA enregistrée." });
-  }
 
   async function handleExport() {
     setExporting(true);
@@ -126,91 +165,13 @@ export default function Settings() {
         <p className="text-sm text-muted-foreground mt-1">Configuration de TAMS</p>
       </div>
 
-      {/* Provider IA */}
+      {/* Configuration IA & Intégrations (état réel serveur) */}
       <section className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
           <Cpu className="w-3.5 h-3.5" />
-          Provider IA
+          Configuration IA &amp; Intégrations
         </h2>
-        <div className="rounded-xl border border-border bg-card divide-y divide-border">
-          <div className="p-5 space-y-4">
-            <p className="text-sm text-muted-foreground">Sélectionne le provider utilisé pour les analyses, extractions et briefings.</p>
-            <div className="space-y-2">
-              {AI_PROVIDERS.map((p) => (
-                <label key={p.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${aiPrefs.provider === p.value ? "border-accent bg-accent/5" : "border-border bg-background/30 hover:bg-muted/30"}`}>
-                  <input
-                    type="radio"
-                    name="ai-provider"
-                    value={p.value}
-                    checked={aiPrefs.provider === p.value}
-                    onChange={() => setAiPrefs({ ...aiPrefs, provider: p.value, model: AI_MODELS[p.value]?.[0] ?? "" })}
-                    className="mt-1 accent-accent"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      <span className="mr-1.5">{p.icon}</span>{p.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            {aiPrefs.provider !== "none" && AI_MODELS[aiPrefs.provider]?.length > 0 && (
-              <div className="space-y-2 pt-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Modèle</label>
-                <select
-                  value={aiPrefs.model}
-                  onChange={(e) => setAiPrefs({ ...aiPrefs, model: e.target.value })}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent"
-                >
-                  {AI_MODELS[aiPrefs.provider]?.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {aiPrefs.provider === "local" && (
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">URL Ollama</label>
-                <input
-                  type="url"
-                  value={aiPrefs.ollamaUrl}
-                  onChange={(e) => setAiPrefs({ ...aiPrefs, ollamaUrl: e.target.value })}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent"
-                  placeholder="http://localhost:11434"
-                />
-                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-                  <Server className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>Ollama doit être installé et démarré localement. Le modèle doit être téléchargé via <code className="font-mono">ollama pull {aiPrefs.model}</code></span>
-                </div>
-              </div>
-            )}
-
-            {aiPrefs.provider === "gemini" && !import.meta.env.VITE_GEMINI_CONFIGURED && (
-              <div className="flex items-start gap-2 text-xs text-yellow-400 bg-yellow-500/10 rounded-lg p-3 border border-yellow-500/20">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>Configure <code className="font-mono">GEMINI_API_KEY</code> dans les variables d'environnement du serveur pour activer les fonctionnalités IA.</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                onClick={handleSaveAiPrefs}
-                className="px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
-              >
-                Sauvegarder la configuration
-              </button>
-              {aiSaved && (
-                <span className="flex items-center gap-1.5 text-sm text-green-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Enregistré
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfigStatusPanel />
       </section>
 
       {/* Notifications */}
@@ -297,19 +258,6 @@ export default function Settings() {
           Accès &amp; Sécurité
         </h2>
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
-          <div className="p-5 space-y-3">
-            <div>
-              <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                Lien de connexion rapide
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Copie ce lien pour te connecter depuis un autre appareil.</p>
-            </div>
-            <button onClick={handleCopyLink} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background text-sm hover:bg-muted/50 transition-colors">
-              {copied ? <><CheckCircle2 className="w-4 h-4 text-green-500" /><span className="text-green-500 font-medium">Lien copié !</span></> : <><Copy className="w-4 h-4 text-muted-foreground" /><span>Copier le lien de connexion</span></>}
-            </button>
-            <p className="text-[11px] text-muted-foreground/50">⚠️ Ne partage ce lien qu&apos;avec toi-même — il donne accès complet.</p>
-          </div>
           <div className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">Session active</p>

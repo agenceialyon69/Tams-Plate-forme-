@@ -10,6 +10,8 @@ import {
 import { ffmpegStatus, probeBase64, extractAudioBase64 } from "../lib/integrations/ffmpeg";
 import { generateImage, imageProviders, isImageGenAvailable } from "../lib/integrations/image-gen";
 import { makeSlideshow } from "../lib/integrations/video-maker";
+import { searchProviders } from "../lib/integrations/web-search";
+import { configuredProviders } from "../lib/llm";
 import { transcribeAudio } from "../lib/ai";
 import { rateLimitByUser } from "../middlewares/rate-limit";
 
@@ -26,6 +28,29 @@ const router: IRouter = Router();
  * reports it as disabled and the data endpoints return 503. All routes are
  * restricted to owner/admin — these touch the owner's external accounts.
  */
+
+/**
+ * GET /api/integrations/status — single source of truth for what is actually
+ * configured server-side (env vars), so the UI can show a real green/red state
+ * instead of guessing. No external calls (except cached ffmpeg check).
+ */
+router.get(
+  "/integrations/status",
+  requireRole("owner", "admin"),
+  async (_req, res): Promise<void> => {
+    const ff = await ffmpegStatus();
+    res.json({
+      ai: {
+        preferred: (process.env.AI_PROVIDER || "auto").toLowerCase(),
+        providers: configuredProviders(), // gemini / groq / openrouter / ollama
+      },
+      webSearch: { providers: searchProviders() },
+      imageGeneration: { configured: isImageGenAvailable(), providers: imageProviders() },
+      github: { configured: isGithubConfigured() },
+      ffmpeg: { available: ff.available, version: ff.version },
+    });
+  }
+);
 
 // --- GitHub ----------------------------------------------------------------
 
