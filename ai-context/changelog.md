@@ -3,6 +3,9 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-20
+- **Inscription propriétaire** : création de compte email/mot de passe via code
+  propriétaire (one-time) quand l'inscription est fermée. Corrige aussi un
+  register 500 (slug tenant dupliqué) et une collision de rate-limiters.
 - **Login** : ré-ajout de l'accès propriétaire par token sur l'écran de
   connexion (corrige le blocage quand l'inscription est fermée).
 - **Décision** : mode perso/test d'abord ; plan de migration multi-tenant

@@ -82,7 +82,17 @@ async function main() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: `intruder+${Date.now()}@example.com`, password: "smokepassword1", name: "X" }),
   });
-  reg2.status === 403 ? ok("second registration blocked (403)") : ko(`expected 403, got ${reg2.status}`);
+  reg2.status === 403 ? ok("second registration blocked without code (403)") : ko(`expected 403, got ${reg2.status}`);
+
+  // ...but registration with the valid owner code (API_AUTH_TOKEN) creates an owner.
+  const reg3 = await getJson("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: `owner2+${Date.now()}@example.com`, password: "smokepassword1", name: "Owner2", accessCode: MASTER }),
+  });
+  reg3.status === 201 && reg3.body.user?.role === "owner"
+    ? ok("register with owner code → owner (201)")
+    : ko(`expected 201 owner, got ${reg3.status} ${JSON.stringify(reg3.body.user ?? {})}`);
 
   // Login with the same credentials.
   const login = await getJson("/api/auth/login", {
