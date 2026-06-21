@@ -13,8 +13,21 @@ import { logger } from "./logger";
  * these are meaningful product/analytics events.
  */
 
-export type EventSource = "front" | "backend" | "copilot" | "jobs";
-export type EventSeverity = "info" | "warning" | "critical";
+/** Standardised event origins. */
+export type EventSource =
+  | "frontend"
+  | "backend"
+  | "copilot"
+  | "agent"
+  | "workflow"
+  | "search"
+  | "system"
+  | "job";
+
+/** Technical triage level. */
+export type EventSeverity = "low" | "medium" | "high" | "critical";
+/** Business priority. */
+export type EventImportance = "low" | "medium" | "high" | "critical";
 
 export interface TrackEventParams {
   userId?: number | null;
@@ -25,6 +38,7 @@ export interface TrackEventParams {
   category: string;
   source?: EventSource;
   severity?: EventSeverity;
+  importance?: EventImportance;
   metadata?: Record<string, unknown> | null;
   req?: Pick<Request, "ip" | "socket">;
 }
@@ -44,7 +58,8 @@ export function trackEvent(params: TrackEventParams): void {
       event: params.event.slice(0, 120),
       category: params.category.slice(0, 60),
       source: params.source ?? "backend",
-      severity: params.severity ?? "info",
+      severity: params.severity ?? "low",
+      importance: params.importance ?? "medium",
       metadata: params.metadata ?? null,
       ip: ipFrom(params.req),
     })
@@ -68,7 +83,8 @@ export function trackAuditRun(params: {
     event: "audit_run",
     category: "audit",
     source: "backend",
-    severity: params.failures > 0 ? "warning" : "info",
+    severity: params.failures > 0 ? "high" : "low",
+    importance: params.failures > 0 ? "high" : "medium",
     metadata: {
       testsRun: params.testsRun,
       failures: params.failures,

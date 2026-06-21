@@ -3,6 +3,10 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Standard d'événements aligné (ADR-010)** : `source` standardisés
+  (frontend/backend/copilot/agent/workflow/search/system/job), `severity` en
+  **low/medium/high/critical**, ajout du champ **`importance`**. `app_events` +
+  `lib/events.ts` + viewer mis à jour. Migration idempotente.
 - **Gouvernance formalisée** : `non-objectifs.md` dédié (extrait de `vision.md`),
   **5 checklists** (gouvernance/free-first, archi & doc, événements, qualité,
   non-objectifs) + règle finale dans `rules.md`, `project-config.md` (modes,

@@ -8,8 +8,13 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
   opérationnelles + règle finale dans `rules.md`. `project-config.md` (modes,
   flags, intégrations, déploiement). ADR-010 (standard d'événements) + ADR-011
   (structure docs minimale, refus des dossiers `architecture/`/`adr/` = anti
-  sur-ingénierie). Index `README.md` à jour. _Suite : aligner le code
-  `trackEvent` sur le standard (source/severity/importance)._
+  sur-ingénierie). Index `README.md` à jour.
+- **Standard d'événements aligné (ADR-010)** : `source` standardisés
+  (frontend/backend/copilot/agent/workflow/search/system/job), `severity` en
+  **low/medium/high/critical**, champ **`importance`** ajouté (priorité métier).
+  `app_events` (ALTER idempotent), `lib/events.ts` (types + helpers) et viewer
+  `/events` à jour. Testé bout-en-bout (audit_run → severity low/importance
+  medium). Smoke 22/22.
 - **Système d'événements applicatifs (analytics/observabilité)** : table
   `app_events` (ensure-schema idempotent) + `lib/events.ts` : `trackEvent()`
   unique (fire-and-forget, ne throw jamais) avec `source`
