@@ -50,9 +50,6 @@ router.use(decisionsRouter);
 router.use(memoryRouter);
 router.use(briefingsRouter);
 router.use(overloadRouter);
-router.use(aiLimiter, aiRouter);
-router.use(aiLimiter, copilotRouter);
-router.use(aiLimiter, recordingsRouter);
 router.use(leadsRouter);
 router.use(auditRouter);
 router.use(diagnosticsRouter);
@@ -64,5 +61,14 @@ router.use(killSwitchRouter);
 router.use(profileRouter);
 router.use(quotasRouter);
 router.use(integrationsRouter);
+
+// AI endpoints last, behind a single burst limiter. Because earlier routers
+// have already handled (and ended) their requests, this limiter only runs for
+// requests that fall through to the AI routes — it does NOT bleed onto other
+// routes, and it is applied exactly once per request (not per mount).
+router.use(aiLimiter);
+router.use(aiRouter);
+router.use(copilotRouter);
+router.use(recordingsRouter);
 
 export default router;

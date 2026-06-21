@@ -2,13 +2,19 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Send, Loader2, User } from "lucide-react";
+import { Sparkles, Send, Loader2, User, Globe } from "lucide-react";
 import { getApiBase, apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+
+interface Source {
+  title: string;
+  url: string;
+}
 
 interface Msg {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 }
 
 interface Product {
@@ -30,6 +36,7 @@ export default function Copilot() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productId, setProductId] = useState<string>("tams");
+  const [webSearch, setWebSearch] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const productsQuery = useQuery<{ products: Product[] }>({
@@ -67,14 +74,17 @@ export default function Copilot() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken() ?? ""}`,
         },
-        body: JSON.stringify({ messages: next, productId }),
+        body: JSON.stringify({ messages: next, productId, webSearch }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Le Copilot n'a pas pu répondre.");
         return;
       }
-      setMessages((m) => [...m, { role: "assistant", content: String(data.reply ?? "") }]);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: String(data.reply ?? ""), sources: Array.isArray(data.sources) ? data.sources : [] },
+      ]);
     } catch {
       setError("Impossible de joindre le serveur.");
     } finally {
@@ -97,23 +107,36 @@ export default function Copilot() {
           </div>
         </div>
 
-        {products.length > 1 && (
-          <div className="flex gap-1.5 mt-4 overflow-x-auto pb-1 -mx-1 px-1">
-            {products.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => switchProduct(p.id)}
-                className={`text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors ${
-                  p.id === productId
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border/60 text-muted-foreground hover:bg-muted/40"
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-2 mt-4">
+          {products.length > 1 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 flex-1">
+              {products.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => switchProduct(p.id)}
+                  className={`text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors ${
+                    p.id === productId
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border/60 text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setWebSearch((v) => !v)}
+            title="Rechercher sur le web pour répondre"
+            className={`shrink-0 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              webSearch
+                ? "bg-accent/10 border-accent text-accent"
+                : "border-border/60 text-muted-foreground hover:bg-muted/40"
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" /> Web
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
@@ -142,14 +165,30 @@ export default function Copilot() {
                 <Sparkles className="w-4 h-4 text-accent" />
               </div>
             )}
-            <div
-              className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
-                m.role === "user"
-                  ? "bg-foreground text-background max-w-[80%]"
-                  : "bg-muted/50 text-foreground max-w-[85%]"
-              }`}
-            >
-              {m.content}
+            <div className="max-w-[85%] space-y-1.5">
+              <div
+                className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
+                  m.role === "user" ? "bg-foreground text-background" : "bg-muted/50 text-foreground"
+                }`}
+              >
+                {m.content}
+              </div>
+              {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {m.sources.slice(0, 5).map((s, j) => (
+                    <a
+                      key={j}
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={s.title}
+                      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:bg-muted/40"
+                    >
+                      <Globe className="w-3 h-3" /> {(() => { try { return new URL(s.url).hostname.replace(/^www\./, ""); } catch { return "source"; } })()}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
             {m.role === "user" && (
               <div className="w-7 h-7 rounded-lg bg-foreground/10 flex items-center justify-center shrink-0 mt-0.5">

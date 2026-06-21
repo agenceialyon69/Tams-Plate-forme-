@@ -157,6 +157,25 @@ async function main() {
       ? ok("video maker: mounted + validates input")
       : ko(`expected 400/503 from video slideshow, got ${vid.status}`);
 
+    // Web search: status lists providers (keyless duckduckgo always present),
+    // and the raw search route validates input (empty query → 400).
+    const ws = await fetch(`${BASE}/api/web-search/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const wsBody = await ws.json().catch(() => ({}));
+    ws.status === 200 && Array.isArray(wsBody.providers) && wsBody.providers.includes("duckduckgo")
+      ? ok("web search: providers listed (keyless fallback present)")
+      : ko(`expected web search providers, got ${ws.status} ${JSON.stringify(wsBody)}`);
+
+    const wsSearch = await fetch(`${BASE}/api/web-search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+    wsSearch.status === 400
+      ? ok("web search: validates query")
+      : ko(`expected 400 from web-search, got ${wsSearch.status}`);
+
     // FFmpeg status endpoint answers without crashing whether or not the
     // binary is installed (configured is a boolean either way).
     const ff = await fetch(`${BASE}/api/integrations/ffmpeg/status`, {
