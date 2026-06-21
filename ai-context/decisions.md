@@ -105,3 +105,26 @@ s'active uniquement si sa variable/condition est présente ; sinon statut
 Restreint owner/admin. Source de vérité affichée via `/api/integrations/status`.
 **Raison** : rien ne casse quand un service est absent ; config lisible d'un
 coup d'œil dans Paramètres.
+
+## ADR-012 — Triage des outils/modèles IA (adopté / différé / refusé)
+**Date** : 2026-06-21 · **Statut** : actif
+**Décision** :
+- **Adoptés (déjà en place)** : **Ollama** (provider local prioritaire),
+  **Llama / Qwen / DeepSeek R1** via le gateway (Gemini/Groq/OpenRouter/Ollama),
+  **Whisper** (transcription Groq), **génération d'images** (Pollinations sans
+  clé + **Hugging Face SDXL/FLUX**).
+- **Côté outillage dev (≠ app)** : **DeepSeek Coder / Qwen3-Coder** via
+  Cline + Ollama (cf. `free-stack.md`). Pas dans le Copilot produit (assistant
+  métier, pas agent de code).
+- **Différés (seulement si besoin concret)** : **n8n CE** (si un workflow métier
+  réel le justifie) ; **LlamaIndex** (RAG/documents plus tard) ; **Stable
+  Diffusion/SDXL local** (nécessite un serveur GPU — HF couvre SDXL/FLUX en
+  attendant).
+- **Refusés tant qu'aucun besoin** : frameworks d'agents (**LangChain, CrewAI,
+  AutoGPT, AgentGPT**) → complexité/dette, abstractions prématurées ; multi-agent
+  sans cas d'usage ; **Make / Replicate / HF payant** comme fondation ; **ChatGLM**.
+- **Variantes de modèles** (Mixtral/Mistral/Gemma/Phi/Falcon/Bloom) : pas une
+  « intégration » — le gateway accepte n'importe quel modèle Ollama/OpenRouter
+  par configuration (`*_MODEL`).
+**Raison** : free-first + anti sur-ingénierie (`non-objectifs.md`). On n'ajoute
+un framework/outil que pour un besoin réel et récurrent.

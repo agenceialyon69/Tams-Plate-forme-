@@ -3,6 +3,10 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Triage outils/modèles IA (ADR-012)** : adoptés (Ollama, Llama/Qwen/DeepSeek
+  R1 via gateway, Whisper, images HF/Pollinations) ; différés (n8n, LlamaIndex,
+  SD local) ; **refusés sans besoin** (LangChain/CrewAI/AutoGPT, Make, ChatGLM).
+  Inscrit dans `decisions.md` + `non-objectifs.md`.
 - **Mémoire conversationnelle du Copilot** : les conversations sont persistées
   (table `copilot_messages`) → le Copilot se souvient entre sessions/appareils.
   Endpoints `/copilot/conversations` (liste/détail/suppression), `conversationId`
