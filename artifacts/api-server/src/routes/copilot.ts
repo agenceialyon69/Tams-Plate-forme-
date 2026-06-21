@@ -1,12 +1,14 @@
 import { Router, type IRouter } from "express";
 import { copilotChat, type CopilotMessage } from "../lib/ai";
+import { listProducts } from "../lib/products";
 import { checkAndIncrementAiCalls } from "./quotas";
 
 const router: IRouter = Router();
 
 /** POST /api/copilot/chat — conversational AI copilot. */
 router.post("/copilot/chat", async (req, res): Promise<void> => {
-  const body = (req.body ?? {}) as { messages?: unknown };
+  const body = (req.body ?? {}) as { messages?: unknown; productId?: unknown };
+  const productId = typeof body.productId === "string" ? body.productId : null;
   const raw = Array.isArray(body.messages) ? body.messages : [];
 
   const messages: CopilotMessage[] = raw
@@ -36,8 +38,20 @@ router.post("/copilot/chat", async (req, res): Promise<void> => {
     }
   }
 
-  const reply = await copilotChat(messages);
+  const reply = await copilotChat(messages, productId);
   res.json({ reply });
+});
+
+/** GET /api/products — verticals (personas) available in this deployment. */
+router.get("/products", (_req, res): void => {
+  res.json({
+    products: listProducts().map((p) => ({
+      id: p.id,
+      name: p.name,
+      tagline: p.tagline,
+      suggestions: p.suggestions,
+    })),
+  });
 });
 
 export default router;

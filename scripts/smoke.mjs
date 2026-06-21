@@ -118,6 +118,15 @@ async function main() {
       ? ok("github integration: disabled gracefully without token")
       : ko(`expected github disabled, got ${gh.status} ${JSON.stringify(ghBody)}`);
 
+    // Product verticals (personas) are listed and include the generic one.
+    const prod = await fetch(`${BASE}/api/products`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const prodBody = await prod.json().catch(() => ({}));
+    prod.status === 200 && Array.isArray(prodBody.products) && prodBody.products.some((p) => p.id === "tams")
+      ? ok(`products: ${prodBody.products?.length ?? 0} verticals listed`)
+      : ko(`expected products list with tams, got ${prod.status} ${JSON.stringify(prodBody)}`);
+
     // FFmpeg status endpoint answers without crashing whether or not the
     // binary is installed (configured is a boolean either way).
     const ff = await fetch(`${BASE}/api/integrations/ffmpeg/status`, {

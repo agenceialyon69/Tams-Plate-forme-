@@ -3,6 +3,12 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Verticales produit (AI Startup OS)** : couche de *personas* configurables
+  (`lib/products.ts`) — Claire (dentaire), Shopify (e-commerce), Garage, CRM
+  local, SaaS générique + l'assistant TAMS. Chaque verticale = un system prompt
+  + suggestions. `GET /api/products`, sélecteur dans le Copilot, `productId`
+  passé au chat. Filtrage via `ENABLED_PRODUCTS`. Guard d'injection extrait
+  dans `lib/prompt-guard.ts`.
 - **FFmpeg — traitement réel** : endpoints `POST /ffmpeg/probe` (métadonnées) et
   `POST /ffmpeg/extract-audio` (vidéo → mp3, option `?transcribe=1` → texte via
   Whisper existant). Fichiers temp nettoyés systématiquement, cap 25 Mo,

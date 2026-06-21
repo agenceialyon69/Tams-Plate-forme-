@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Send, Loader2, User } from "lucide-react";
-import { getApiBase } from "@/lib/api";
+import { getApiBase, apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 
 interface Msg {
@@ -10,7 +11,14 @@ interface Msg {
   content: string;
 }
 
-const SUGGESTIONS = [
+interface Product {
+  id: string;
+  name: string;
+  tagline: string;
+  suggestions: string[];
+}
+
+const DEFAULT_SUGGESTIONS = [
   "Aide-moi à prioriser mes tâches du jour.",
   "Rédige un message de relance pour un prospect.",
   "Quelles questions poser avant une décision importante ?",
@@ -21,11 +29,28 @@ export default function Copilot() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [productId, setProductId] = useState<string>("tams");
   const endRef = useRef<HTMLDivElement>(null);
+
+  const productsQuery = useQuery<{ products: Product[] }>({
+    queryKey: ["products"],
+    queryFn: () => apiFetch<{ products: Product[] }>("/products"),
+    staleTime: 5 * 60_000,
+  });
+  const products = productsQuery.data?.products ?? [];
+  const active = products.find((p) => p.id === productId);
+  const suggestions = active?.suggestions ?? DEFAULT_SUGGESTIONS;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  function switchProduct(id: string) {
+    if (id === productId) return;
+    setProductId(id);
+    setMessages([]);
+    setError(null);
+  }
 
   async function send(text: string) {
     const content = text.trim();
@@ -42,7 +67,7 @@ export default function Copilot() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken() ?? ""}`,
         },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, productId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -66,9 +91,29 @@ export default function Copilot() {
           </div>
           <div>
             <h1 className="text-xl font-serif font-semibold text-foreground leading-none">Copilot</h1>
-            <p className="text-xs text-muted-foreground mt-1">Ton assistant pour piloter ton activité</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {active?.tagline ?? "Ton assistant pour piloter ton activité"}
+            </p>
           </div>
         </div>
+
+        {products.length > 1 && (
+          <div className="flex gap-1.5 mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+            {products.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => switchProduct(p.id)}
+                className={`text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors ${
+                  p.id === productId
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border/60 text-muted-foreground hover:bg-muted/40"
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
@@ -77,7 +122,7 @@ export default function Copilot() {
             <Sparkles className="w-8 h-8 mx-auto opacity-40" />
             <p className="text-sm">Pose une question ou choisis une suggestion.</p>
             <div className="flex flex-col gap-2 max-w-md mx-auto">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
