@@ -3,6 +3,14 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Éditeur de vidéo produit (Shopify/Reels, gratuit, hors-ligne)** : nouveau
+  mode **« Mes photos »** dans le Studio (onglet Vidéo) — upload de vraies photos
+  produit + **légende/texte par photo** (FFmpeg `drawtext`, nom/prix/accroche) +
+  musique + format vertical. 100% FFmpeg → **ne dépend pas de l'egress réseau**
+  (contrairement au mode prompt IA). `makeSlideshow` accepte `captions[]` ;
+  `/video/slideshow` aussi ; police `fonts-dejavu-core` ajoutée à nixpacks ;
+  body media 25→64 Mo. Testé bout-en-bout (2 photos + légendes accentuées/€ →
+  mp4 1080×1920 valide). Smoke 23/23.
 - **Mémoire conversationnelle du Copilot** : table `copilot_messages`
   (ensure-schema idempotent + index) ; chaque tour persiste message + réponse
   sous un `conversationId`. Endpoints `GET /copilot/conversations` (liste avec

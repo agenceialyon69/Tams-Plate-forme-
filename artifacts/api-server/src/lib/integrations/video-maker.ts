@@ -4,14 +4,27 @@ import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeFile, readFile, unlink } from "node:fs/promises";
+import { existsSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 const FFMPEG_BIN = process.env.FFMPEG_PATH || "ffmpeg";
 
+// First available font used for on-image captions (drawtext). Installed in the
+// deploy image via nixpacks (fonts-dejavu-core). Captions are skipped if none.
+const FONT_CANDIDATES = [
+  process.env.CAPTION_FONT,
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+  "/System/Library/Fonts/Supplemental/Arial.ttf",
+].filter((p): p is string => Boolean(p));
+const CAPTION_FONT = FONT_CANDIDATES.find((p) => existsSync(p)) ?? null;
+
 /**
- * Free "product video maker": assemble a set of images into a short vertical
- * slideshow video with a subtle Ken Burns (zoom) motion, using FFmpeg only —
- * no paid text-to-video service, no GPU. Ideal for Shopify / Reels / TikTok.
+ * Free "product video maker": assemble images into a short vertical slideshow
+ * video — optional per-image text captions (product name/price/CTA) and
+ * background music — using FFmpeg only. No paid service, no GPU, no Internet.
+ * Ideal for Shopify / Reels / TikTok.
  */
 
 export interface SlideshowOptions {
@@ -22,11 +35,28 @@ export interface SlideshowOptions {
   fps?: number;
   /** Optional background music (base64). Trimmed to the video length, faded out. */
   musicBase64?: string;
+  /** Optional caption per image (overlaid, lower third). Index-aligned. */
+  captions?: string[];
+}
+
+/** Whether on-image text captions are available (a usable font was found). */
+export function captionsAvailable(): boolean {
+  return CAPTION_FONT !== null;
 }
 
 function clampDim(v: number | undefined, fallback: number): number {
   const n = Number(v) || fallback;
   return Math.min(Math.max(Math.round(n), 256), 1920);
+}
+
+/** Strip control characters so a caption stays a clean single line. */
+function cleanCaption(s: string): string {
+  let out = "";
+  for (const ch of s) {
+    const code = ch.codePointAt(0) ?? 32;
+    out += code < 32 ? " " : ch;
+  }
+  return out.slice(0, 120);
 }
 
 /** Build a slideshow mp4 (base64) from base64-encoded images. */
@@ -76,17 +106,31 @@ export async function makeSlideshow(
       inputArgs.push("-i", musicPath);
     }
 
-    // Per-image: cover-crop to the target frame, normalise to fps, then concat.
-    // (Each input is bounded to `dur` seconds via -loop/-t below.)
-    const segments = inputPaths
-      .map(
-        (_, i) =>
-          `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
-          `crop=${width}:${height},setsar=1,fps=${fps},format=yuv420p[v${i}]`
-      )
-      .join(";");
+    // Per-image: cover-crop to the target frame, normalise to fps, optional
+    // caption overlay (lower third), then concat. Each input is bounded to
+    // `dur` seconds via -loop/-t below.
+    const fontSize = Math.round(width / 16);
+    const segments: string[] = [];
+    for (let i = 0; i < inputPaths.length; i++) {
+      let drawtext = "";
+      const caption = opts.captions?.[i]?.trim();
+      if (caption && CAPTION_FONT) {
+        // Use textfile= so caption content needs no filtergraph escaping.
+        const capPath = join(tmpdir(), `tams-vid-${id}-cap-${i}.txt`);
+        await writeFile(capPath, cleanCaption(caption));
+        cleanup.push(capPath);
+        drawtext =
+          `,drawtext=fontfile='${CAPTION_FONT}':textfile='${capPath}':` +
+          `fontcolor=white:fontsize=${fontSize}:box=1:boxcolor=black@0.5:boxborderw=22:` +
+          `x=(w-text_w)/2:y=h-h/4-text_h/2`;
+      }
+      segments.push(
+        `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
+          `crop=${width}:${height},setsar=1,fps=${fps},format=yuv420p${drawtext}[v${i}]`
+      );
+    }
     const concatInputs = inputPaths.map((_, i) => `[v${i}]`).join("");
-    let filter = `${segments};${concatInputs}concat=n=${inputPaths.length}:v=1:a=0[outv]`;
+    let filter = `${segments.join(";")};${concatInputs}concat=n=${inputPaths.length}:v=1:a=0[outv]`;
 
     const mapArgs = ["-map", "[outv]"];
     const audioArgs: string[] = [];
