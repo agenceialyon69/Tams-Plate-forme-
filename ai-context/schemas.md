@@ -40,7 +40,7 @@ colonne doit y être ajoutée en `ALTER ... ADD COLUMN IF NOT EXISTS`.
 | Table | Rôle | Colonnes clés |
 |---|---|---|
 | `audit_logs` | Journal HTTP auto (écritures) | id, userId, tenantId, action, resource, method, path, statusCode, ip, createdAt |
-| `app_events` | **Événements applicatifs structurés** (analytics) | id, userId, tenantId, workspaceId?, event, category, source, severity, metadata, ip, createdAt |
+| `app_events` | **Événements applicatifs structurés** (analytics) | id, userId, tenantId, workspaceId?, event, category, source, severity, importance, metadata, ip, createdAt |
 | `approval_requests` | Demandes d'approbation | id, tenantId, action, status, requestedBy |
 | `kill_switches` | Coupe-circuits par fonctionnalité | id, key, enabled |
 | `registry_entries` | Registre (prompts/agents/outils) | id, key, value, version |
@@ -50,8 +50,9 @@ colonne doit y être ajoutée en `ALTER ... ADD COLUMN IF NOT EXISTS`.
   d'écriture (qui a fait quoi via HTTP). Orienté **sécurité/traçabilité**.
 - **`app_events`** : explicite, via `trackEvent()` (voir `lib/events.ts`). Orienté
   **produit/analytics** (ex. `audit_run`, `copilot_message`, `video_generated`).
-  Champs distinctifs : `source` (front/backend/copilot/jobs), `severity`
-  (info/warning/critical), `metadata` libre.
+  Standard (ADR-010) : `source` ∈ {frontend, backend, copilot, agent, workflow,
+  search, system, job} · `severity` ∈ {low, medium, high, critical} (technique) ·
+  `importance` ∈ {low, medium, high, critical} (priorité métier) · `metadata` libre.
 
 ## Conventions
 - Clés primaires `serial`. Horodatage `created_at` (timezone) `defaultNow()`.

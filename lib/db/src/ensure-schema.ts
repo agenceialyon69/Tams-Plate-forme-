@@ -157,14 +157,16 @@ const STATEMENTS = [
     event TEXT NOT NULL,
     category TEXT NOT NULL,
     source TEXT NOT NULL DEFAULT 'backend',
-    severity TEXT NOT NULL DEFAULT 'info',
+    severity TEXT NOT NULL DEFAULT 'low',
+    importance TEXT NOT NULL DEFAULT 'medium',
     metadata JSONB,
     ip TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
   `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS workspace_id INTEGER`,
   `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'backend'`,
-  `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS severity TEXT NOT NULL DEFAULT 'info'`,
+  `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS severity TEXT NOT NULL DEFAULT 'low'`,
+  `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS importance TEXT NOT NULL DEFAULT 'medium'`,
   /* ---------- Enum types (Drizzle pgEnum — must exist before tables) ----------
      PostgreSQL has no IF NOT EXISTS for CREATE TYPE, so we use a DO block
      that catches the "already exists" error and silently continues.          */

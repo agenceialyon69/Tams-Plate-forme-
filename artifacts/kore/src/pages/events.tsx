@@ -9,17 +9,19 @@ interface AppEvent {
   category: string;
   source: string;
   severity: string;
+  importance: string;
   metadata: Record<string, unknown> | null;
   userId: number | null;
   createdAt: string;
 }
 
-const SOURCES = ["", "front", "backend", "copilot", "jobs"];
-const SEVERITIES = ["", "info", "warning", "critical"];
+const SOURCES = ["", "frontend", "backend", "copilot", "agent", "workflow", "search", "system", "job"];
+const SEVERITIES = ["", "low", "medium", "high", "critical"];
 
 const SEVERITY_STYLE: Record<string, string> = {
-  info: "bg-muted text-muted-foreground",
-  warning: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400",
+  low: "bg-muted text-muted-foreground",
+  medium: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  high: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400",
   critical: "bg-destructive/15 text-destructive",
 };
 
@@ -87,6 +89,9 @@ export default function EventsPage() {
                   <p className="text-sm text-foreground">
                     <span className="font-medium">{e.event}</span>
                     <span className="text-muted-foreground"> · {e.category} · {e.source}</span>
+                    {e.importance && e.importance !== "medium" && (
+                      <span className="text-muted-foreground"> · prio {e.importance}</span>
+                    )}
                   </p>
                   {e.metadata && Object.keys(e.metadata).length > 0 && (
                     <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">{JSON.stringify(e.metadata)}</p>
