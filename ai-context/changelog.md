@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Génération d'images (texte → image, gratuit)** : `lib/integrations/image-gen.ts`
+  (Pollinations sans clé + Hugging Face optionnel), `GET /image/status` +
+  `POST /image/generate` (owner/admin, rate-limité), page **Studio** (prompt →
+  image → téléchargement, formats e-commerce). Dégrade proprement si l'égress
+  réseau bloque l'hôte.
 - **Verticales produit (AI Startup OS)** : couche de *personas* configurables
   (`lib/products.ts`) — Claire (dentaire), Shopify (e-commerce), Garage, CRM
   local, SaaS générique + l'assistant TAMS. Chaque verticale = un system prompt

@@ -127,6 +127,25 @@ async function main() {
       ? ok(`products: ${prodBody.products?.length ?? 0} verticals listed`)
       : ko(`expected products list with tams, got ${prod.status} ${JSON.stringify(prodBody)}`);
 
+    // Image generation: status lists the keyless provider, and the generate
+    // route validates input (empty prompt → 400) without calling the network.
+    const imgStatus = await fetch(`${BASE}/api/integrations/image/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const imgBody = await imgStatus.json().catch(() => ({}));
+    imgStatus.status === 200 && Array.isArray(imgBody.providers) && imgBody.providers.includes("pollinations")
+      ? ok("image generation: free provider available")
+      : ko(`expected image providers with pollinations, got ${imgStatus.status} ${JSON.stringify(imgBody)}`);
+
+    const imgGen = await fetch(`${BASE}/api/integrations/image/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+    imgGen.status === 400
+      ? ok("image generate: validates prompt")
+      : ko(`expected 400 from image generate, got ${imgGen.status}`);
+
     // FFmpeg status endpoint answers without crashing whether or not the
     // binary is installed (configured is a boolean either way).
     const ff = await fetch(`${BASE}/api/integrations/ffmpeg/status`, {

@@ -3,6 +3,15 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Génération d'images (texte → image, gratuit)** : `lib/integrations/image-gen.ts`
+  — **Pollinations** (sans clé, sans compte) par défaut + **Hugging Face**
+  optionnel (token gratuit, FLUX/SDXL). `GET /image/status`, `POST /image/generate`
+  (owner/admin, rate-limit 15/min), nouvelle page **Studio** (prompt → image,
+  formats e-commerce : carré/portrait/story/paysage, téléchargement). Dégrade
+  proprement si l'égress réseau bloque l'hôte (message explicite). Vérifié :
+  typecheck, build, smoke **17/17**.
+  À venir : **texte → vidéo** (pas d'API gratuite fiable → pipeline
+  images + FFmpeg = vidéo slideshow pour Shopify).
 - **Verticales produit (AI Startup OS)** : couche de personas modulaire
   (`lib/products.ts`) transformant la plateforme en n'importe quel assistant
   métier sans nouvelle app. 6 verticales : TAMS (générique), **Claire**

@@ -8,7 +8,12 @@ import {
   createIssue,
 } from "../lib/integrations/github";
 import { ffmpegStatus, probeBase64, extractAudioBase64 } from "../lib/integrations/ffmpeg";
+import { generateImage, imageProviders, isImageGenAvailable } from "../lib/integrations/image-gen";
 import { transcribeAudio } from "../lib/ai";
+import { rateLimitByUser } from "../middlewares/rate-limit";
+
+// Tight limit for the (external, heavier) image generation endpoint.
+const imageLimiter = rateLimitByUser({ windowMs: 60_000, max: 15 });
 
 const router: IRouter = Router();
 
@@ -186,6 +191,51 @@ router.post(
         return;
       }
       res.status(422).json({ error: "Extraction audio impossible.", detail: msg.slice(0, 200) });
+    }
+  }
+);
+
+// --- Image generation (text-to-image, free providers) ----------------------
+
+/** GET /api/integrations/image/status — providers available for generation. */
+router.get(
+  "/integrations/image/status",
+  requireRole("owner", "admin"),
+  (_req, res): void => {
+    res.json({ configured: isImageGenAvailable(), providers: imageProviders() });
+  }
+);
+
+/** POST /api/integrations/image/generate — generate an image from a prompt. */
+router.post(
+  "/integrations/image/generate",
+  requireRole("owner", "admin"),
+  imageLimiter,
+  async (req, res): Promise<void> => {
+    if (!isImageGenAvailable()) {
+      res.status(503).json({ error: "Génération d'images désactivée (ENABLE_IMAGE_GENERATION=false)." });
+      return;
+    }
+    const body = (req.body ?? {}) as { prompt?: unknown; width?: unknown; height?: unknown; seed?: unknown };
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    if (!prompt) {
+      res.status(400).json({ error: "Prompt requis." });
+      return;
+    }
+    try {
+      const image = await generateImage(prompt, {
+        width: Number(body.width) || undefined,
+        height: Number(body.height) || undefined,
+        seed: Number(body.seed) || undefined,
+      });
+      res.json(image);
+    } catch (err) {
+      const msg = String(err);
+      // A blocked egress policy is the most common deploy-time failure.
+      const hint = msg.includes("allowlist") || msg.includes("ENOTFOUND") || msg.includes("fetch")
+        ? " (le serveur n'a peut-être pas accès à Internet — vérifie la politique réseau)."
+        : "";
+      res.status(502).json({ error: `Génération impossible${hint}`, detail: msg.slice(0, 200) });
     }
   }
 );
