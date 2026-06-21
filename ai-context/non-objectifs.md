@@ -27,6 +27,9 @@
   duplique pas.
 - **Outils multiples** remplissant le même rôle.
 - **Abstractions prématurées** ; **dépendances nouvelles** sans bénéfice clair.
+- **Frameworks d'agents** (LangChain, CrewAI, AutoGPT, AgentGPT) et **multi-agent
+  sans cas d'usage concret** : refusés tant qu'aucun besoin réel (cf. ADR-012).
+  Idem n8n / LlamaIndex / Stable Diffusion local → différés jusqu'à besoin.
 - **Docs parallèles** qui se recouvrent : on garde `ai-context/` court et
   factuel (cf. ADR-011 : pas de dossier `architecture/` ni `adr/` tant que
   `architecture.md` et `decisions.md` suffisent).
