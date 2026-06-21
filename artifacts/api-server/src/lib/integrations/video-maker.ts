@@ -20,6 +20,8 @@ export interface SlideshowOptions {
   /** Seconds each image is shown. */
   secondsPerImage?: number;
   fps?: number;
+  /** Optional background music (base64). Trimmed to the video length, faded out. */
+  musicBase64?: string;
 }
 
 function clampDim(v: number | undefined, fallback: number): number {
@@ -55,10 +57,23 @@ export async function makeSlideshow(
     const outputPath = join(tmpdir(), `tams-vid-${id}.mp4`);
     cleanup.push(outputPath);
 
+    const totalSec = dur * inputPaths.length;
+
     // Inputs: each image looped for `dur` seconds.
     const inputArgs: string[] = [];
     for (const p of inputPaths) {
       inputArgs.push("-loop", "1", "-t", String(dur), "-i", p);
+    }
+
+    // Optional background music as an extra input (trimmed + faded to length).
+    let musicIndex = -1;
+    if (opts.musicBase64) {
+      const raw = opts.musicBase64.includes(",") ? opts.musicBase64.split(",").pop()! : opts.musicBase64;
+      const musicPath = join(tmpdir(), `tams-vid-${id}-music`);
+      await writeFile(musicPath, Buffer.from(raw, "base64"));
+      cleanup.push(musicPath);
+      musicIndex = inputPaths.length;
+      inputArgs.push("-i", musicPath);
     }
 
     // Per-image: cover-crop to the target frame, normalise to fps, then concat.
@@ -71,7 +86,16 @@ export async function makeSlideshow(
       )
       .join(";");
     const concatInputs = inputPaths.map((_, i) => `[v${i}]`).join("");
-    const filter = `${segments};${concatInputs}concat=n=${inputPaths.length}:v=1:a=0[outv]`;
+    let filter = `${segments};${concatInputs}concat=n=${inputPaths.length}:v=1:a=0[outv]`;
+
+    const mapArgs = ["-map", "[outv]"];
+    const audioArgs: string[] = [];
+    if (musicIndex >= 0) {
+      const fadeStart = Math.max(totalSec - 1.5, 0);
+      filter += `;[${musicIndex}:a]afade=t=out:st=${fadeStart}:d=1.5,atrim=0:${totalSec}[outa]`;
+      mapArgs.push("-map", "[outa]");
+      audioArgs.push("-c:a", "aac", "-b:a", "192k", "-shortest");
+    }
 
     await execFileAsync(
       FFMPEG_BIN,
@@ -79,9 +103,10 @@ export async function makeSlideshow(
         "-y",
         ...inputArgs,
         "-filter_complex", filter,
-        "-map", "[outv]",
+        ...mapArgs,
         "-r", String(fps),
         "-pix_fmt", "yuv420p",
+        ...audioArgs,
         "-movflags", "+faststart",
         outputPath,
       ],

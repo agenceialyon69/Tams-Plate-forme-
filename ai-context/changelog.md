@@ -3,6 +3,9 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Musique sur les vidéos** : piste audio optionnelle (upload) mixée dans le
+  slideshow (trim + fondu de sortie via FFmpeg), uploader dans l'onglet Vidéo
+  du Studio. Testé bout-en-bout (vidéo h264 + audio aac).
 - **Recherche web (Copilot)** : `lib/integrations/web-search.ts` (Tavily/Brave/
   SearXNG + **DuckDuckGo keyless** par défaut). Bouton **Web** dans le Copilot
   (grounding + sources cliquables), `GET /web-search/status`, `POST /web-search`.
