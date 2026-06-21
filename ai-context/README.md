@@ -20,10 +20,13 @@ règles **sans contexte externe**, et de reprendre le travail à tout moment.
 | **`schemas.md`** | Modèle de données (tables PostgreSQL, conventions). | À chaque changement de schéma. |
 | **`runbook.md`** | Exploitation & incidents : déploiement, secrets, pannes fréquentes, rollback. | Quand l'ops évolue. |
 | **`free-stack.md`** | Politique « gratuit d'abord » + outils/alternatives gratuits retenus. | Quand un outil change. |
+| **`non-objectifs.md`** | Périmètre refusé/reporté (protège le scope). | Quand un périmètre est refusé. |
+| **`project-config.md`** | Modes, feature-flags, intégrations, déploiement (pointe vers `.env.example`). | Quand la config évolue. |
 | **`multi-tenant-plan.md`** | Plan de migration multi-tenant (différé : l'app est en mode perso/test). Concept conservé. | Avant d'ouvrir le multi-clients. |
 
-> ⚠️ Avant toute nouvelle feature, relire les **« Non-objectifs actifs »** de
-> `vision.md` : si la demande y retombe, elle est reportée, pas codée.
+> ⚠️ Avant toute nouvelle feature, relire **`non-objectifs.md`** et les
+> **checklists de gouvernance** de `rules.md` : si la demande y retombe, elle
+> est reportée, pas codée.
 
 ## Boucle d'exécution (résumé de `rules.md`)
 

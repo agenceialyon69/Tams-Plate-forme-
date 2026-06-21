@@ -3,6 +3,13 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Gouvernance formalisée (free-first + checklists)** : règle **free-first**
+  enregistrée (ADR-008, `rules.md`). `non-objectifs.md` dédié. 5 checklists
+  opérationnelles + règle finale dans `rules.md`. `project-config.md` (modes,
+  flags, intégrations, déploiement). ADR-010 (standard d'événements) + ADR-011
+  (structure docs minimale, refus des dossiers `architecture/`/`adr/` = anti
+  sur-ingénierie). Index `README.md` à jour. _Suite : aligner le code
+  `trackEvent` sur le standard (source/severity/importance)._
 - **Système d'événements applicatifs (analytics/observabilité)** : table
   `app_events` (ensure-schema idempotent) + `lib/events.ts` : `trackEvent()`
   unique (fire-and-forget, ne throw jamais) avec `source`

@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Gouvernance formalisée** : `non-objectifs.md` dédié (extrait de `vision.md`),
+  **5 checklists** (gouvernance/free-first, archi & doc, événements, qualité,
+  non-objectifs) + règle finale dans `rules.md`, `project-config.md` (modes,
+  flags, intégrations, déploiement). ADR-010 (standard d'événements unifié) et
+  ADR-011 (structure docs minimale — refus des dossiers `architecture/`/`adr/`).
 - **Viewer d'événements (front)** : page admin `/events` (filtres source/gravité,
   badges, métadonnées, rafraîchissement) au-dessus de `GET /api/app-events`.
 - **Système d'événements applicatifs** : table `app_events` + helper unique
