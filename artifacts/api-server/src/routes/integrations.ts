@@ -12,6 +12,7 @@ import { generateImage, imageProviders, isImageGenAvailable } from "../lib/integ
 import { makeSlideshow } from "../lib/integrations/video-maker";
 import { searchProviders } from "../lib/integrations/web-search";
 import { configuredProviders } from "../lib/llm";
+import { trackMediaGenerated } from "../lib/events";
 import { transcribeAudio } from "../lib/ai";
 import { rateLimitByUser } from "../middlewares/rate-limit";
 
@@ -256,6 +257,7 @@ router.post(
         height: Number(body.height) || undefined,
         seed: Number(body.seed) || undefined,
       });
+      trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "image", provider: image.provider, req });
       res.json(image);
     } catch (err) {
       const msg = String(err);
@@ -297,6 +299,7 @@ router.post(
         secondsPerImage: Number(body.secondsPerImage) || undefined,
         musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
       });
+      trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
     } catch (err) {
       res.status(422).json({ error: "Création vidéo impossible.", detail: String(err).slice(0, 200) });
@@ -344,6 +347,7 @@ router.post(
           musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
         }
       );
+      trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
     } catch (err) {
       const msg = String(err);

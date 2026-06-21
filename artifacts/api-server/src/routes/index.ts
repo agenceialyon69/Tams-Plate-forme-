@@ -24,6 +24,7 @@ import profileRouter from "./profile";
 import quotasRouter from "./quotas";
 import copilotRouter from "./copilot";
 import integrationsRouter from "./integrations";
+import appEventsRouter from "./app-events";
 import { rateLimit, rateLimitByTenant, rateLimitByUser } from "../middlewares/rate-limit";
 import { auditMiddleware } from "../middlewares/audit";
 
@@ -61,6 +62,7 @@ router.use(killSwitchRouter);
 router.use(profileRouter);
 router.use(quotasRouter);
 router.use(integrationsRouter);
+router.use(appEventsRouter);
 
 // AI endpoints last, behind a single burst limiter. Because earlier routers
 // have already handled (and ended) their requests, this limiter only runs for

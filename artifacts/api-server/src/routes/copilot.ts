@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { copilotChat, type CopilotMessage } from "../lib/ai";
 import { listProducts } from "../lib/products";
 import { searchWeb, formatResultsForPrompt, searchProviders } from "../lib/integrations/web-search";
+import { trackCopilotMessage } from "../lib/events";
 import { checkAndIncrementAiCalls } from "./quotas";
 
 const router: IRouter = Router();
@@ -53,6 +54,15 @@ router.post("/copilot/chat", async (req, res): Promise<void> => {
   }
 
   const reply = await copilotChat(messages, productId, webContext);
+
+  trackCopilotMessage({
+    userId: req.authUser?.id,
+    tenantId: req.tenantId,
+    productId,
+    webSearch: wantWeb,
+    req,
+  });
+
   res.json({ reply, sources });
 });
 

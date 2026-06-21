@@ -3,6 +3,13 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Système d'événements applicatifs** : table `app_events` + helper unique
+  `trackEvent()` (fire-and-forget) avec `source` (front/backend/copilot/jobs),
+  `severity` (info/warning/critical), `workspaceId` (réservé futur), `metadata`.
+  Helpers typés `trackAuditRun` / `trackCopilotMessage` / `trackMediaGenerated`
+  (évitent de dupliquer trackEvent). Câblé sur red-team run, copilot chat et
+  génération image/vidéo. Viewer admin `GET /api/app-events` (filtres
+  category/source/severity).
 - **Gouvernance enrichie** : ajout de `decisions.md` (ADR léger), `schemas.md`
   (modèle de données), `runbook.md` (exploitation/incidents), `free-stack.md`
   (politique gratuit-d'abord + outils). Section **« Non-objectifs actifs »**
