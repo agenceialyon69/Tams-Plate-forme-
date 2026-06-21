@@ -2,6 +2,17 @@
 
 Format : date — résumé (réf PR si applicable).
 
+## 2026-06-21
+- **Intégration GitHub** (modulaire, feature-flag `GITHUB_TOKEN`, owner/admin) :
+  module `lib/integrations/github.ts` + routes `/api/integrations/github/*`
+  (statut, dépôts, issues, création d'issue) + page `/integrations`. Désactivée
+  proprement sans token (statut → `configured:false`, data → 503). Le token
+  n'est jamais renvoyé au client.
+- **Gateway IA multi-fournisseurs** (`lib/llm.ts`) : le Copilot route vers le
+  premier fournisseur **gratuit** configuré avec fallback automatique. Gemini,
+  Groq (Llama/Qwen), **OpenRouter** (DeepSeek R1 / Qwen, gratuit, sans serveur),
+  Ollama (local). Sélection via `AI_PROVIDER`. `.env.example` complété.
+
 ## 2026-06-20
 - **Copilot IA** : chat conversationnel minimal (`/copilot` + `/api/copilot/chat`,
   Gemini, provider isolé pour multi-LLM futur).

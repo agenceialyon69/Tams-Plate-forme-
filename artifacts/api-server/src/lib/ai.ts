@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { logger } from "./logger";
+import { chatComplete, hasLlmProvider } from "./llm";
 
 // Lazy init: the Groq SDK throws at construction when the key is missing,
 // which would crash the whole server at startup. Defer it so the API still
@@ -656,13 +657,14 @@ export interface CopilotMessage {
 }
 
 /**
- * General conversational copilot. Uses Gemini today; the provider is isolated
- * here so other backends (Ollama/local LLMs) can be added later without
- * touching the route. Never throws — degrades to a clear message.
+ * General conversational copilot. Routes through the multi-provider LLM
+ * gateway (`lib/llm`), so it works with any configured free provider
+ * (Gemini, Groq, or a local Ollama model) and falls back automatically.
+ * Never throws — degrades to a clear message.
  */
 export async function copilotChat(messages: CopilotMessage[]): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) {
-    return "L'assistant IA n'est pas configuré (GEMINI_API_KEY manquante). Ajoute la clé dans les variables pour activer le Copilot.";
+  if (!hasLlmProvider()) {
+    return "L'assistant IA n'est pas configuré. Ajoute une clé (GEMINI_API_KEY ou GROQ_API_KEY) ou un serveur local (OLLAMA_BASE_URL) pour activer le Copilot.";
   }
 
   const trimmed = messages
@@ -680,14 +682,8 @@ ${INJECTION_GUARD}
 RÈGLES : honnête, concis, concret. Tu n'inventes jamais de données ; si tu ne sais pas, dis-le. Propose des actions claires quand c'est utile. Réponds en français, en texte simple.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction });
-    const history = trimmed.slice(0, -1).map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(last.content);
-    return result.response.text().trim() || "Je n'ai pas de réponse pour le moment.";
+    const { text } = await chatComplete(trimmed, { system: systemInstruction });
+    return text || "Je n'ai pas de réponse pour le moment.";
   } catch (err) {
     logger.error({ err }, "Copilot chat failed");
     return "Désolé, l'assistant a rencontré une erreur. Réessaie dans un instant.";

@@ -35,6 +35,7 @@ import {
   User,
   UsersRound,
   Sparkles,
+  Plug,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
@@ -125,6 +126,7 @@ const navItems = [
   { href: "/diagnostics", label: "Diagnostics", icon: Stethoscope },
   { label: "divider", href: "", icon: Home },
   { href: "/admin/users", label: "Utilisateurs", icon: UsersRound },
+  { href: "/integrations", label: "Intégrations", icon: Plug },
   { href: "/profile", label: "Mon profil", icon: User },
   { href: "/settings", label: "Paramètres", icon: Settings2 },
 ];
@@ -298,6 +300,7 @@ function Router() {
           <Route path="/approvals" component={ApprovalsPage} />
           <Route path="/observability" component={ObservabilityPage} />
           <Route path="/profile" component={ProfilePage} />
+          <Route path="/integrations" component={IntegrationsPage} />
           <Route path="/admin/users" component={AdminUsersPage} />
           <Route component={NotFound} />
         </Switch>
@@ -328,6 +331,7 @@ import RegistryPage from "./pages/registry";
 import ApprovalsPage from "./pages/approvals";
 import ObservabilityPage from "./pages/observability";
 import ProfilePage from "./pages/profile";
+import IntegrationsPage from "./pages/integrations";
 import AdminUsersPage from "./pages/admin-users";
 
 function App() {

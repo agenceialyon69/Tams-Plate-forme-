@@ -1,8 +1,23 @@
 # Progress
 
-_Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
+_Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Intégration GitHub (modulaire, feature-flag)** : module
+  `lib/integrations/github.ts` (token-based, REST officielle) + routes
+  `/api/integrations/github/*` (statut, dépôts, issues, création d'issue,
+  owner/admin) + page `/integrations` (statut, identité, dépôts récents).
+  Activée seulement si `GITHUB_TOKEN` est présent ; sinon statut
+  `configured:false` (200) et data routes 503 — aucune casse. Le token n'est
+  jamais renvoyé au client. Vérifié : typecheck (web+API), build, smoke **12/12**
+  (nouvelle assertion : intégration désactivée proprement sans token).
+- **Gateway IA multi-fournisseurs gratuits** (`lib/llm.ts`) : `chatComplete()`
+  route vers le premier fournisseur **configuré** et bascule sur le suivant en
+  cas d'échec (clé absente / serveur local éteint → le Copilot ne casse jamais).
+  Fournisseurs : **gemini**, **groq** (Llama/Qwen), **openrouter** (DeepSeek R1 /
+  Qwen, gratuit, sans serveur), **ollama** (local). Sélection via `AI_PROVIDER`
+  (auto par défaut). `copilotChat` passe par le gateway. `.env.example` complété.
+  Vérifié : typecheck, build, smoke.
 - **Copilot IA minimal (chat)** : nouvelle page `/copilot` (UI de chat) + endpoint
   `POST /api/copilot/chat` (auth + quota IA), branché sur Gemini via un provider
   isolé (`lib/ai.ts copilotChat`) prêt à accueillir Ollama/local plus tard.
@@ -81,9 +96,14 @@ _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 - (rien — en attente de validation de la prochaine tâche)
 
 ## NEXT (une tâche à la fois)
-1. Analytics structure minimale (événements utiles, usage réel).
-2. Docker de base (optionnel — le déploiement actuel utilise nixpacks).
-3. (Différé, hors-scope perso) isolation multi-tenant — prérequis multi-clients.
+1. Outils gratuits (suite) : recherche web (SearXNG/DuckDuckGo), traitement
+   vidéo FFmpeg (alternative libre à CapCut), génération d'images (ComfyUI),
+   transcription Whisper (déjà via Groq) — chacun modulaire + feature-flag.
+2. Sélecteur de fournisseur IA dans Paramètres (surface `AI_PROVIDER` +
+   fournisseurs configurés via un endpoint de diagnostic).
+3. Analytics structure minimale (événements utiles, usage réel).
+4. Docker de base (optionnel — le déploiement actuel utilise nixpacks).
+5. (Différé, hors-scope perso) isolation multi-tenant — prérequis multi-clients.
 
 ## BLOCKERS
 - **Isolation multi-tenant** absente sur les tables de données produit
