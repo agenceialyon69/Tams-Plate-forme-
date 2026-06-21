@@ -20,6 +20,20 @@ function hashResetToken(raw: string): string {
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
+/**
+ * Constant-time check that an account-creation code matches the owner secret
+ * (API_AUTH_TOKEN). Lets the operator self-serve their owner account via the
+ * normal email/password sign-up form even when public registration is closed —
+ * without re-opening registration to everyone.
+ */
+function isOwnerCode(code: string | undefined): boolean {
+  const master = process.env.API_AUTH_TOKEN;
+  if (!master || master.length < 16 || !code) return false;
+  const a = crypto.createHash("sha256").update(code).digest();
+  const b = crypto.createHash("sha256").update(master).digest();
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -30,6 +44,7 @@ const registerSchema = z.object({
   password: z.string().min(8),
   name: z.string().min(1).max(100),
   tenantSlug: z.string().min(1).max(60).optional(),
+  accessCode: z.string().min(1).max(4096).optional(),
 });
 
 const forgotPasswordSchema = z.object({
@@ -118,26 +133,34 @@ router.post("/auth/register", authLimiter, async (req, res) => {
 
   try {
     // ── Registration gate ────────────────────────────────────────────────────
-    // Open self-registration would let anyone create an account and, until full
-    // per-tenant data isolation exists, read all data. So registration is closed
-    // by default. It is allowed only to bootstrap the very first account, or when
-    // SELF_REGISTRATION_ENABLED=true is set explicitly (e.g. going multi-user).
+    // Public self-registration is closed by default (until per-tenant data
+    // isolation exists, an open sign-up would expose all data). Allowed when:
+    //   - bootstrapping the very first account, OR
+    //   - SELF_REGISTRATION_ENABLED=true, OR
+    //   - a valid owner code (= API_AUTH_TOKEN) is provided → lets the operator
+    //     create their own owner account via the normal sign-up form, once.
     const [anyUser] = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
     const isBootstrap = !anyUser;
     const selfRegEnabled = process.env.SELF_REGISTRATION_ENABLED === "true";
-    if (!isBootstrap && !selfRegEnabled) {
+    const validOwnerCode = isOwnerCode(parse.data.accessCode);
+    if (!isBootstrap && !selfRegEnabled && !validOwnerCode) {
       res.status(403).json({
-        error: "L'inscription est désactivée. Demande une invitation à un administrateur.",
+        error:
+          "L'inscription est fermée. Saisis le code propriétaire (API_AUTH_TOKEN) " +
+          "pour créer ton compte, ou demande une invitation.",
+        code: "REGISTRATION_CLOSED",
       });
       return;
     }
 
-    let tenant = tenantSlug
-      ? (await db.select().from(tenantsTable).where(eq(tenantsTable.slug, tenantSlug)).limit(1))[0]
-      : null;
+    // Always resolve the tenant by its slug (explicit, or derived from the email
+    // domain) and look it up BEFORE inserting — otherwise a second user with the
+    // same email domain hits the unique-slug constraint and 500s.
+    const slug = tenantSlug ?? email.split("@")[1]?.replace(/\./g, "-") ?? "default";
+    let tenant =
+      (await db.select().from(tenantsTable).where(eq(tenantsTable.slug, slug)).limit(1))[0] ?? null;
 
     if (!tenant) {
-      const slug = tenantSlug ?? email.split("@")[1]?.replace(/\./g, "-") ?? "default";
       const [created] = await db
         .insert(tenantsTable)
         .values({ name: slug, slug })
@@ -177,7 +200,8 @@ router.post("/auth/register", authLimiter, async (req, res) => {
       .where(eq(usersTable.tenantId, tenant.id))
       .limit(1);
 
-    const isFirstUser = existingTenantUsers.length === 0;
+    // First user of a tenant — or anyone presenting the valid owner code — is owner.
+    const isFirstUser = existingTenantUsers.length === 0 || validOwnerCode;
 
     const [user] = await db
       .insert(usersTable)

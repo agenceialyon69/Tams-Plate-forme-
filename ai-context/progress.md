@@ -3,6 +3,14 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-20._
 
 ## DONE
+- **Inscription propriétaire pro (email/mot de passe)** : l'onglet « Créer un
+  compte » est toujours dispo ; quand l'inscription est fermée, un **code
+  propriétaire** (= `API_AUTH_TOKEN`, comparé en temps constant) permet de créer
+  son compte **owner** une seule fois → ensuite connexion email/mot de passe.
+  **2 bugs corrigés au passage** : (1) register 500 (tenant ré-inséré sur même
+  domaine email → désormais lookup avant insert) ; (2) rate-limiters qui
+  partageaient le même compteur par IP (global 120 vs auth 10) → namespace par
+  instance. Vérifié : smoke **11/11**, typecheck, build.
 - **Correctif UX login** : ré-ajout de l'option **« Accès propriétaire avec un
   token »** sur l'écran de connexion (la doc demandait de coller `API_AUTH_TOKEN`
   mais l'écran ne le permettait plus → blocage quand l'inscription est fermée).

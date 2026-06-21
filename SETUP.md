@@ -42,10 +42,12 @@ Faisable depuis un ordinateur **ou** depuis le navigateur de ton téléphone.
 5. **Déploie** (Railway le fait automatiquement). Quand c'est vert, ouvre
    l'onglet **Settings → Networking → Generate Domain** : tu obtiens ton URL
    publique (ex. `https://kore-production.up.railway.app`).
-6. **Ouvre cette URL** → sur l'écran « TAMS — Accès », clique sur **« Accès
-   propriétaire avec un token »** et colle ta valeur `API_AUTH_TOKEN`. 🎉
-   *(Astuce : tu peux aussi ouvrir `https://<ton-url>/?token=<ton-token>` pour
-   te connecter directement.)*
+6. **Ouvre cette URL** → sur l'écran « TAMS — Accès », onglet **« Créer un
+   compte »** : saisis ton **nom, email, mot de passe**. Comme l'inscription est
+   fermée par défaut, colle aussi ton **code propriétaire** (= ta valeur
+   `API_AUTH_TOKEN`) **une seule fois**. → ton compte **propriétaire** est créé. 🎉
+   Ensuite, tu te connectes simplement avec **email + mot de passe** (plus besoin
+   du code). *(Accès de secours : « Accès propriétaire avec un token ».)*
 
 > Les variables `PORT`, `NODE_ENV` et `BASE_PATH` sont déjà fournies par le
 > fichier `railway.toml` du dépôt — tu n'as pas à t'en occuper.

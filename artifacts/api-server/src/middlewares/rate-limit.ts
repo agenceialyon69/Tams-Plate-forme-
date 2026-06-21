@@ -28,12 +28,18 @@ interface RateOptions {
   skip?: (req: Request) => boolean;
 }
 
+// Each rateLimit() instance gets its own bucket namespace so independent
+// limiters (e.g. global 120/min vs auth 10/min) never share a counter — sharing
+// would make the strictest limit apply to all traffic.
+let instanceCounter = 0;
+
 export function rateLimit(opts: RateOptions) {
+  const ns = `rl${instanceCounter++}`;
   const keyFn = opts.key ?? ((req: Request) => req.ip ?? "unknown");
 
   return (req: Request, res: Response, next: NextFunction): void => {
     if (opts.skip?.(req)) { next(); return; }
-    const key = `ratelimit:${keyFn(req)}`;
+    const key = `${ns}:${keyFn(req)}`;
     const { ok, remaining } = memoryCount(key, opts.windowMs, opts.max);
 
     res.setHeader("X-RateLimit-Limit", String(opts.max));

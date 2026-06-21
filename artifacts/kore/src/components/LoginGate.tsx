@@ -32,6 +32,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
   const [canRegister, setCanRegister] = useState(true);
   const [showTokenAccess, setShowTokenAccess] = useState(false);
   const [accessToken, setAccessToken] = useState("");
+  const [ownerCode, setOwnerCode] = useState("");
 
   useEffect(() => onAuthChange(() => setAuthed(Boolean(getToken()))), []);
 
@@ -115,7 +116,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
       const res = await fetch(`${getApiBase()}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
+        body: JSON.stringify({ email: email.trim(), password, name: name.trim(), accessCode: ownerCode.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Erreur d'inscription."); return; }
@@ -191,7 +192,7 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
           </div>
         )}
 
-        {canRegister && tab !== "forgot" && tab !== "reset" && (
+        {tab !== "forgot" && tab !== "reset" && (
           <div className="flex rounded-lg border border-border/50 p-1 bg-muted/30">
             <button
               onClick={() => switchTab("login")}
@@ -327,8 +328,20 @@ export function LoginGate({ children }: { children: ReactNode }): ReactNode {
                     {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {!canRegister && (
+                  <div className="space-y-1">
+                    <Input
+                      type="password" autoComplete="off" placeholder="Code propriétaire (API_AUTH_TOKEN)"
+                      value={ownerCode} onChange={(e) => { setOwnerCode(e.target.value); setError(null); }}
+                      disabled={loading} required
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      L'inscription est fermée : saisis le code propriétaire pour créer ton compte (une seule fois). Ensuite, connexion par email/mot de passe.
+                    </p>
+                  </div>
+                )}
                 {error && <p className="text-xs text-destructive flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}</p>}
-                <Button type="submit" className="w-full" disabled={loading || !email.trim() || !password.trim() || !name.trim()}>
+                <Button type="submit" className="w-full" disabled={loading || !email.trim() || !password.trim() || !name.trim() || (!canRegister && ownerCode.trim().length < 16)}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Créer mon compte
                 </Button>
