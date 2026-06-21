@@ -23,6 +23,7 @@ import killSwitchRouter from "./kill-switch";
 import profileRouter from "./profile";
 import quotasRouter from "./quotas";
 import copilotRouter from "./copilot";
+import integrationsRouter from "./integrations";
 import { rateLimit, rateLimitByTenant, rateLimitByUser } from "../middlewares/rate-limit";
 import { auditMiddleware } from "../middlewares/audit";
 
@@ -62,5 +63,6 @@ router.use(approvalsRouter);
 router.use(killSwitchRouter);
 router.use(profileRouter);
 router.use(quotasRouter);
+router.use(integrationsRouter);
 
 export default router;

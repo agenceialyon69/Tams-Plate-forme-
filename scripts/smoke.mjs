@@ -107,6 +107,17 @@ async function main() {
     const tasks = await fetch(`${BASE}/api/tasks`, { headers: { Authorization: `Bearer ${token}` } });
     tasks.status === 200 ? ok("authenticated data route (200)") : ko(`tasks failed (${tasks.status})`);
 
+    // Feature-flagged integration degrades gracefully when no token is set:
+    // the owner sees the GitHub integration reported as not configured (200),
+    // never a crash. (GITHUB_TOKEN is absent in the smoke environment.)
+    const gh = await fetch(`${BASE}/api/integrations/github/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const ghBody = await gh.json().catch(() => ({}));
+    gh.status === 200 && ghBody.configured === false
+      ? ok("github integration: disabled gracefully without token")
+      : ko(`expected github disabled, got ${gh.status} ${JSON.stringify(ghBody)}`);
+
     // Logout works (authenticated route).
     const logout = await fetch(`${BASE}/api/auth/logout`, {
       method: "POST",
