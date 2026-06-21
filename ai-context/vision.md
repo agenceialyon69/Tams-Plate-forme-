@@ -24,26 +24,11 @@ sur Railway (API Express qui sert aussi le front).
 Simplicité maximale, scope strict, stabilité avant intelligence, template avant
 expérimentation. Une feature = un cycle complet (voir `rules.md`).
 
-## 🚫 Non-objectifs actifs (à relire avant toute nouvelle feature)
-Ce qu'on **refuse explicitement** maintenant — non par manque d'intérêt, mais
-par discipline de scope. Toute demande qui retombe ici est reportée, pas codée.
-
-1. **Multi-tenant / multi-clients** : isolation `tenantId` non faite sur les
-   tables data → l'app reste **mono-utilisateur** (inscription fermée). Plan
-   prêt dans `multi-tenant-plan.md`, exécution différée. **Bloquant avant
-   ouverture publique.**
-2. **Inscription publique ouverte** : fermée par défaut (bootstrap 1er compte +
-   code propriétaire). On ne l'ouvre pas avant le multi-tenant.
-3. **Services payants** : interdits par défaut. Tout outil/IA doit être gratuit
-   (voir `free-stack.md`). Exception seulement si le gratuit est insuffisant /
-   instable / incompatible avec une contrainte documentée.
-4. **Vrai texte→vidéo IA** (Sora/Runway/Pika…) : payant → hors-scope. La voie
-   retenue est images gratuites + montage FFmpeg.
-5. **Refonte structurelle massive** du dépôt sans justification red-team.
-6. **App native mobile** : on reste en **PWA** (installable, mobile-first).
-7. **Temps réel / collaboratif** (websockets multi-utilisateurs, présence…).
-8. **Features spéculatives** : pas de code « au cas où ». Une feature = un besoin
-   réel + un cycle complet (voir `rules.md`).
+## 🚫 Non-objectifs actifs
+Ce qu'on refuse/reporte explicitement (multi-tenant différé, pas d'inscription
+publique, **pas de payant**, pas de natif mobile, pas de temps réel, pas de
+doublon d'analytics…). **Détail complet et à jour : `non-objectifs.md`.**
+À relire avant toute nouvelle feature.
 
 ## Non-objectifs (rappels techniques)
 - Pas de couche IA avancée avant que la base soit stable (Phase 3).

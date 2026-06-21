@@ -24,6 +24,45 @@
 Analyse → Red Team → Decision Gate → Plan → Implémentation → Tests simples →
 Commit → Push → Maj `progress.md` → Vérif stabilité → Tâche suivante.
 
+## Checklists de gouvernance (à appliquer à chaque feature/intégration)
+
+### Gouvernance & free-first
+- La feature apporte une **valeur réelle** au MVP ou à la stabilité ?
+- Appliquer **free-first** : open source / self-hosted / gratuit, sans crédits
+  ni abonnement. **Refuser tout payant** si une alternative gratuite fiable
+  existe. Documenter toute exception dans `decisions.md`.
+- Lire `vision.md`, `progress.md`, `architecture.md`, `rules.md`,
+  `non-objectifs.md` avant d'agir. Mettre à jour la doc utile après.
+
+### Architecture & doc
+- La décision mérite-t-elle une **ADR** ? Si structurante → `decisions.md`.
+- Données/tables/relations changent → `schemas.md`.
+- Démarrage/maintenance/récupération changent → `runbook.md`.
+- Un périmètre est refusé/reporté → `non-objectifs.md`.
+- Garder `ai-context/` **court, factuel, à jour** (pas de docs qui se recouvrent).
+
+### Événements (tracking)
+- Passer par **`trackEvent()`** (point central) ; ne pas dupliquer la logique.
+- Helper spécialisé **seulement** pour un vrai besoin métier récurrent.
+- Standard : `event`, `category`, `source`, `severity`, `importance`, `userId`,
+  `tenantId`, `workspaceId`, `timestamp`, `metadata`.
+- `source` ∈ {frontend, backend, copilot, agent, workflow, search, system, job}.
+- `severity` ∈ {low, medium, high, critical}.
+
+### Qualité (avant de livrer)
+- Solution **la plus simple** ; pas de refactor global non justifié ; pas de
+  doublon fonctionnel ; reste **Railway-ready** ; tests utiles exécutés (CI verte) ;
+  doc à jour ; maintenabilité > optimisation prématurée.
+
+### Non-objectifs (toujours refuser/reporter)
+- Voir `non-objectifs.md` (hors-MVP injustifié, doublons, analytics multiples,
+  abstractions/dépendances prématurées, solutions payantes évitables).
+
+## Règle finale
+Le projet doit rester **simple, stable, gratuit autant que possible,
+compréhensible sans contexte externe, et récupérable rapidement** par un humain
+ou une autre IA.
+
 ## Self-healing (bug détecté)
 Stop → cause racine → fix minimal → test → commit/push → reprise.
 

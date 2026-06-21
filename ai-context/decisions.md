@@ -76,6 +76,27 @@ est insuffisant / instable / incompatible avec une contrainte documentée.
 **Conséquence** : vidéo = FFmpeg (pas CapCut/Runway) ; images = Pollinations/HF ;
 recherche = DuckDuckGo/SearXNG ; pas de service payant branché sans décision ici.
 
+## ADR-010 — Standard d'événements unifié + helpers spécialisés
+**Date** : 2026-06-21 · **Statut** : actif
+**Décision** : un **seul** système d'événements applicatifs (`app_events` +
+`trackEvent()`). Standard de champs : `event`, `category`, `source`, `severity`,
+`importance`, `userId`, `tenantId`, `workspaceId`, `timestamp`, `metadata`.
+`source` ∈ {frontend, backend, copilot, agent, workflow, search, system, job} ;
+`severity` ∈ {low, medium, high, critical}. Helpers typés (`trackAuditRun`…)
+**seulement** pour un vrai besoin métier récurrent.
+**Raison** : éviter la duplication de la logique de tracking et les systèmes
+d'analytics multiples (cf. `non-objectifs.md`). Distinct de `audit_logs`
+(log HTTP automatique).
+
+## ADR-011 — Structure docs minimale (pas de dossiers `architecture/` / `adr/`)
+**Date** : 2026-06-21 · **Statut** : actif
+**Décision** : garder `ai-context/` plat et court — `architecture.md` (vue
+système) et `decisions.md` (ADR) **suffisent**. On ne crée pas de dossier
+`architecture/` (system-overview/integrations/data-flow/agent-flow) ni `adr/`
+tant que le volume ne le justifie pas.
+**Raison** : éviter « trop de docs parallèles qui se recouvrent »
+(`non-objectifs.md`). À revoir seulement si `decisions.md` devient ingérable.
+
 ## ADR-009 — Intégrations externes modulaires et feature-flaggées
 **Date** : 2026-06-21 · **Statut** : actif
 **Décision** : chaque intégration (GitHub, FFmpeg, image, vidéo, web search)
