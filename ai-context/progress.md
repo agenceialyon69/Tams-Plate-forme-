@@ -3,6 +3,14 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **FFmpeg — traitement réel (vidéo → texte)** : `POST /ffmpeg/probe` et
+  `POST /ffmpeg/extract-audio` (option `?transcribe=1` chaîne sur Whisper).
+  Fichiers temporaires nettoyés (finally), cap body 25 Mo sur les routes ffmpeg,
+  uploader sur la page Intégrations. Testé bout-en-bout en local (clip généré →
+  mp3 extrait + métadonnées correctes). Smoke **14/14** (route montée + validée).
+- **Fix UX Copilot + index ai-context** : bouton d'envoi du chat n'est plus
+  masqué par le FAB de capture (masqué sur `/copilot`), input au-dessus de la
+  nav mobile (`100dvh`). `ai-context/README.md` documente chaque fichier.
 - **Intégration FFmpeg (vidéo/audio, gratuit, sans compte)** : binaire ffmpeg
   installé dans l'image de déploiement (nixpacks `[phases.setup] aptPkgs`),
   module `lib/integrations/ffmpeg.ts` (statut/version, `probeMedia`,

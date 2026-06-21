@@ -88,11 +88,14 @@ app.use(rateLimit({
 }));
 
 // --- Body size caps ---
-const audioJson = express.json({ limit: "10mb" });
+// Media uploads (audio transcription, ffmpeg processing) need a larger body
+// than regular JSON. Keep everything else tight to limit abuse.
+const mediaJson = express.json({ limit: "25mb" });
 const textJson = express.json({ limit: "512kb" });
+const mediaPaths = new Set(["/api/ai/transcribe"]);
 app.use((req, res, next) =>
-  req.path === "/api/ai/transcribe"
-    ? audioJson(req, res, next)
+  mediaPaths.has(req.path) || req.path.startsWith("/api/integrations/ffmpeg/")
+    ? mediaJson(req, res, next)
     : textJson(req, res, next),
 );
 app.use(express.urlencoded({ extended: true, limit: "64kb" }));

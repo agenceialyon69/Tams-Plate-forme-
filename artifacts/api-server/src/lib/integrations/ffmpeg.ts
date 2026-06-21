@@ -1,5 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { writeFile, readFile, unlink } from "node:fs/promises";
 import { logger } from "../logger";
 
 const execFileAsync = promisify(execFile);
@@ -108,6 +112,56 @@ export async function trimMedia(
     ],
     { timeout: 300_000 }
   );
+}
+
+/**
+ * Decode base64 media to a temp file, run `op` on it, then always clean up.
+ * Output files created by `op` should be registered via the `cleanup` array.
+ */
+async function withTempMedia<T>(
+  base64: string,
+  op: (inputPath: string, cleanup: string[]) => Promise<T>
+): Promise<T> {
+  const buffer = Buffer.from(base64, "base64");
+  const inputPath = join(tmpdir(), `tams-${randomUUID()}`);
+  const cleanup: string[] = [inputPath];
+  try {
+    await writeFile(inputPath, buffer);
+    return await op(inputPath, cleanup);
+  } finally {
+    await Promise.all(
+      cleanup.map((p) => unlink(p).catch(() => {/* best effort */}))
+    );
+  }
+}
+
+/** Probe base64-encoded media and return its metadata. */
+export async function probeBase64(base64: string): Promise<MediaMetadata> {
+  return withTempMedia(base64, (inputPath) => probeMedia(inputPath));
+}
+
+/**
+ * Extract the audio track from base64-encoded video/media and return it as
+ * base64 mp3, plus the source metadata. Composes with the existing Whisper
+ * transcription (audio → text).
+ */
+export async function extractAudioBase64(
+  base64: string
+): Promise<{ audioBase64: string; mimeType: string; metadata: MediaMetadata }> {
+  return withTempMedia(base64, async (inputPath, cleanup) => {
+    const metadata = await probeMedia(inputPath).catch(() => ({
+      durationSec: null, formatName: null, sizeBytes: null,
+      hasVideo: false, hasAudio: true, width: null, height: null,
+    } as MediaMetadata));
+    if (!metadata.hasAudio) {
+      throw new Error("NO_AUDIO_TRACK");
+    }
+    const outputPath = join(tmpdir(), `tams-${randomUUID()}.mp3`);
+    cleanup.push(outputPath);
+    await extractAudio(inputPath, outputPath);
+    const audio = await readFile(outputPath);
+    return { audioBase64: audio.toString("base64"), mimeType: "audio/mpeg", metadata };
+  });
 }
 
 // Best-effort warm-up so the status endpoint answers instantly later.
