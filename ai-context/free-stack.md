@@ -41,6 +41,13 @@ PostgreSQL · Zod · pnpm · GitHub Actions (CI) · déploiement Railway service
 
 ## Stack dev gratuite recommandée (référence)
 - **Édition** : VS Code (ou VSCodium), Notepad++.
+- **Assistant IA dans l'éditeur (gratuit, local)** : **Cline** (le plus mature,
+  upstream d'origine — choix par défaut) ou **Kilo Code** (fork ex-Roo Code,
+  modes Architect/Code/Debug/Orchestrator). ⚠️ **Roo Code est arrêté/archivé
+  (mai 2026)** — ne pas l'utiliser. Modèle local : **Ollama + Qwen3-Coder**
+  (Qwen3-Coder-Next pour 8-16 Go/Mac ; 30B-A3B ~18 Go ; 32B sur GPU 24 Go).
+  Garder un **secours cloud gratuit** (OpenRouter DeepSeek/Qwen, Groq, Gemini)
+  pour les tâches agentiques lourdes quand le local rame.
 - **Frontend** : Vite, Tailwind, shadcn/ui, Storybook, Playwright (e2e).
 - **Backend** : Node + TypeScript, Express (ou Fastify), Zod, Drizzle.
 - **DB** : PostgreSQL (prod), SQLite (proto), DBeaver Community (client).
