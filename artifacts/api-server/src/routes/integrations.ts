@@ -285,7 +285,10 @@ router.post(
   videoLimiter,
   async (req, res): Promise<void> => {
     if (!(await ensureFfmpeg(res))) return;
-    const body = (req.body ?? {}) as { images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown; captions?: unknown };
+    const body = (req.body ?? {}) as {
+      images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown;
+      captions?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
+    };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
       res.status(400).json({ error: "Au moins une image est requise." });
@@ -294,6 +297,8 @@ router.post(
     const captions = Array.isArray(body.captions)
       ? body.captions.map((c) => (typeof c === "string" ? c : ""))
       : undefined;
+    const TRANSITIONS = new Set(["none", "fade", "dissolve", "slide", "circle"]);
+    const STYLES = new Set(["none", "vivid", "warm", "cinema", "bw"]);
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
     try {
       const video = await makeSlideshow(images, {
@@ -302,6 +307,9 @@ router.post(
         secondsPerImage: Number(body.secondsPerImage) || undefined,
         musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
         captions,
+        transition: TRANSITIONS.has(String(body.transition)) ? (body.transition as "fade") : "fade",
+        style: STYLES.has(String(body.style)) ? (body.style as "vivid") : "none",
+        kenBurns: body.kenBurns === true,
       });
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
@@ -326,7 +334,10 @@ router.post(
       res.status(503).json({ error: "Génération d'images désactivée — requise pour la vidéo." });
       return;
     }
-    const body = (req.body ?? {}) as { prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown };
+    const body = (req.body ?? {}) as {
+      prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown;
+      musicBase64?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
+    };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
       res.status(400).json({ error: "Prompt requis." });
@@ -334,6 +345,8 @@ router.post(
     }
     const scenes = Math.min(Math.max(Number(body.scenes) || 4, 2), 6);
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
+    const TRANSITIONS = new Set(["none", "fade", "dissolve", "slide", "circle"]);
+    const STYLES = new Set(["none", "vivid", "warm", "cinema", "bw"]);
 
     try {
       // Generate scenes in parallel; vary the seed so they differ.
@@ -349,6 +362,9 @@ router.post(
           height: fmt.height,
           secondsPerImage: Number(body.secondsPerImage) || undefined,
           musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
+          transition: TRANSITIONS.has(String(body.transition)) ? (body.transition as "fade") : "fade",
+          style: STYLES.has(String(body.style)) ? (body.style as "vivid") : "none",
+          kenBurns: body.kenBurns === true,
         }
       );
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });

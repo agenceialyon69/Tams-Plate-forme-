@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-21
+- **Effets pro vidéo** : transitions en fondu (`xfade` : fondu/dissoudre/
+  glissement/cercle), **styles couleur** (Lumineux/Chaud/Cinéma/N&B), **mouvement
+  Ken Burns** (zoom doux, sans explosion de frames via `zoompan d=1`). Appliqués
+  aux 2 modes (Mes photos + Prompt IA), réglables dans le Studio. Testé combo
+  complet (3 photos + transitions + cinéma + Ken Burns + légendes + musique).
 - **Éditeur de vidéo produit (Shopify/Reels)** : mode **« Mes photos »** dans le
   Studio — upload de tes vraies photos produit + **texte par photo** (nom, prix,
   accroche, via FFmpeg `drawtext`) + musique + format 9:16/1:1/16:9. Marche

@@ -143,12 +143,30 @@ interface Photo {
   caption: string;
 }
 
+const TRANSITIONS = [
+  { value: "fade", label: "Fondu" },
+  { value: "dissolve", label: "Dissoudre" },
+  { value: "slide", label: "Glissement" },
+  { value: "circle", label: "Cercle" },
+  { value: "none", label: "Aucune" },
+];
+const STYLES = [
+  { value: "none", label: "Aucun" },
+  { value: "vivid", label: "Lumineux" },
+  { value: "warm", label: "Chaud" },
+  { value: "cinema", label: "Cinéma" },
+  { value: "bw", label: "N&B" },
+];
+
 function VideoPanel() {
   const [mode, setMode] = useState<"prompt" | "photos">("photos");
   const [prompt, setPrompt] = useState("");
   const [format, setFormat] = useState("9:16");
   const [scenes, setScenes] = useState(4);
   const [seconds, setSeconds] = useState(2.5);
+  const [transition, setTransition] = useState("fade");
+  const [style, setStyle] = useState("none");
+  const [kenBurns, setKenBurns] = useState(true);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,12 +221,13 @@ function VideoPanel() {
     setVideo(null);
     try {
       let res: { videoBase64: string; mimeType: string; durationSec: number };
+      const fx = { transition, style, kenBurns };
       if (mode === "prompt") {
         const p = prompt.trim();
         if (!p) { setLoading(false); return; }
         res = await apiFetch("/integrations/video/from-prompt", {
           method: "POST",
-          body: JSON.stringify({ prompt: p, scenes, format, musicBase64: musicBase64 ?? undefined }),
+          body: JSON.stringify({ prompt: p, scenes, format, musicBase64: musicBase64 ?? undefined, ...fx }),
         });
       } else {
         if (photos.length === 0) { setLoading(false); return; }
@@ -220,6 +239,7 @@ function VideoPanel() {
             format,
             secondsPerImage: seconds,
             musicBase64: musicBase64 ?? undefined,
+            ...fx,
           }),
         });
       }
@@ -326,6 +346,28 @@ function VideoPanel() {
           ))}
         </div>
       </div>
+
+      {/* Effets pro */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">Transition</p>
+          <select value={transition} onChange={(e) => setTransition(e.target.value)} disabled={loading}
+            className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm">
+            {TRANSITIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">Style couleur</p>
+          <select value={style} onChange={(e) => setStyle(e.target.value)} disabled={loading}
+            className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm">
+            {STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+        <input type="checkbox" checked={kenBurns} onChange={(e) => setKenBurns(e.target.checked)} disabled={loading} className="accent-accent" />
+        Mouvement « Ken Burns » (zoom doux, effet vivant)
+      </label>
 
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-2">Musique (optionnel)</p>

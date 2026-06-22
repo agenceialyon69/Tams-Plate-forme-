@@ -3,6 +3,13 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Effets vidéo pro (rendu naturel/léché)** : transitions `xfade`
+  (fondu/dissoudre/glissement/cercle), styles couleur (Lumineux/Chaud/Cinéma/N&B
+  via eq/colorbalance/vignette/hue), **Ken Burns** (zoom doux ; bug d'explosion
+  de frames évité via `zoompan d=1`). Options câblées sur `/video/slideshow` ET
+  `/video/from-prompt` + contrôles dans le Studio (transition, style, case
+  mouvement). Testé bout-en-bout (3 photos, tous effets cumulés → mp4 1080×1920,
+  durée correcte avec recouvrement des transitions, video+audio). Smoke 23/23.
 - **Éditeur de vidéo produit (Shopify/Reels, gratuit, hors-ligne)** : nouveau
   mode **« Mes photos »** dans le Studio (onglet Vidéo) — upload de vraies photos
   produit + **légende/texte par photo** (FFmpeg `drawtext`, nom/prix/accroche) +
