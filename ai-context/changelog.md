@@ -2,6 +2,14 @@
 
 Format : date — résumé (réf PR si applicable).
 
+## 2026-06-22
+- **Kit vidéo pro** : **carte d'intro** (titre/sous-titre), **carte d'outro**
+  (appel à l'action), **bandeau de marque permanent**. Cartes générées via
+  source `lavfi color` + `drawtext`, intégrées dans la chaîne `xfade` à durée
+  variable. Section « Branding & cartes » dans le Studio. Testé combo complet
+  (intro + 3 photos + outro + marque + transitions + cinéma + Ken Burns + légendes
+  + musique → 1080×1920, durée correcte, v+a).
+
 ## 2026-06-21
 - **Effets pro vidéo** : transitions en fondu (`xfade` : fondu/dissoudre/
   glissement/cercle), **styles couleur** (Lumineux/Chaud/Cinéma/N&B), **mouvement

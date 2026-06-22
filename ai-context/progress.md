@@ -3,6 +3,14 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Kit vidéo pro (intro/outro/marque)** : carte d'**intro** (titre + sous-titre),
+  carte d'**outro** (CTA), **bandeau de marque** permanent en haut. Cartes =
+  source `lavfi color` + `drawtext`, insérées dans la chaîne `xfade` (offsets à
+  **durée variable** : cartes 2.2s/2.8s, photos `dur`). `makeSlideshow` étendu
+  (intro/outro/brand) + routes `/video/slideshow` & `/video/from-prompt` +
+  section « Branding & cartes » dans le Studio. Texte via `textfile=` (zéro
+  échappement). Testé bout-en-bout (intro+3 photos+outro+marque+tous effets →
+  mp4 1080×1920, 10.1s, v+a). Smoke 23/23.
 - **Effets vidéo pro (rendu naturel/léché)** : transitions `xfade`
   (fondu/dissoudre/glissement/cercle), styles couleur (Lumineux/Chaud/Cinéma/N&B
   via eq/colorbalance/vignette/hue), **Ken Burns** (zoom doux ; bug d'explosion

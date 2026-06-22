@@ -9,8 +9,8 @@ import { existsSync } from "node:fs";
 const execFileAsync = promisify(execFile);
 const FFMPEG_BIN = process.env.FFMPEG_PATH || "ffmpeg";
 
-// First available font used for on-image captions (drawtext). Installed in the
-// deploy image via nixpacks (fonts-dejavu-core). Captions are skipped if none.
+// First available font used for text overlays (drawtext). Installed in the
+// deploy image via nixpacks (fonts-dejavu-core). Text features degrade if none.
 const FONT_CANDIDATES = [
   process.env.CAPTION_FONT,
   "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -21,11 +21,16 @@ const FONT_CANDIDATES = [
 const CAPTION_FONT = FONT_CANDIDATES.find((p) => existsSync(p)) ?? null;
 
 /**
- * Free "product video maker": assemble images into a short vertical slideshow
- * video — optional per-image text captions (product name/price/CTA) and
- * background music — using FFmpeg only. No paid service, no GPU, no Internet.
- * Ideal for Shopify / Reels / TikTok.
+ * Free "product video maker": assemble images into a polished vertical video —
+ * captions, intro/outro title cards, a persistent brand banner, colour grading,
+ * Ken Burns motion, crossfade transitions and background music — using FFmpeg
+ * only. No paid service, no GPU, no Internet. Ideal for Shopify / Reels / TikTok.
  */
+
+export interface TitleCard {
+  title?: string;
+  subtitle?: string;
+}
 
 export interface SlideshowOptions {
   width?: number;
@@ -37,12 +42,18 @@ export interface SlideshowOptions {
   musicBase64?: string;
   /** Optional caption per image (overlaid, lower third). Index-aligned. */
   captions?: string[];
-  /** Transition between photos. Default "fade". */
+  /** Transition between clips. Default "fade". */
   transition?: "none" | "fade" | "dissolve" | "slide" | "circle";
   /** Colour-grading look applied to each photo. Default "none". */
   style?: "none" | "vivid" | "warm" | "cinema" | "bw";
   /** Subtle Ken Burns zoom for a "living" feel. Default false. */
   kenBurns?: boolean;
+  /** Opening title card (brand / hook). */
+  intro?: TitleCard;
+  /** Closing call-to-action card. */
+  outro?: TitleCard;
+  /** Persistent brand banner shown at the top of every frame. */
+  brand?: string;
 }
 
 // UI transition → ffmpeg xfade transition name.
@@ -61,7 +72,7 @@ const STYLE_FILTER: Record<string, string> = {
   bw: "hue=s=0,eq=contrast=1.08",
 };
 
-/** Whether on-image text captions are available (a usable font was found). */
+/** Whether text overlays are available (a usable font was found). */
 export function captionsAvailable(): boolean {
   return CAPTION_FONT !== null;
 }
@@ -71,17 +82,26 @@ function clampDim(v: number | undefined, fallback: number): number {
   return Math.min(Math.max(Math.round(n), 256), 1920);
 }
 
-/** Strip control characters so a caption stays a clean single line. */
-function cleanCaption(s: string): string {
+/** Strip control characters so overlaid text stays a clean single line. */
+function cleanText(s: string, max = 120): string {
   let out = "";
   for (const ch of s) {
     const code = ch.codePointAt(0) ?? 32;
     out += code < 32 ? " " : ch;
   }
-  return out.slice(0, 120);
+  return out.slice(0, max);
 }
 
-/** Build a slideshow mp4 (base64) from base64-encoded images. */
+interface Visual {
+  kind: "image" | "card";
+  dur: number;
+  path?: string;      // image
+  caption?: string;   // image
+  title?: string;     // card
+  subtitle?: string;  // card
+}
+
+/** Build a polished slideshow mp4 (base64) from base64-encoded images. */
 export async function makeSlideshow(
   imagesBase64: string[],
   opts: SlideshowOptions = {}
@@ -93,96 +113,143 @@ export async function makeSlideshow(
   const height = clampDim(opts.height, 1920);
   const dur = Math.min(Math.max(opts.secondsPerImage ?? 2.5, 1), 8);
   const fps = Math.min(Math.max(opts.fps ?? 30, 12), 60);
+  const hasFont = CAPTION_FONT !== null;
 
   const id = randomUUID();
   const cleanup: string[] = [];
-  const inputPaths: string[] = [];
+
+  /** Write text to a temp file for drawtext `textfile=` (no escaping needed). */
+  async function textFile(tag: string, text: string, max = 120): Promise<string> {
+    const p = join(tmpdir(), `tams-vid-${id}-${tag}.txt`);
+    await writeFile(p, cleanText(text, max));
+    cleanup.push(p);
+    return p;
+  }
 
   try {
+    // --- Build the ordered list of visuals (intro card, photos, outro card) ---
+    const visuals: Visual[] = [];
+    if (hasFont && (opts.intro?.title || opts.intro?.subtitle)) {
+      visuals.push({ kind: "card", dur: 2.2, title: opts.intro.title, subtitle: opts.intro.subtitle });
+    }
     for (let i = 0; i < images.length; i++) {
       const raw = images[i].includes(",") ? images[i].split(",").pop()! : images[i];
-      const p = join(tmpdir(), `tams-vid-${id}-${i}.img`);
+      const p = join(tmpdir(), `tams-vid-${id}-img-${i}`);
       await writeFile(p, Buffer.from(raw, "base64"));
       cleanup.push(p);
-      inputPaths.push(p);
+      visuals.push({ kind: "image", dur, path: p, caption: opts.captions?.[i]?.trim() || undefined });
     }
+    if (hasFont && (opts.outro?.title || opts.outro?.subtitle)) {
+      visuals.push({ kind: "card", dur: 2.8, title: opts.outro.title, subtitle: opts.outro.subtitle });
+    }
+
     const outputPath = join(tmpdir(), `tams-vid-${id}.mp4`);
     cleanup.push(outputPath);
 
-    // Inputs: each image looped for `dur` seconds.
+    // --- Inputs (one per visual, then music) ---
     const inputArgs: string[] = [];
-    for (const p of inputPaths) {
-      inputArgs.push("-loop", "1", "-t", String(dur), "-i", p);
+    for (const v of visuals) {
+      if (v.kind === "image") {
+        inputArgs.push("-loop", "1", "-t", String(v.dur), "-i", v.path!);
+      } else {
+        inputArgs.push("-f", "lavfi", "-t", String(v.dur), "-i", `color=c=0x14141a:s=${width}x${height}:r=${fps}`);
+      }
     }
-
-    // Optional background music as an extra input (trimmed + faded to length).
     let musicIndex = -1;
     if (opts.musicBase64) {
       const raw = opts.musicBase64.includes(",") ? opts.musicBase64.split(",").pop()! : opts.musicBase64;
       const musicPath = join(tmpdir(), `tams-vid-${id}-music`);
       await writeFile(musicPath, Buffer.from(raw, "base64"));
       cleanup.push(musicPath);
-      musicIndex = inputPaths.length;
+      musicIndex = visuals.length;
       inputArgs.push("-i", musicPath);
     }
 
-    const n = inputPaths.length;
-    // Crossfade transition between photos (xfade). 0 when "none" or single image.
+    const K = visuals.length;
+    const minDur = Math.min(...visuals.map((v) => v.dur));
     const xfadeName = opts.transition && opts.transition !== "none" ? XFADE[opts.transition] : null;
-    const T = xfadeName && n >= 2 ? Math.min(0.7, dur * 0.4) : 0;
-    // With xfade, consecutive clips overlap by T, shortening the total.
-    const videoSec = T > 0 ? n * dur - (n - 1) * T : n * dur;
+    const T = xfadeName && K >= 2 ? Math.min(0.6, minDur * 0.4) : 0;
 
     const styleFilter = opts.style && opts.style !== "none" ? STYLE_FILTER[opts.style] : "";
-    // d=1 (one output frame per input frame) → smooth zoom with NO frame blow-up.
     const kenBurns = opts.kenBurns
       ? `,zoompan=z='min(zoom+0.0008,1.12)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}`
       : "";
+    const capSize = Math.round(width / 16);
+    const titleSize = Math.round(width / 9);
+    const subSize = Math.round(width / 22);
 
-    // Per-image: cover-crop to the target frame, normalise to fps, optional
-    // colour grade + Ken Burns + caption overlay. Each input is bounded to
-    // `dur` seconds via -loop/-t.
-    const fontSize = Math.round(width / 16);
+    // --- Per-visual segments ---
     const segments: string[] = [];
-    for (let i = 0; i < n; i++) {
-      let drawtext = "";
-      const caption = opts.captions?.[i]?.trim();
-      if (caption && CAPTION_FONT) {
-        // Use textfile= so caption content needs no filtergraph escaping.
-        const capPath = join(tmpdir(), `tams-vid-${id}-cap-${i}.txt`);
-        await writeFile(capPath, cleanCaption(caption));
-        cleanup.push(capPath);
-        drawtext =
-          `,drawtext=fontfile='${CAPTION_FONT}':textfile='${capPath}':` +
-          `fontcolor=white:fontsize=${fontSize}:box=1:boxcolor=black@0.5:boxborderw=22:` +
-          `x=(w-text_w)/2:y=h-h/4-text_h/2`;
+    for (let i = 0; i < K; i++) {
+      const v = visuals[i];
+      if (v.kind === "image") {
+        let drawtext = "";
+        if (v.caption && hasFont) {
+          const capPath = await textFile(`cap-${i}`, v.caption);
+          drawtext =
+            `,drawtext=fontfile='${CAPTION_FONT}':textfile='${capPath}':` +
+            `fontcolor=white:fontsize=${capSize}:box=1:boxcolor=black@0.5:boxborderw=22:` +
+            `x=(w-text_w)/2:y=h-h/4-text_h/2`;
+        }
+        segments.push(
+          `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
+            `crop=${width}:${height},setsar=1,fps=${fps}` +
+            (styleFilter ? `,${styleFilter}` : "") +
+            kenBurns +
+            `,format=yuv420p${drawtext}[v${i}]`
+        );
+      } else {
+        let draw = "";
+        if (v.title) {
+          const p = await textFile(`title-${i}`, v.title, 80);
+          draw += `,drawtext=fontfile='${CAPTION_FONT}':textfile='${p}':fontcolor=white:fontsize=${titleSize}:x=(w-text_w)/2:y=(h-text_h)/2-${Math.round(height / 14)}`;
+        }
+        if (v.subtitle) {
+          const p = await textFile(`sub-${i}`, v.subtitle, 100);
+          draw += `,drawtext=fontfile='${CAPTION_FONT}':textfile='${p}':fontcolor=white@0.85:fontsize=${subSize}:x=(w-text_w)/2:y=h/2+${Math.round(height / 28)}`;
+        }
+        segments.push(`[${i}:v]setsar=1,fps=${fps},format=yuv420p${draw}[v${i}]`);
       }
-      segments.push(
-        `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
-          `crop=${width}:${height},setsar=1,fps=${fps}` +
-          (styleFilter ? `,${styleFilter}` : "") +
-          kenBurns +
-          `,format=yuv420p${drawtext}[v${i}]`
-      );
     }
+
+    // --- Compose: crossfade chain (variable durations) or concat ---
+    const brand = opts.brand?.trim();
+    const useBrand = Boolean(brand && hasFont);
+    const composeOut = useBrand ? "[vbase]" : "[outv]";
 
     let filter: string;
-    if (T > 0) {
-      // Chain xfades: each join overlaps by T at offset i*(dur - T).
+    let videoSec: number;
+    if (T > 0 && K >= 2) {
       const links: string[] = [];
       let prev = "[v0]";
-      for (let i = 1; i < n; i++) {
-        const out = i === n - 1 ? "[outv]" : `[x${i}]`;
-        const offset = (i * (dur - T)).toFixed(3);
-        links.push(`${prev}[v${i}]xfade=transition=${xfadeName}:duration=${T}:offset=${offset}${out}`);
+      let acc = visuals[0].dur;
+      for (let i = 1; i < K; i++) {
+        const out = i === K - 1 ? composeOut : `[x${i}]`;
+        links.push(`${prev}[v${i}]xfade=transition=${xfadeName}:duration=${T}:offset=${(acc - T).toFixed(3)}${out}`);
         prev = out;
+        acc = acc + visuals[i].dur - T;
       }
       filter = `${segments.join(";")};${links.join(";")}`;
+      videoSec = acc;
+    } else if (K === 1) {
+      filter = `${segments.join(";")};[v0]null${composeOut}`;
+      videoSec = visuals[0].dur;
     } else {
-      const concatInputs = inputPaths.map((_, i) => `[v${i}]`).join("");
-      filter = `${segments.join(";")};${concatInputs}concat=n=${n}:v=1:a=0[outv]`;
+      const concatInputs = visuals.map((_, i) => `[v${i}]`).join("");
+      filter = `${segments.join(";")};${concatInputs}concat=n=${K}:v=1:a=0${composeOut}`;
+      videoSec = visuals.reduce((s, v) => s + v.dur, 0);
     }
 
+    // --- Persistent brand banner (top centre) ---
+    if (useBrand) {
+      const bp = await textFile("brand", brand!, 60);
+      filter +=
+        `;[vbase]drawtext=fontfile='${CAPTION_FONT}':textfile='${bp}':fontcolor=white@0.92:` +
+        `fontsize=${Math.round(width / 26)}:x=(w-text_w)/2:y=${Math.round(height / 22)}:` +
+        `box=1:boxcolor=black@0.35:boxborderw=14[outv]`;
+    }
+
+    // --- Audio ---
     const mapArgs = ["-map", "[outv]"];
     const audioArgs: string[] = [];
     if (musicIndex >= 0) {
