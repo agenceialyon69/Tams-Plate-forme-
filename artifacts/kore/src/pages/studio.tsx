@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Wand2, Loader2, Download, ImageIcon, Film, Clapperboard, Plus, X, Sparkles } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { PageHeader } from "@/components/PageHeader";
 
 interface GeneratedImage {
   imageBase64: string;
@@ -364,26 +365,29 @@ function VideoPanel() {
       </div>
 
       {/* Effets pro */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">Transition</p>
-          <select value={transition} onChange={(e) => setTransition(e.target.value)} disabled={loading}
-            className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm">
-            {TRANSITIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+      <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Effets</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Transition</p>
+            <select value={transition} onChange={(e) => setTransition(e.target.value)} disabled={loading}
+              className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm">
+              {TRANSITIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Style couleur</p>
+            <select value={style} onChange={(e) => setStyle(e.target.value)} disabled={loading}
+              className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm">
+              {STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
         </div>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">Style couleur</p>
-          <select value={style} onChange={(e) => setStyle(e.target.value)} disabled={loading}
-            className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-sm">
-            {STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-        </div>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input type="checkbox" checked={kenBurns} onChange={(e) => setKenBurns(e.target.checked)} disabled={loading} className="accent-accent" />
+          Mouvement « Ken Burns » (zoom doux, effet vivant)
+        </label>
       </div>
-      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-        <input type="checkbox" checked={kenBurns} onChange={(e) => setKenBurns(e.target.checked)} disabled={loading} className="accent-accent" />
-        Mouvement « Ken Burns » (zoom doux, effet vivant)
-      </label>
 
       {/* Branding & cartes intro/outro */}
       <div className="rounded-lg border border-border/50">
@@ -504,15 +508,7 @@ export default function Studio() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 md:px-8 py-8 pb-24 md:pb-8">
-      <header className="flex items-center gap-2.5 mb-6">
-        <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
-          <Wand2 className="w-5 h-5 text-accent" />
-        </div>
-        <div>
-          <h1 className="text-xl font-serif font-semibold text-foreground leading-none">Studio</h1>
-          <p className="text-xs text-muted-foreground mt-1">Génère visuels et vidéos à partir d'un prompt (gratuit)</p>
-        </div>
-      </header>
+      <PageHeader icon={Wand2} title="Studio" subtitle="Génère et édite des visuels et des vidéos produit — gratuit, niveau pro" className="mb-6" />
 
       <div className="inline-flex rounded-lg border border-border/60 p-0.5 mb-6">
         <button

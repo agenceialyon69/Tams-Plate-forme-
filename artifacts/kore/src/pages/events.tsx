@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Loader2, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { PageHeader } from "@/components/PageHeader";
 
 interface AppEvent {
   id: number;
@@ -43,18 +44,17 @@ export default function EventsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 md:px-8 py-8 pb-24 md:pb-8">
-      <header className="flex items-center gap-2.5 mb-6">
-        <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
-          <Activity className="w-5 h-5 text-accent" />
-        </div>
-        <div className="flex-1">
-          <h1 className="text-xl font-serif font-semibold text-foreground leading-none">Événements</h1>
-          <p className="text-xs text-muted-foreground mt-1">Journal applicatif structuré (analytics)</p>
-        </div>
-        <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground" title="Rafraîchir">
-          <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
-        </button>
-      </header>
+      <PageHeader
+        icon={Activity}
+        title="Événements"
+        subtitle="Journal applicatif structuré (analytics)"
+        className="mb-6"
+        action={
+          <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground p-2" title="Rafraîchir">
+            <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+          </button>
+        }
+      />
 
       <div className="flex flex-wrap gap-3 mb-4">
         <label className="text-sm">

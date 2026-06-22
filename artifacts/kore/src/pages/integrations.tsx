@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plug, Github, CheckCircle2, XCircle, ExternalLink, Loader2, GitFork, Star, Film } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { PageHeader } from "@/components/PageHeader";
 
 interface GithubViewer {
   login: string;
@@ -251,15 +252,7 @@ function FfmpegCard() {
 export default function IntegrationsPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 md:px-8 py-8">
-      <header className="flex items-center gap-2.5 mb-6">
-        <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
-          <Plug className="w-5 h-5 text-accent" />
-        </div>
-        <div>
-          <h1 className="text-xl font-serif font-semibold text-foreground leading-none">Intégrations</h1>
-          <p className="text-xs text-muted-foreground mt-1">Connecte tes outils externes (gratuits)</p>
-        </div>
-      </header>
+      <PageHeader icon={Plug} title="Intégrations" subtitle="Connecte tes outils — gratuits et auto-hébergeables en priorité" className="mb-6" />
 
       <div className="space-y-4">
         <GithubCard />

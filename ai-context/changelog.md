@@ -3,6 +3,10 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-22
+- **UI premium** : composant `PageHeader` réutilisable (chip dégradé + titre
+  serif + sous-titre + action) appliqué aux pages clés (Studio, Intégrations,
+  Événements) ; contrôles d'effets du Studio regroupés en carte « Effets ». Look
+  cohérent et haut de gamme.
 - **Free-first auto-hébergé (ADR-013)** : la transcription supporte un **Whisper
   auto-hébergé** (OpenAI-compatible, `WHISPER_BASE_URL`), prioritaire sur Groq →
   plus aucune fonction n'exige une API propriétaire. Statut transcription exposé
