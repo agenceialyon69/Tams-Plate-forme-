@@ -3,6 +3,10 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-22
+- **Accueil pro (grille de capacités)** : le tableau de bord met en avant la
+  **plateforme** via une grille de cartes (Studio vidéo/image en vedette,
+  Copilot, Intégrations, Prospection, Mémoire, Événements) → les fonctions clés
+  (surtout le Studio) deviennent visibles et l'app a un rendu pro.
 - **Logo en overlay** : image logo (upload) incrustée en haut-droite de la
   vidéo, après le bandeau de marque. Testé avec ET sans musique (pas de blocage
   sur le logo image fixe). Pipeline de post-compositing brand→logo→[outv].
