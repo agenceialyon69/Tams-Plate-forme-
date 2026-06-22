@@ -3,6 +3,12 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Logo en overlay (branding)** : upload d'un logo image, incrusté en
+  haut-droite (scale ~largeur/5) après le bandeau de marque. Pipeline de
+  post-compositing avec labels successifs (vbase→vbrand→outv). Entrée logo image
+  fixe sans `-loop` → overlay `eof_action=repeat` (pas de blocage même sans
+  `-shortest`). `logoBase64` câblé sur les 2 routes vidéo + uploader dans la
+  section Branding du Studio. Testé avec et sans musique. Smoke 23/23.
 - **Kit vidéo pro (intro/outro/marque)** : carte d'**intro** (titre + sous-titre),
   carte d'**outro** (CTA), **bandeau de marque** permanent en haut. Cartes =
   source `lavfi color` + `drawtext`, insérées dans la chaîne `xfade` (offsets à

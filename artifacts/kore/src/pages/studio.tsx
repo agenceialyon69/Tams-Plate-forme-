@@ -172,6 +172,8 @@ function VideoPanel() {
   const [introSubtitle, setIntroSubtitle] = useState("");
   const [outroTitle, setOutroTitle] = useState("");
   const [outroSubtitle, setOutroSubtitle] = useState("");
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [logoName, setLogoName] = useState<string | null>(null);
   const [showBranding, setShowBranding] = useState(false);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -234,6 +236,7 @@ function VideoPanel() {
         brand: brand.trim() || undefined,
         intro: introTitle.trim() || introSubtitle.trim() ? { title: introTitle, subtitle: introSubtitle } : undefined,
         outro: outroTitle.trim() || outroSubtitle.trim() ? { title: outroTitle, subtitle: outroSubtitle } : undefined,
+        logoBase64: logoBase64 ?? undefined,
       };
       if (mode === "prompt") {
         const p = prompt.trim();
@@ -398,6 +401,25 @@ function VideoPanel() {
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Bandeau de marque (haut de la vidéo)</p>
               <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="@maboutique" maxLength={60} disabled={loading}
                 className="w-full bg-background border border-border rounded-md px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Logo (coin haut-droit, optionnel)</p>
+              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-background/40 hover:bg-muted/40 cursor-pointer text-sm text-foreground">
+                <ImageIcon className="w-4 h-4" />
+                {logoName ? `🖼️ ${logoName.slice(0, 28)}` : "Ajouter un logo (png)"}
+                <input type="file" accept="image/*" className="hidden" disabled={loading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]; e.target.value = "";
+                    if (!f) return;
+                    if (f.size > 4 * 1024 * 1024) { setError("Logo trop lourd (max 4 Mo)."); return; }
+                    const r = new FileReader();
+                    r.onload = () => { setLogoBase64((r.result as string).split(",").pop() ?? null); setLogoName(f.name); };
+                    r.readAsDataURL(f);
+                  }} />
+              </label>
+              {logoName && (
+                <button onClick={() => { setLogoBase64(null); setLogoName(null); }} className="ml-2 text-xs text-muted-foreground hover:text-destructive">retirer</button>
+              )}
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Carte d'intro</p>

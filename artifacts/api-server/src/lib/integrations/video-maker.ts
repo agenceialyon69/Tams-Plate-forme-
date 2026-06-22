@@ -54,6 +54,8 @@ export interface SlideshowOptions {
   outro?: TitleCard;
   /** Persistent brand banner shown at the top of every frame. */
   brand?: string;
+  /** Optional logo image (base64), overlaid small in the top-right corner. */
+  logoBase64?: string;
 }
 
 // UI transition → ffmpeg xfade transition name.
@@ -164,6 +166,15 @@ export async function makeSlideshow(
       musicIndex = visuals.length;
       inputArgs.push("-i", musicPath);
     }
+    let logoIndex = -1;
+    if (opts.logoBase64) {
+      const raw = opts.logoBase64.includes(",") ? opts.logoBase64.split(",").pop()! : opts.logoBase64;
+      const logoPath = join(tmpdir(), `tams-vid-${id}-logo`);
+      await writeFile(logoPath, Buffer.from(raw, "base64"));
+      cleanup.push(logoPath);
+      logoIndex = visuals.length + (musicIndex >= 0 ? 1 : 0);
+      inputArgs.push("-i", logoPath);
+    }
 
     const K = visuals.length;
     const minDur = Math.min(...visuals.map((v) => v.dur));
@@ -213,9 +224,13 @@ export async function makeSlideshow(
     }
 
     // --- Compose: crossfade chain (variable durations) or concat ---
+    // The base composite goes to [vbase]; brand banner then logo are applied
+    // after, each step renaming the "current" label until the final [outv].
     const brand = opts.brand?.trim();
     const useBrand = Boolean(brand && hasFont);
-    const composeOut = useBrand ? "[vbase]" : "[outv]";
+    const useLogo = logoIndex >= 0;
+    const needsPost = useBrand || useLogo;
+    const composeOut = needsPost ? "[vbase]" : "[outv]";
 
     let filter: string;
     let videoSec: number;
@@ -240,13 +255,22 @@ export async function makeSlideshow(
       videoSec = visuals.reduce((s, v) => s + v.dur, 0);
     }
 
-    // --- Persistent brand banner (top centre) ---
+    // --- Post-compositing: brand banner, then logo overlay ---
+    let cur = "[vbase]";
     if (useBrand) {
       const bp = await textFile("brand", brand!, 60);
+      const next = useLogo ? "[vbrand]" : "[outv]";
       filter +=
-        `;[vbase]drawtext=fontfile='${CAPTION_FONT}':textfile='${bp}':fontcolor=white@0.92:` +
+        `;${cur}drawtext=fontfile='${CAPTION_FONT}':textfile='${bp}':fontcolor=white@0.92:` +
         `fontsize=${Math.round(width / 26)}:x=(w-text_w)/2:y=${Math.round(height / 22)}:` +
-        `box=1:boxcolor=black@0.35:boxborderw=14[outv]`;
+        `box=1:boxcolor=black@0.35:boxborderw=14${next}`;
+      cur = next;
+    }
+    if (useLogo) {
+      const pad = Math.round(width / 28);
+      filter +=
+        `;[${logoIndex}:v]scale=${Math.round(width / 5)}:-1[lg];` +
+        `${cur}[lg]overlay=W-w-${pad}:${pad}[outv]`;
     }
 
     // --- Audio ---

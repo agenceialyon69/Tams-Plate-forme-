@@ -298,7 +298,7 @@ router.post(
     const body = (req.body ?? {}) as {
       images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown;
       captions?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
-      intro?: unknown; outro?: unknown; brand?: unknown;
+      intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
     };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
@@ -324,6 +324,7 @@ router.post(
         intro: parseCard(body.intro),
         outro: parseCard(body.outro),
         brand: typeof body.brand === "string" ? body.brand : undefined,
+        logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
       });
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
@@ -351,7 +352,7 @@ router.post(
     const body = (req.body ?? {}) as {
       prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown;
       musicBase64?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
-      intro?: unknown; outro?: unknown; brand?: unknown;
+      intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
     };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
@@ -383,6 +384,7 @@ router.post(
           intro: parseCard(body.intro),
           outro: parseCard(body.outro),
           brand: typeof body.brand === "string" ? body.brand : undefined,
+          logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
         }
       );
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
