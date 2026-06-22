@@ -106,6 +106,24 @@ Restreint owner/admin. Source de vérité affichée via `/api/integrations/statu
 **Raison** : rien ne casse quand un service est absent ; config lisible d'un
 coup d'œil dans Paramètres.
 
+## ADR-013 — Architecture free-first auto-hébergeable (OBLIGATOIRE)
+**Date** : 2026-06-22 · **Statut** : actif
+**Décision** : chaque fonctionnalité doit pouvoir tourner avec une stack
+**100% libre, auto-hébergeable, sans abonnement / sans carte / sans crédits**.
+Le système doit rester **pleinement fonctionnel** avec uniquement :
+**Ollama, Qwen, DeepSeek, Llama, Whisper, PostgreSQL, Qdrant, SearXNG, n8n,
+Open WebUI**. Toute dépendance à abonnement / crédits / paiement à l'usage / API
+propriétaire (Gemini, Groq, OpenRouter cloud…) est **optionnelle** et activée par
+feature-flag — jamais requise. En cas de choix multiple : la plus **pérenne**.
+**État actuel** (voir `architecture.md` → Stack auto-hébergeable) :
+- ✅ **PostgreSQL** (base), **Ollama** (LLM local via gateway), **SearXNG**
+  (recherche web), **Whisper auto-hébergé** (transcription, prioritaire sur Groq).
+- ⏸️ **Qdrant** (mémoire sémantique/RAG), **n8n** (workflows), **Open WebUI**
+  (chat alternatif) : intégrations **optionnelles**, branchées quand un besoin
+  réel le justifie (cf. ADR-012, `non-objectifs.md`).
+**Conséquence** : les fournisseurs cloud restent des accélérateurs optionnels ;
+aucune fonctionnalité ne doit *exiger* une API propriétaire.
+
 ## ADR-012 — Triage des outils/modèles IA (adopté / différé / refusé)
 **Date** : 2026-06-21 · **Statut** : actif
 **Décision** :
