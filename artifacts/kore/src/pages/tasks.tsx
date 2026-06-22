@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { isBefore, startOfDay } from "date-fns";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardList } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const domainColors: Record<string, string> = {
   health: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
@@ -68,22 +69,19 @@ export default function Tasks() {
 
   return (
     <div className="p-8 md:p-12 max-w-4xl mx-auto space-y-8">
-      <header className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-serif mb-2 text-foreground">Tâches</h1>
-          <p className="text-muted-foreground">
-            {tasks?.length
-              ? `${tasks.length} tâche${tasks.length > 1 ? "s" : ""} en attente`
-              : "Ce qui requiert ton attention."}
-          </p>
-        </div>
-        {overdue && overdue.length > 0 && (
-          <div className="flex items-center gap-1.5 text-amber-500 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            <span>{overdue.length} en retard</span>
-          </div>
-        )}
-      </header>
+      <PageHeader
+        icon={ClipboardList}
+        title="Tâches"
+        subtitle={tasks?.length ? `${tasks.length} tâche${tasks.length > 1 ? "s" : ""} en attente` : "Ce qui requiert ton attention."}
+        action={
+          overdue && overdue.length > 0 ? (
+            <div className="flex items-center gap-1.5 text-amber-500 text-sm">
+              <AlertTriangle className="w-4 h-4" />
+              <span>{overdue.length} en retard</span>
+            </div>
+          ) : undefined
+        }
+      />
 
       {availableDomains.length > 0 && (
         <Tabs value={domain} onValueChange={setDomain}>

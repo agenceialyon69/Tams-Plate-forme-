@@ -9,6 +9,7 @@ import {
   ShieldAlert, ShieldCheck, ShieldX, Play, RefreshCw,
   AlertTriangle, CheckCircle2, Info, Swords,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface RedTeamTest {
   id: string;
@@ -87,34 +88,30 @@ export default function RedTeam() {
 
   return (
     <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-8">
-      <header className="flex justify-between items-end">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Swords className="w-6 h-6 text-accent" />
-            <h1 className="text-3xl font-serif text-foreground">Mode Red Team</h1>
-          </div>
-          <p className="text-muted-foreground text-lg">
-            Tests de sécurité actifs — injections, auth bypass, fuites de données, robustesse.
-          </p>
-        </div>
-        <Button
-          onClick={runTests}
-          disabled={isRunning}
-          className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-        >
-          {isRunning ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Tests en cours…
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4" />
-              Lancer les tests
-            </>
-          )}
-        </Button>
-      </header>
+      <PageHeader
+        icon={Swords}
+        title="Mode Red Team"
+        subtitle="Tests de sécurité actifs — injections, auth bypass, fuites de données, robustesse."
+        action={
+          <Button
+            onClick={runTests}
+            disabled={isRunning}
+            className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            {isRunning ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Tests en cours…
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                Lancer les tests
+              </>
+            )}
+          </Button>
+        }
+      />
 
       {!result && !isRunning && !error && (
         <Card className="bg-card border-border">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Activity, AlertTriangle, Zap, Clock, CheckCircle2, XCircle, RefreshCw, PowerOff, Power, Plus, Loader2, AlertCircle, X } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,15 +102,11 @@ export default function Observability() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Activity className="w-5 h-5 text-accent" />
-          <h1 className="text-2xl font-serif font-semibold">Observabilité</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Vue santé globale — audit, quotas IA, kill switches, coûts, activité par tenant.
-        </p>
-      </div>
+      <PageHeader
+        icon={Activity}
+        title="Observabilité"
+        subtitle="Vue santé globale — audit, quotas IA, kill switches, coûts, activité par tenant."
+      />
 
       {activeKillSwitches.length > 0 && (
         <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">

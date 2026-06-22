@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Mic, Square, Send, Loader2, Clock, CheckCircle2, Calendar, BookOpen, Inbox } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -109,13 +110,11 @@ export default function Capture() {
   return (
     <div className="max-w-3xl mx-auto p-8 md:p-12 space-y-10">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-serif text-foreground">Capture universelle</h1>
-          <p className="text-muted-foreground">
-            Tout ce qui prend de la place dans ta tête — tâches, idées, rendez-vous, inquiétudes.
-            TAMS triera et organisera le reste.
-          </p>
-        </div>
+        <PageHeader
+          icon={Inbox}
+          title="Capture universelle"
+          subtitle="Tout ce qui prend de la place dans ta tête — tâches, idées, rendez-vous, inquiétudes. TAMS triera et organisera le reste."
+        />
 
         <Card className="bg-card/50 border-card-border/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-0 relative">

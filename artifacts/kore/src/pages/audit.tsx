@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, FileText, AlertTriangle } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -83,32 +84,31 @@ export default function Audit() {
 
   return (
     <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-8">
-      <header className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-serif mb-2 text-foreground">Audit Trail</h1>
-          <p className="text-muted-foreground text-lg">
-            Journal immuable de toutes les actions de modification.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Select value={resource} onValueChange={setResource}>
-            <SelectTrigger className="w-40 bg-card border-border">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {RESOURCES.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {r === "all" ? "Tout" : r}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-            <Download className="w-4 h-4" />
-            Export JSON
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        icon={FileText}
+        title="Audit Trail"
+        subtitle="Journal immuable de toutes les actions de modification."
+        action={
+          <div className="flex items-center gap-3">
+            <Select value={resource} onValueChange={setResource}>
+              <SelectTrigger className="w-40 bg-card border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RESOURCES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r === "all" ? "Tout" : r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+              <Download className="w-4 h-4" />
+              Export JSON
+            </Button>
+          </div>
+        }
+      />
 
       {isLoading && (
         <div className="space-y-3">

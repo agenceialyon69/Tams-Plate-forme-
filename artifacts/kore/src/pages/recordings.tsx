@@ -25,6 +25,7 @@ import {
   Lightbulb,
   MessageSquare,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -494,15 +495,11 @@ export default function Recordings() {
               exit={{ opacity: 0, y: -16 }}
               className="max-w-2xl mx-auto px-6 py-10 space-y-8"
             >
-              <div>
-                <h1 className="text-3xl font-serif text-foreground mb-1">
-                  Nouvel enregistrement
-                </h1>
-                <p className="text-muted-foreground">
-                  Réunion, appel, brainstorm, mémo vocal — TAMS transcrit, analyse et extrait les
-                  actions en mode Red Team.
-                </p>
-              </div>
+              <PageHeader
+                icon={Mic}
+                title="Enregistrements"
+                subtitle="Réunion, appel, brainstorm, mémo vocal — TAMS transcrit, analyse et extrait les actions en mode Red Team."
+              />
 
               {/* Type selector */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

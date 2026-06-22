@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Bell, BellOff, CheckCircle2, XCircle, LogOut, Shield,
-  Cpu, Download, AlertTriangle, RefreshCw,
+  Cpu, Download, AlertTriangle, RefreshCw, SlidersHorizontal,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { useNotifications } from "@/hooks/useNotifications";
 import { clearToken, getToken } from "@/lib/auth";
@@ -160,10 +161,11 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-10 space-y-10">
-      <div>
-        <h1 className="text-2xl font-serif font-semibold text-foreground">Paramètres</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configuration de TAMS</p>
-      </div>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title="Paramètres"
+        subtitle="Configuration de TAMS"
+      />
 
       {/* Configuration IA & Intégrations (état réel serveur) */}
       <section className="space-y-4">

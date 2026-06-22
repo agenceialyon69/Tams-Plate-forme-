@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BookOpen, Search, Tag, User, Clock, Activity, Plus, Trash2, Pencil, X, Check, Loader2, AlertCircle } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -117,23 +118,19 @@ export default function Registry() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-accent" />
-            <h1 className="text-2xl font-serif font-semibold">Registry Central</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Tout ce que TAMS sait faire — agents, prompts, playbooks, politiques, workflows, providers.
-          </p>
-        </div>
-        {canWrite && (
-          <Button size="sm" onClick={() => setShowForm((v) => !v)} className="gap-1.5">
-            {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showForm ? "Annuler" : "Nouvelle entrée"}
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        icon={BookOpen}
+        title="Registry Central"
+        subtitle="Tout ce que TAMS sait faire — agents, prompts, playbooks, politiques, workflows, providers."
+        action={
+          canWrite ? (
+            <Button size="sm" onClick={() => setShowForm((v) => !v)} className="gap-1.5">
+              {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {showForm ? "Annuler" : "Nouvelle entrée"}
+            </Button>
+          ) : undefined
+        }
+      />
 
       {showForm && canWrite && (
         <Card className="border-border/50">

@@ -2,6 +2,7 @@ import { Shield, Users, Lock, Activity, CheckCircle2, AlertTriangle, Settings2 }
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getStoredUser } from "@/lib/auth";
+import { PageHeader } from "@/components/PageHeader";
 
 const ROLES = [
   { name: "owner", label: "Propriétaire", color: "bg-purple-500/10 text-purple-600 border-purple-200", perms: ["Tout faire, gérer le workspace, supprimer"] },
@@ -34,15 +35,11 @@ export default function Governance() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-accent" />
-          <h1 className="text-2xl font-serif font-semibold">Gouvernance</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Vue centralisée des rôles, permissions, politiques actives et état de sécurité de la plateforme.
-        </p>
-      </div>
+      <PageHeader
+        icon={Shield}
+        title="Gouvernance"
+        subtitle="Vue centralisée des rôles, permissions, politiques actives et état de sécurité de la plateforme."
+      />
 
       {user && (
         <Card className="border-border/50 bg-muted/20">
