@@ -298,8 +298,10 @@ router.post(
     if (!(await ensureFfmpeg(res))) return;
     const body = (req.body ?? {}) as {
       images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown;
-      captions?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
+      captions?: unknown; captionPosition?: unknown; transition?: unknown; transitionDuration?: unknown;
+      style?: unknown; kenBurns?: unknown; kenBurnsMode?: unknown;
       intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
+      subtitleStyle?: unknown; speed?: unknown;
     };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
@@ -309,8 +311,12 @@ router.post(
     const captions = Array.isArray(body.captions)
       ? body.captions.map((c) => (typeof c === "string" ? c : ""))
       : undefined;
-    const TRANSITIONS = new Set(["none", "fade", "dissolve", "slide", "circle"]);
-    const STYLES = new Set(["none", "vivid", "warm", "cinema", "bw"]);
+    const TRANSITIONS = new Set(["none","fade","dissolve","slide","circle","wipeleft","wiperight","wipeup","wipedown","pixelize","radial","fadeblack","fadewhite","zoomin","squeezeh","squeezev"]);
+    const STYLES = new Set(["none","vivid","warm","cinema","bw","golden","cool","matte","vintage","neon"]);
+    const KB_MODES = new Set(["zoom-in","zoom-out","pan-left","pan-right","diagonal","random"]);
+    const CAP_POS = new Set(["top","center","bottom"]);
+    const SUB_STYLES = new Set(["box","shadow","clean"]);
+    const SPEEDS = new Set(["slow","normal","fast"]);
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
     try {
       const video = await makeSlideshow(images, {
@@ -319,13 +325,18 @@ router.post(
         secondsPerImage: Number(body.secondsPerImage) || undefined,
         musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
         captions,
+        captionPosition: CAP_POS.has(String(body.captionPosition)) ? (body.captionPosition as "bottom") : "bottom",
         transition: TRANSITIONS.has(String(body.transition)) ? (body.transition as "fade") : "fade",
+        transitionDuration: typeof body.transitionDuration === "number" ? body.transitionDuration : undefined,
         style: STYLES.has(String(body.style)) ? (body.style as "vivid") : "none",
         kenBurns: body.kenBurns === true,
+        kenBurnsMode: KB_MODES.has(String(body.kenBurnsMode)) ? (body.kenBurnsMode as "zoom-in") : "zoom-in",
         intro: parseCard(body.intro),
         outro: parseCard(body.outro),
         brand: typeof body.brand === "string" ? body.brand : undefined,
         logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
+        subtitleStyle: SUB_STYLES.has(String(body.subtitleStyle)) ? (body.subtitleStyle as "box") : "box",
+        speed: SPEEDS.has(String(body.speed)) ? (body.speed as "normal") : "normal",
       });
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
@@ -352,8 +363,10 @@ router.post(
     }
     const body = (req.body ?? {}) as {
       prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown;
-      musicBase64?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
+      musicBase64?: unknown; transition?: unknown; transitionDuration?: unknown;
+      style?: unknown; kenBurns?: unknown; kenBurnsMode?: unknown;
       intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
+      subtitleStyle?: unknown; speed?: unknown;
     };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
@@ -362,11 +375,12 @@ router.post(
     }
     const scenes = Math.min(Math.max(Number(body.scenes) || 4, 2), 6);
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
-    const TRANSITIONS = new Set(["none", "fade", "dissolve", "slide", "circle"]);
-    const STYLES = new Set(["none", "vivid", "warm", "cinema", "bw"]);
+    const TRANSITIONS = new Set(["none","fade","dissolve","slide","circle","wipeleft","wiperight","wipeup","wipedown","pixelize","radial","fadeblack","fadewhite","zoomin","squeezeh","squeezev"]);
+    const STYLES = new Set(["none","vivid","warm","cinema","bw","golden","cool","matte","vintage","neon"]);
+    const KB_MODES = new Set(["zoom-in","zoom-out","pan-left","pan-right","diagonal","random"]);
+    const SPEEDS = new Set(["slow","normal","fast"]);
 
     try {
-      // Generate scenes in parallel; vary the seed so they differ.
       const images = await Promise.all(
         Array.from({ length: scenes }, (_, i) =>
           generateImage(`${prompt} — plan ${i + 1}`, { width: fmt.width, height: fmt.height, seed: 1000 + i })
@@ -380,12 +394,15 @@ router.post(
           secondsPerImage: Number(body.secondsPerImage) || undefined,
           musicBase64: typeof body.musicBase64 === "string" ? body.musicBase64 : undefined,
           transition: TRANSITIONS.has(String(body.transition)) ? (body.transition as "fade") : "fade",
+          transitionDuration: typeof body.transitionDuration === "number" ? body.transitionDuration : undefined,
           style: STYLES.has(String(body.style)) ? (body.style as "vivid") : "none",
           kenBurns: body.kenBurns === true,
+          kenBurnsMode: KB_MODES.has(String(body.kenBurnsMode)) ? (body.kenBurnsMode as "zoom-in") : "random",
           intro: parseCard(body.intro),
           outro: parseCard(body.outro),
           brand: typeof body.brand === "string" ? body.brand : undefined,
           logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
+          speed: SPEEDS.has(String(body.speed)) ? (body.speed as "normal") : "normal",
         }
       );
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });

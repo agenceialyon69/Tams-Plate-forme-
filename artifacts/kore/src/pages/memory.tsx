@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Search, Plus, Trash2, Loader2 } from "lucide-react";
+import { Search, Plus, Trash2, Loader2, BrainCircuit } from "lucide-react";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Memory() {
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -72,19 +73,19 @@ export default function Memory() {
   ];
 
   return (
-    <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-8">
-      <header className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-serif mb-2 text-foreground">Mémoire</h1>
-          <p className="text-muted-foreground text-lg">Votre base de connaissances personnelle.</p>
-        </div>
-        
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau
-            </Button>
+    <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-8">
+      <PageHeader
+        icon={BrainCircuit}
+        title="Mémoire"
+        subtitle="Base de connaissances long terme de ton activité"
+        className="mb-2"
+        action={
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Nouveau
+              </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-card-border sm:max-w-md">
             <DialogHeader>
@@ -137,7 +138,8 @@ export default function Memory() {
             </div>
           </DialogContent>
         </Dialog>
-      </header>
+      }
+      />
 
       <div className="relative mb-8">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />

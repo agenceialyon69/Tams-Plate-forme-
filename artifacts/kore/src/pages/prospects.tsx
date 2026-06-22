@@ -639,11 +639,11 @@ export default function ProspectsPage() {
         <div className="px-5 pt-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-accent/25 to-accent/5 border border-accent/20 flex items-center justify-center shadow-sm shrink-0">
                 <Users className="w-4 h-4 text-accent"/>
               </div>
               <div>
-                <h1 className="font-semibold text-base leading-none">Prospection</h1>
+                <h1 className="font-serif font-semibold text-base leading-none text-foreground">Prospection</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">{leads.length} leads</p>
               </div>
             </div>

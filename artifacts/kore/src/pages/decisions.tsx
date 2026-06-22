@@ -20,9 +20,11 @@ import {
   GitMerge,
   AlertCircle,
   Lightbulb,
+  Scale,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Decisions() {
   const [question, setQuestion] = useState("");
@@ -59,15 +61,15 @@ export default function Decisions() {
   };
 
   return (
-    <div className="p-8 md:p-12 max-w-6xl mx-auto flex flex-col md:flex-row gap-10 min-h-screen items-start">
+    <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-6">
+      <PageHeader
+        icon={Scale}
+        title="Décisions"
+        subtitle="Analyse honnête Red Team — sans complaisance, sans biais de confirmation"
+        className="mb-2"
+      />
+      <div className="flex flex-col md:flex-row gap-10 items-start">
       <div className="w-full md:w-1/3 space-y-8 sticky top-12">
-        <header>
-          <h1 className="text-3xl font-serif mb-2 text-foreground">Décisions</h1>
-          <p className="text-muted-foreground">
-            TAMS te donne une analyse honnête — Red Team, sans complaisance.
-          </p>
-        </header>
-
         <Card className="bg-card border-card-border shadow-sm">
           <CardContent className="p-6 space-y-4">
             <div className="space-y-2">
@@ -254,6 +256,7 @@ export default function Decisions() {
             </div>
           )}
         </AnimatePresence>
+      </div>
       </div>
     </div>
   );

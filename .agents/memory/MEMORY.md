@@ -1,1 +1,2 @@
 - [KORE Architecture](kore-architecture.md) — stack, Vite proxy wiring, briefing cache, mutation pattern, Red Team philosophy
+- [No-paid rule](no-paid-rule.md) — règle absolue : zéro service payant, tout gratuit et auto-hébergeable

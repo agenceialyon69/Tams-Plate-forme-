@@ -107,6 +107,7 @@ Tables: `tenants`, `users`, `sessions`, `captures`, `tasks`, `memory_entries`, `
 - Langage : Français
 - Philosophie : Red Team — honnête, jamais flatteur, jamais culpabilisant
 - Pas de gamification, pas de streaks, pas de badges
+- **RÈGLE ABSOLUE** : Ne jamais ajouter de fonctionnalité payante, nécessitant un abonnement, des crédits ou une carte bancaire. Tout doit rester 100% gratuit et auto-hébergeable. Les IA payantes (OpenAI, Anthropic…) restent optionnelles. Priorité : Ollama, DeepSeek, Qwen, Llama, Whisper, FFmpeg, PostgreSQL.
 
 ## Gotchas
 
