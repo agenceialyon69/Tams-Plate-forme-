@@ -278,6 +278,16 @@ const VIDEO_FORMATS: Record<string, { width: number; height: number }> = {
   "16:9": { width: 1920, height: 1080 },
 };
 
+/** Parse a {title, subtitle} title card from request input. */
+function parseCard(v: unknown): { title?: string; subtitle?: string } | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as { title?: unknown; subtitle?: unknown };
+  const title = typeof o.title === "string" ? o.title.trim() : "";
+  const subtitle = typeof o.subtitle === "string" ? o.subtitle.trim() : "";
+  if (!title && !subtitle) return undefined;
+  return { title: title || undefined, subtitle: subtitle || undefined };
+}
+
 /** POST /api/integrations/video/slideshow — build a video from given images. */
 router.post(
   "/integrations/video/slideshow",
@@ -288,6 +298,7 @@ router.post(
     const body = (req.body ?? {}) as {
       images?: unknown; format?: unknown; secondsPerImage?: unknown; musicBase64?: unknown;
       captions?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
+      intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
     };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
@@ -310,6 +321,10 @@ router.post(
         transition: TRANSITIONS.has(String(body.transition)) ? (body.transition as "fade") : "fade",
         style: STYLES.has(String(body.style)) ? (body.style as "vivid") : "none",
         kenBurns: body.kenBurns === true,
+        intro: parseCard(body.intro),
+        outro: parseCard(body.outro),
+        brand: typeof body.brand === "string" ? body.brand : undefined,
+        logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
       });
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
@@ -337,6 +352,7 @@ router.post(
     const body = (req.body ?? {}) as {
       prompt?: unknown; scenes?: unknown; format?: unknown; secondsPerImage?: unknown;
       musicBase64?: unknown; transition?: unknown; style?: unknown; kenBurns?: unknown;
+      intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
     };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
@@ -365,6 +381,10 @@ router.post(
           transition: TRANSITIONS.has(String(body.transition)) ? (body.transition as "fade") : "fade",
           style: STYLES.has(String(body.style)) ? (body.style as "vivid") : "none",
           kenBurns: body.kenBurns === true,
+          intro: parseCard(body.intro),
+          outro: parseCard(body.outro),
+          brand: typeof body.brand === "string" ? body.brand : undefined,
+          logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
         }
       );
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });

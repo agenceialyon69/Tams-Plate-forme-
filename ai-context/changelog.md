@@ -2,6 +2,17 @@
 
 Format : date — résumé (réf PR si applicable).
 
+## 2026-06-22
+- **Logo en overlay** : image logo (upload) incrustée en haut-droite de la
+  vidéo, après le bandeau de marque. Testé avec ET sans musique (pas de blocage
+  sur le logo image fixe). Pipeline de post-compositing brand→logo→[outv].
+- **Kit vidéo pro** : **carte d'intro** (titre/sous-titre), **carte d'outro**
+  (appel à l'action), **bandeau de marque permanent**. Cartes générées via
+  source `lavfi color` + `drawtext`, intégrées dans la chaîne `xfade` à durée
+  variable. Section « Branding & cartes » dans le Studio. Testé combo complet
+  (intro + 3 photos + outro + marque + transitions + cinéma + Ken Burns + légendes
+  + musique → 1080×1920, durée correcte, v+a).
+
 ## 2026-06-21
 - **Effets pro vidéo** : transitions en fondu (`xfade` : fondu/dissoudre/
   glissement/cercle), **styles couleur** (Lumineux/Chaud/Cinéma/N&B), **mouvement
