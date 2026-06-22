@@ -37,7 +37,29 @@ export interface SlideshowOptions {
   musicBase64?: string;
   /** Optional caption per image (overlaid, lower third). Index-aligned. */
   captions?: string[];
+  /** Transition between photos. Default "fade". */
+  transition?: "none" | "fade" | "dissolve" | "slide" | "circle";
+  /** Colour-grading look applied to each photo. Default "none". */
+  style?: "none" | "vivid" | "warm" | "cinema" | "bw";
+  /** Subtle Ken Burns zoom for a "living" feel. Default false. */
+  kenBurns?: boolean;
 }
+
+// UI transition → ffmpeg xfade transition name.
+const XFADE: Record<string, string> = {
+  fade: "fade",
+  dissolve: "dissolve",
+  slide: "slideleft",
+  circle: "circleopen",
+};
+
+// Colour-grading looks (applied per photo, before the caption so text stays crisp).
+const STYLE_FILTER: Record<string, string> = {
+  vivid: "eq=saturation=1.35:contrast=1.08",
+  warm: "colorbalance=rs=0.06:gs=0.02:bs=-0.06,eq=saturation=1.12",
+  cinema: "eq=contrast=1.12:saturation=1.0:gamma=0.95,vignette=PI/5",
+  bw: "hue=s=0,eq=contrast=1.08",
+};
 
 /** Whether on-image text captions are available (a usable font was found). */
 export function captionsAvailable(): boolean {
@@ -87,8 +109,6 @@ export async function makeSlideshow(
     const outputPath = join(tmpdir(), `tams-vid-${id}.mp4`);
     cleanup.push(outputPath);
 
-    const totalSec = dur * inputPaths.length;
-
     // Inputs: each image looped for `dur` seconds.
     const inputArgs: string[] = [];
     for (const p of inputPaths) {
@@ -106,12 +126,25 @@ export async function makeSlideshow(
       inputArgs.push("-i", musicPath);
     }
 
+    const n = inputPaths.length;
+    // Crossfade transition between photos (xfade). 0 when "none" or single image.
+    const xfadeName = opts.transition && opts.transition !== "none" ? XFADE[opts.transition] : null;
+    const T = xfadeName && n >= 2 ? Math.min(0.7, dur * 0.4) : 0;
+    // With xfade, consecutive clips overlap by T, shortening the total.
+    const videoSec = T > 0 ? n * dur - (n - 1) * T : n * dur;
+
+    const styleFilter = opts.style && opts.style !== "none" ? STYLE_FILTER[opts.style] : "";
+    // d=1 (one output frame per input frame) → smooth zoom with NO frame blow-up.
+    const kenBurns = opts.kenBurns
+      ? `,zoompan=z='min(zoom+0.0008,1.12)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}`
+      : "";
+
     // Per-image: cover-crop to the target frame, normalise to fps, optional
-    // caption overlay (lower third), then concat. Each input is bounded to
-    // `dur` seconds via -loop/-t below.
+    // colour grade + Ken Burns + caption overlay. Each input is bounded to
+    // `dur` seconds via -loop/-t.
     const fontSize = Math.round(width / 16);
     const segments: string[] = [];
-    for (let i = 0; i < inputPaths.length; i++) {
+    for (let i = 0; i < n; i++) {
       let drawtext = "";
       const caption = opts.captions?.[i]?.trim();
       if (caption && CAPTION_FONT) {
@@ -126,17 +159,35 @@ export async function makeSlideshow(
       }
       segments.push(
         `[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
-          `crop=${width}:${height},setsar=1,fps=${fps},format=yuv420p${drawtext}[v${i}]`
+          `crop=${width}:${height},setsar=1,fps=${fps}` +
+          (styleFilter ? `,${styleFilter}` : "") +
+          kenBurns +
+          `,format=yuv420p${drawtext}[v${i}]`
       );
     }
-    const concatInputs = inputPaths.map((_, i) => `[v${i}]`).join("");
-    let filter = `${segments.join(";")};${concatInputs}concat=n=${inputPaths.length}:v=1:a=0[outv]`;
+
+    let filter: string;
+    if (T > 0) {
+      // Chain xfades: each join overlaps by T at offset i*(dur - T).
+      const links: string[] = [];
+      let prev = "[v0]";
+      for (let i = 1; i < n; i++) {
+        const out = i === n - 1 ? "[outv]" : `[x${i}]`;
+        const offset = (i * (dur - T)).toFixed(3);
+        links.push(`${prev}[v${i}]xfade=transition=${xfadeName}:duration=${T}:offset=${offset}${out}`);
+        prev = out;
+      }
+      filter = `${segments.join(";")};${links.join(";")}`;
+    } else {
+      const concatInputs = inputPaths.map((_, i) => `[v${i}]`).join("");
+      filter = `${segments.join(";")};${concatInputs}concat=n=${n}:v=1:a=0[outv]`;
+    }
 
     const mapArgs = ["-map", "[outv]"];
     const audioArgs: string[] = [];
     if (musicIndex >= 0) {
-      const fadeStart = Math.max(totalSec - 1.5, 0);
-      filter += `;[${musicIndex}:a]afade=t=out:st=${fadeStart}:d=1.5,atrim=0:${totalSec}[outa]`;
+      const fadeStart = Math.max(videoSec - 1.5, 0);
+      filter += `;[${musicIndex}:a]afade=t=out:st=${fadeStart}:d=1.5,atrim=0:${videoSec}[outa]`;
       mapArgs.push("-map", "[outa]");
       audioArgs.push("-c:a", "aac", "-b:a", "192k", "-shortest");
     }
@@ -161,7 +212,7 @@ export async function makeSlideshow(
     return {
       videoBase64: video.toString("base64"),
       mimeType: "video/mp4",
-      durationSec: Math.round(dur * inputPaths.length),
+      durationSec: Math.round(videoSec),
     };
   } finally {
     await Promise.all(cleanup.map((p) => unlink(p).catch(() => {/* best effort */})));
