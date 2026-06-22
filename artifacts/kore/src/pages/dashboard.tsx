@@ -154,6 +154,33 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 md:p-12 max-w-5xl mx-auto space-y-10">
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-accent/15 via-card to-card p-7 md:p-9"
+      >
+        <div className="absolute -top-16 -right-12 w-56 h-56 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+        <div className="relative">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">AI Startup OS</p>
+          <h1 className="text-2xl md:text-3xl font-serif font-semibold text-foreground mt-2 leading-tight">
+            Ta plateforme IA tout-en-un
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xl leading-relaxed">
+            Crée des vidéos produit, pilote ton activité avec le Copilot, et garde le contrôle —
+            gratuit et auto-hébergeable.
+          </p>
+          <div className="flex flex-wrap gap-2.5 mt-5">
+            <Link href="/studio" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity">
+              <Wand2 className="w-4 h-4" /> Créer une vidéo
+            </Link>
+            <Link href="/copilot" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border/70 text-foreground text-sm font-medium hover:bg-muted/40 transition-colors">
+              <Sparkles className="w-4 h-4" /> Ouvrir le Copilot
+            </Link>
+          </div>
+        </div>
+      </motion.section>
+
       <header>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
