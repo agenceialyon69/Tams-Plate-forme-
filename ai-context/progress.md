@@ -3,6 +3,17 @@
 _Mis à jour à chaque cycle. Dernière maj : 2026-06-21._
 
 ## DONE
+- **Free-first auto-hébergé (ADR-013)** : mandat formalisé — le système doit
+  tourner avec une stack 100% libre (Ollama/Qwen/DeepSeek/Llama, Whisper,
+  PostgreSQL, Qdrant, SearXNG, n8n, Open WebUI) ; les API cloud restent
+  optionnelles. **Trou de la transcription comblé** : `transcribeAudio` utilise un
+  **Whisper auto-hébergé** (`WHISPER_BASE_URL`, OpenAI-compatible) en priorité,
+  Groq en repli. `transcriptionProvider()` exposé dans `/integrations/status`.
+  Doc : `decisions.md` ADR-013, `architecture.md` (table stack auto-hébergeable).
+  Smoke 23/23.
+- **Accueil pro (grille de capacités)** : le tableau de bord met en avant les
+  capacités (Studio vidéo en vedette, Copilot, Intégrations, Prospection,
+  Mémoire, Événements) → fonctions visibles, rendu plateforme pro.
 - **Logo en overlay (branding)** : upload d'un logo image, incrusté en
   haut-droite (scale ~largeur/5) après le bandeau de marque. Pipeline de
   post-compositing avec labels successifs (vbase→vbrand→outv). Entrée logo image

@@ -190,8 +190,8 @@ async function main() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const cfgBody = await cfg.json().catch(() => ({}));
-    cfg.status === 200 && cfgBody.ai && Array.isArray(cfgBody.ai.providers) && cfgBody.webSearch && cfgBody.ffmpeg
-      ? ok("config status: aggregate reported")
+    cfg.status === 200 && cfgBody.ai && Array.isArray(cfgBody.ai.providers) && cfgBody.transcription && cfgBody.webSearch && cfgBody.ffmpeg
+      ? ok("config status: aggregate reported (incl. transcription)")
       : ko(`expected config status, got ${cfg.status} ${JSON.stringify(cfgBody)}`);
 
     // Web search: status lists providers (keyless duckduckgo always present),

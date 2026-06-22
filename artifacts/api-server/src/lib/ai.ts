@@ -310,11 +310,46 @@ RÈGLES RED TEAM :
   }
 }
 
+/**
+ * Which transcription backend is available. Free-first: a self-hosted Whisper
+ * (OpenAI-compatible) takes priority over the proprietary Groq API.
+ */
+export function transcriptionProvider(): "selfhosted" | "groq" | "none" {
+  if (process.env.WHISPER_BASE_URL) return "selfhosted";
+  if (process.env.GROQ_API_KEY) return "groq";
+  return "none";
+}
+
+/** Transcribe via a self-hosted OpenAI-compatible Whisper endpoint. */
+async function transcribeSelfHosted(buffer: Buffer, mimeType: string): Promise<string> {
+  const base = (process.env.WHISPER_BASE_URL ?? "").replace(/\/$/, "");
+  const url = /\/v\d+$/.test(base) ? `${base}/audio/transcriptions` : `${base}/v1/audio/transcriptions`;
+  const ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+  const form = new FormData();
+  form.append("file", new Blob([ab], { type: mimeType }), "audio.webm");
+  form.append("model", process.env.WHISPER_MODEL || "Systran/faster-whisper-large-v3");
+  form.append("language", "fr");
+  const res = await fetch(url, {
+    method: "POST",
+    body: form,
+    ...(process.env.WHISPER_API_KEY ? { headers: { Authorization: `Bearer ${process.env.WHISPER_API_KEY}` } } : {}),
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!res.ok) throw new Error(`Whisper ${res.status}`);
+  const data = (await res.json()) as { text?: string };
+  return (data.text ?? "").trim();
+}
+
 export async function transcribeAudio(audioBase64: string, mimeType: string = "audio/webm"): Promise<string> {
   try {
     const buffer = Buffer.from(audioBase64, "base64");
-    const file = new File([buffer], "audio.webm", { type: mimeType });
 
+    // Free-first: prefer a self-hosted Whisper; fall back to Groq if configured.
+    if (process.env.WHISPER_BASE_URL) {
+      return await transcribeSelfHosted(buffer, mimeType);
+    }
+
+    const file = new File([buffer], "audio.webm", { type: mimeType });
     const transcription = await getGroq().audio.transcriptions.create({
       file,
       model: "whisper-large-v3",

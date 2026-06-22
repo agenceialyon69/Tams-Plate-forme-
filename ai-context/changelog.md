@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-22
+- **Free-first auto-hébergé (ADR-013)** : la transcription supporte un **Whisper
+  auto-hébergé** (OpenAI-compatible, `WHISPER_BASE_URL`), prioritaire sur Groq →
+  plus aucune fonction n'exige une API propriétaire. Statut transcription exposé
+  dans `/api/integrations/status`. Mandat free-first documenté
+  (`decisions.md` ADR-013 + `architecture.md` « stack auto-hébergeable »).
 - **Accueil pro (grille de capacités)** : le tableau de bord met en avant la
   **plateforme** via une grille de cartes (Studio vidéo/image en vedette,
   Copilot, Intégrations, Prospection, Mémoire, Événements) → les fonctions clés

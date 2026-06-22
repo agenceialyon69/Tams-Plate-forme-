@@ -1,5 +1,20 @@
 # Architecture
 
+## Stack auto-hébergeable (free-first — ADR-013)
+Le système doit rester pleinement fonctionnel avec **uniquement** des briques
+libres et auto-hébergeables. Les services cloud sont des accélérateurs optionnels.
+| Besoin | Brique libre (cible) | État |
+|---|---|---|
+| Base de données | **PostgreSQL** | ✅ utilisé |
+| LLM (Copilot, analyses) | **Ollama** (Qwen / DeepSeek / Llama) via le gateway | ✅ supporté (`OLLAMA_BASE_URL`) |
+| Transcription audio | **Whisper auto-hébergé** (OpenAI-compatible) | ✅ prioritaire (`WHISPER_BASE_URL`), Groq = fallback optionnel |
+| Recherche web | **SearXNG** | ✅ supporté (`SEARXNG_URL`), DuckDuckGo sinon |
+| Mémoire sémantique / RAG | **Qdrant** | ⏸️ optionnel (à brancher au besoin) |
+| Automatisation / workflows | **n8n** | ⏸️ optionnel |
+| Chat alternatif | **Open WebUI** | ⏸️ non requis (Copilot intégré) |
+> Optionnels (abonnement/crédits/API propriétaire) : Gemini, Groq, OpenRouter,
+> Hugging Face, Pollinations, Tavily, Brave — **jamais requis**, feature-flaggés.
+
 ## Stack (réel)
 - **Monorepo** pnpm (workspaces), Node.js 20/24, TypeScript 5.9.
 - **Backend** : Express 5 (`artifacts/api-server`).

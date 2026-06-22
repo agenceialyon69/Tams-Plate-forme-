@@ -13,7 +13,7 @@ import { makeSlideshow, captionsAvailable } from "../lib/integrations/video-make
 import { searchProviders } from "../lib/integrations/web-search";
 import { configuredProviders } from "../lib/llm";
 import { trackMediaGenerated } from "../lib/events";
-import { transcribeAudio } from "../lib/ai";
+import { transcribeAudio, transcriptionProvider } from "../lib/ai";
 import { rateLimitByUser } from "../middlewares/rate-limit";
 
 // Tight limit for the (external, heavier) image generation endpoint.
@@ -45,6 +45,7 @@ router.get(
         preferred: (process.env.AI_PROVIDER || "auto").toLowerCase(),
         providers: configuredProviders(), // gemini / groq / openrouter / ollama
       },
+      transcription: { provider: transcriptionProvider() }, // selfhosted / groq / none
       webSearch: { providers: searchProviders() },
       imageGeneration: { configured: isImageGenAvailable(), providers: imageProviders() },
       github: { configured: isGithubConfigured() },
