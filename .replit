@@ -43,4 +43,4 @@ channel = "stable-25_05"
 [userenv.shared]
 API_AUTH_TOKEN = "afe340b40b4748379b22f1c782dd1f0a48efaf93b7803229b71c27d929e17efb"
 JWT_SECRET = "ab472c8e9ebfb2e65862e785f43f2d4e71bb3d630c5a6d15a009e62c01738d5b"
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
