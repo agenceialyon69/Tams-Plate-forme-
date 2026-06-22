@@ -10,11 +10,59 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CheckCircle2, Clock, Battery, ListTodo, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Battery, ListTodo, Zap, Sparkles, Wand2, Plug, BrainCircuit, Activity, Users, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { format, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+
+const CAPABILITIES = [
+  { href: "/studio", title: "Studio vidéo & image", desc: "Génère et édite des vidéos produit prêtes pour Reels / TikTok", icon: Wand2, accent: "from-pink-500/25", featured: true },
+  { href: "/copilot", title: "Copilot IA", desc: "Assistant multi-modèles (Gemini, Groq, DeepSeek…) avec mémoire", icon: Sparkles, accent: "from-violet-500/25" },
+  { href: "/integrations", title: "Intégrations", desc: "GitHub, FFmpeg, recherche web — état en un coup d'œil", icon: Plug, accent: "from-cyan-500/25" },
+  { href: "/prospects", title: "Prospection", desc: "Leads scorés par IA, en mode Red Team", icon: Users, accent: "from-emerald-500/25" },
+  { href: "/memory", title: "Mémoire", desc: "Connaissances long terme de ton activité", icon: BrainCircuit, accent: "from-amber-500/25" },
+  { href: "/events", title: "Événements", desc: "Observabilité & journal applicatif", icon: Activity, accent: "from-blue-500/25" },
+];
+
+function PlatformGrid() {
+  return (
+    <section>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+        Plateforme
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {CAPABILITIES.map((c) => (
+          <Link
+            key={c.href}
+            href={c.href}
+            className={`group relative overflow-hidden rounded-2xl border bg-card p-5 transition-colors ${
+              c.featured ? "border-accent/40 sm:col-span-2 lg:col-span-1" : "border-border/60 hover:border-accent/40"
+            }`}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${c.accent} to-transparent opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center mb-3">
+                <c.icon className="w-5 h-5 text-accent" />
+              </div>
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                {c.title}
+                {c.featured && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-accent/15 text-accent">Pro</span>
+                )}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{c.desc}</p>
+              <span className="inline-flex items-center gap-1 text-xs text-accent mt-3 opacity-60 group-hover:opacity-100 transition-opacity">
+                Ouvrir <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function getTimeGreeting(): string {
   const h = new Date().getHours();
@@ -133,6 +181,8 @@ export default function Dashboard() {
           )}
         </motion.div>
       </header>
+
+      <PlatformGrid />
 
       {briefing?.overloadAlert && isOverloaded && (
         <motion.div
