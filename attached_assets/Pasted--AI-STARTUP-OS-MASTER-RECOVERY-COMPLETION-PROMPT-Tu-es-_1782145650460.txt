@@ -1,0 +1,448 @@
+# AI STARTUP OS — MASTER RECOVERY & COMPLETION PROMPT
+
+Tu es un CTO principal, architecte SaaS senior, DevOps lead, UX lead, Red Team Engineer et responsable qualité.
+
+Tu reprends un projet EXISTANT.
+
+NE PAS recréer le projet.
+
+NE PAS repartir de zéro.
+
+NE PAS remplacer ce qui existe déjà.
+
+Ton rôle est :
+
+* auditer
+* récupérer
+* compléter
+* professionnaliser
+* documenter
+* stabiliser
+
+jusqu'à obtenir une plateforme AI Startup OS premium et déployable.
+
+---
+
+# CONTEXTE
+
+Le projet contient déjà des éléments existants :
+
+TAMS Core :
+
+* Gateway multi-IA
+* AI Provider Layer
+* AI Router
+* Copilot conversationnel
+* Mémoire
+* Events
+* Audit Logs
+* ai-context
+
+Exports Base44 :
+
+* Projects
+* Prompts
+* Agents
+* Knowledge Items
+* Audit Logs
+* App Settings
+* Conversations
+
+Ne pas recréer ces concepts.
+
+Les intégrer dans une architecture cohérente.
+
+---
+
+# OBJECTIF
+
+Construire :
+
+AI STARTUP OS
+
+Une plateforme SaaS premium permettant :
+
+* Claire
+* Shopify Assistant
+* Garage Management
+* CRM
+* futurs SaaS
+
+à partir du même socle.
+
+---
+
+# FREE FIRST ARCHITECTURE
+
+Obligatoire.
+
+Privilégier :
+
+* Ollama
+* Qwen
+* DeepSeek
+* Llama
+* Whisper
+* PostgreSQL
+* SQLite
+* n8n
+* SearXNG
+* Open WebUI
+
+Toute IA payante doit être optionnelle.
+
+Aucune dépendance critique ne doit nécessiter :
+
+* abonnement
+* crédits
+* carte bancaire
+
+---
+
+# PRIORITÉ ABSOLUE
+
+1. Recovery
+2. Documentation
+3. Architecture
+4. UX Premium
+5. Copilot
+6. Modules métier
+
+---
+
+# RECOVERY SYSTEM
+
+Créer un système de récupération complet.
+
+Section :
+
+Settings → Recovery Center
+
+Créer :
+
+Download Full Project Backup
+
+Le ZIP doit contenir :
+
+* code source
+* documentation
+* exports JSON
+* ai-context
+* prompts
+* agents
+* knowledge
+* settings
+* changelog
+* manifest
+
+Créer :
+
+EXPORT_MANIFEST.json
+
+Créer :
+
+RECOVERY_GUIDE.md
+
+Créer :
+
+RESTORE_TEST.md
+
+Le projet n'est pas terminé tant qu'un ZIP complet n'existe pas.
+
+---
+
+# DOCUMENTATION
+
+Créer ou compléter :
+
+/ai-context
+
+vision.md
+
+architecture.md
+
+roadmap.md
+
+progress.md
+
+rules.md
+
+decisions.md
+
+schemas.md
+
+runbook.md
+
+non-objectifs.md
+
+project-config.md
+
+Créer également :
+
+PROJECT_STATUS.md
+
+NEXT_TASKS.md
+
+HANDOVER_TO_AI.md
+
+CHANGELOG.md
+
+---
+
+# PREMIUM UI
+
+Transformer toute l'application.
+
+Hero :
+
+AI STARTUP OS
+
+Sous-titre :
+
+Ta plateforme IA tout-en-un.
+
+Design :
+
+* halo
+* dégradés
+* animations légères
+* responsive
+
+Créer :
+
+PageHeader
+
+avec :
+
+* chip dégradé
+* titre premium
+* description
+* actions
+
+Appliquer partout :
+
+* Dashboard
+* Studio
+* Copilot
+* Mémoire
+* Événements
+* Intégrations
+* Décisions
+* Prospection
+* Settings
+
+---
+
+# CHAT PREMIUM
+
+Refondre complètement le chat.
+
+Objectif :
+
+niveau WhatsApp / ChatGPT / Claude / Perplexity.
+
+Mobile :
+
+* plein écran
+* barre fixe
+* scroll optimisé
+* zone saisie sticky
+* boutons toujours visibles
+
+Desktop :
+
+* historique conversations
+* mémoire
+* context panel
+* actions rapides
+
+Fonctions :
+
+* copier
+* régénérer
+* résumer
+* sauvegarder
+* exporter
+
+---
+
+# DASHBOARD PREMIUM
+
+Créer :
+
+* statistiques
+* événements récents
+* mémoire récente
+* décisions
+* projets actifs
+* activité IA
+
+Cartes modernes.
+
+Responsive.
+
+---
+
+# AI STARTUP OS CORE
+
+Créer ou compléter :
+
+AI Router
+
+AI Provider Layer
+
+Prompt Library
+
+Knowledge Base
+
+Agent Registry
+
+Memory Center
+
+Audit Center
+
+Events Center
+
+Decision Center
+
+Research Center
+
+Integrations Center
+
+---
+
+# AGENTS
+
+Créer :
+
+Dev Agent
+
+Research Agent
+
+Business Agent
+
+Marketing Agent
+
+Documentation Agent
+
+Tous pilotés par le Copilot.
+
+---
+
+# INTÉGRATIONS
+
+Créer une page premium :
+
+Integrations
+
+Support :
+
+Ollama
+Whisper
+Open WebUI
+n8n
+PostgreSQL
+SQLite
+
+Afficher :
+
+* statut
+* configuration
+* santé
+
+---
+
+# AUDIT SYSTEM
+
+Créer :
+
+viewer événements
+
+viewer audit logs
+
+recherche
+
+filtres
+
+export
+
+---
+
+# DECISION SYSTEM
+
+Créer :
+
+Décisions
+
+Historique
+
+Risques
+
+Trade-offs
+
+Recommandations
+
+Red Team Review
+
+---
+
+# QUALITY GATE
+
+Avant chaque étape :
+
+Audit
+
+Implémentation
+
+Vérification
+
+Correction
+
+Documentation
+
+Mise à jour contexte
+
+Puis continuer automatiquement.
+
+---
+
+# DEFINITION OF DONE
+
+Recovery ≥ 95
+
+Documentation ≥ 95
+
+UX ≥ 95
+
+Architecture ≥ 95
+
+AI Startup OS ≥ 95
+
+Railway ≥ 95
+
+Handover ≥ 95
+
+Si un score est inférieur :
+
+corriger automatiquement.
+
+---
+
+# FINAL DELIVERABLE
+
+Le projet doit être :
+
+* premium
+* récupérable
+* documenté
+* Railway ready
+* GitHub ready
+* mobile first
+* multi-projets
+* compatible IA open source
+
+Et fournir :
+
+FINAL_AUDIT.md
+
+avec tous les scores et les éléments restants éventuels.

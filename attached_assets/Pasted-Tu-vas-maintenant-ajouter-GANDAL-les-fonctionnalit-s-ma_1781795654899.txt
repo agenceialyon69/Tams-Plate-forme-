@@ -1,0 +1,63 @@
+Tu vas maintenant ajouter à GANDAL les fonctionnalités manquantes pour en faire l’application la plus complète et la plus utile possible, tout en gardant une architecture propre, simple et sécurisée.
+
+Contexte :
+- Frontend React + Vite PWA.
+- Backend Node.js + Express.
+- Design sombre, minimaliste.
+- Application orientée mémoire, red team, IA, productivité et contrôle.
+- L’objectif est d’ajouter de la valeur réelle, pas des gadgets.
+
+Fonctions à ajouter en priorité :
+1. Dashboard d’état général.
+2. Mémoire persistante structurée avec tags, confiance, priorité, date, source et export.
+3. Recherche sémantique dans la mémoire et l’historique.
+4. Journal d’activité / audit log des actions de l’IA.
+5. Mode red team intégré avec tests de sécurité, injections, fuite de données, robustesse des outils.
+6. Sélecteur de provider IA dans les paramètres.
+7. Mode local via Ollama.
+8. Provider cloud de secours.
+9. Command palette pour actions rapides.
+10. Système d’alertes sur données sensibles, conflits et comportements risqués.
+11. Import/export de données et sauvegarde.
+12. État installable PWA et page diagnostics.
+
+Objectifs fonctionnels :
+- L’utilisateur doit pouvoir voir rapidement l’état de l’application.
+- L’utilisateur doit pouvoir retrouver une information ancienne très vite.
+- L’utilisateur doit pouvoir vérifier ce que l’IA a fait et pourquoi.
+- Le mode red team doit aider à détecter les failles, pas seulement afficher un label.
+- L’application doit rester simple à utiliser malgré l’ajout de puissance.
+
+Contraintes d’implémentation :
+- Ne casse pas l’existant.
+- Réutilise les composants et stores déjà présents quand c’est possible.
+- Garde une UX claire, rapide, lisible et cohérente.
+- Toutes les nouvelles fonctionnalités doivent avoir un état vide, un état de chargement et un état d’erreur.
+- Toute fonctionnalité IA doit avoir un fallback et une désactivation propre.
+- Toute fonctionnalité sensible doit être loggée.
+- Ne stocke aucun secret en dur.
+
+Travail attendu :
+1. Analyse la structure actuelle.
+2. Identifie où intégrer chaque nouvelle fonctionnalité.
+3. Implémente les composants, pages, stores et routes nécessaires.
+4. Ajoute les états UI manquants.
+5. Ajoute les checks de sécurité et les validations.
+6. Ajoute la configuration provider IA.
+7. Ajoute la mémoire persistante et l’export.
+8. Ajoute la page diagnostics et la page red team.
+9. Vérifie que tout compile et que rien ne casse le workflow.
+
+Méthode :
+- Fais les ajouts par lots cohérents.
+- Commence par les fondations : stores, types, backend, routes.
+- Ensuite ajoute les pages et composants.
+- Termine par les vérifications, le polish et les corrections.
+- N’invente pas d’API externe si elle n’est pas déjà prévue.
+- Si un outil gratuit ou local est plus simple, privilégie-le.
+
+Livrables attendus :
+- Résumé des ajouts effectués.
+- Liste des fichiers créés ou modifiés.
+- Vérification finale des points critiques.
+- Ce qu’il reste éventuellement à faire.

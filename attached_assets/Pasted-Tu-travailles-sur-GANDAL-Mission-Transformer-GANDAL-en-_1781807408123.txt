@@ -1,0 +1,89 @@
+Tu travailles sur GANDAL.
+
+Mission :
+Transformer GANDAL en plateforme pro d’IA, commerciale et de gouvernance, multi-user, multi-tenant, sécurisée, observable, versionnée, réversible, en privilégiant des outils/IA gratuits ou open source.
+
+Stack prioritaire :
+- Auth/RBAC/multi-tenant : Logto ou Zitadel.
+- IA locale : Ollama.
+- Orchestration : n8n, puis LangGraph si besoin.
+- Mémoire vectorielle : Qdrant.
+- Observabilité IA : Langfuse.
+- Observabilité infra : SigNoz ou Grafana.
+- RAG/connecteurs : LangChain ou LlamaIndex.
+- UI IA locale : OpenWebUI.
+- BDD/storage complémentaire : Supabase.
+
+Règles :
+- Ne casse pas l’existant.
+- Backend-first pour la sécurité.
+- Aucun secret en dur.
+- Tout est tenant-scoped : données, mémoire, logs, exports, actions, inference.
+- Toute action sensible doit être bloquée, validée, simulée ou rollbackable.
+- Toute décision IA doit être tracée, justifiée, versionnée.
+- Defaults safe : read-only, suggestion-only, export limité, approval required pour actions critiques.
+- Versionne chaque prompt, policy, workflow, provider, scoring.
+- Ajouter SSO plus tard si besoin.
+- Rate limiting par tenant et par endpoint.
+- Rate limiting par user en plus du tenant.
+- MFA si nécessaire.
+- Session timeout explicite.
+- Anomaly detection explicite sur coûts, usage, latence, erreurs, comportements suspects.
+- Data retention policy claire par tenant et par type de données.
+- Retention by data class précise.
+- Backup/restore des données.
+- Emergency kill switch pour agent/provider/workflow.
+- Runbooks incident response pour backup/restore et kill switch.
+- Approval tiers selon le risque.
+- Approval matrix détaillée par type d’action.
+- Cost guardrails stricts : budgets, quotas, plafonds, alertes, degradation mode.
+- Drift thresholds explicites par métrique.
+
+Priorités :
+1. Auth réelle, login/signup, users, tenants/workspaces, RBAC backend, sessions sécurisées, reset mot de passe, profil, auth guards.
+2. Registry central + governance graph.
+3. Agent runtime contrôlé : allowlist outils, sandbox, scope limité, tool-call logs, approvals, rollback.
+4. Policy-as-code + change control + workflow ownership.
+5. Audit trail immuable + approvals + versioning/rollback.
+6. Agent analytics + action-level observability + cost attribution.
+7. Multi-tenant isolation stricte + tenant-scoped inference + quotas.
+8. Data lineage + memory lifecycle.
+9. Evals/replay/red team continue.
+10. Commercial intelligence avancée : accounts, contacts, opportunities, signals, playbooks, meeting intel, pipeline, forecast, next best action, buyer committee map.
+
+À créer / renforcer :
+- Registry central : agents, prompts, providers, playbooks, policies, workflows, data sources, integrations, tenants, users, permissions, risks, incidents, audit evidence.
+- Governance graph / agent map.
+- Agent analytics : usage, réussite, coût, latence, qualité, escalade humaine, dérives.
+- Observability : traces, metrics, structured logs, replay, alerts, cost by tenant/user/module.
+- Data lineage : source → transformation → usage → export → retention → deletion.
+- Safe defaults : read-only, suggestion-only, export limits, strict tenant isolation, approval required.
+- Change control : review, approve, test, rollback.
+- Workflow ownership : owner, status, version, risk, history, regression tests.
+- Runtime sandboxing : isolated execution, temporary permissions, file/tool limits, checkpoints, rollback.
+- Tenant-scoped inference : provider allowlist, budget, fallback, quotas, export rules.
+- Evals/red team : golden tests, regressions, prompt injection, cross-tenant leakage, auth bypass, tool abuse, memory poisoning.
+- Commercial platform : RBAC + tenant-aware CRM, pipeline, signals, forecast risk, controlled automation.
+- Backup/restore : procédures claires et testées.
+- Emergency kill switch : désactiver agent/provider/workflow immédiatement.
+- Approval tiers : low / medium / high / critical.
+- Approval matrix : quelle action = quel niveau.
+- Cost guardrails : budgets, quotas, plafonds, alertes, mode dégradé.
+- Drift thresholds : seuils par métrique.
+- Runbooks incident response : détection, containment, evidence, rollback, recovery, postmortem.
+
+Exécution :
+- Analyse l’existant d’abord.
+- Travaille par lots cohérents.
+- Vérifie compilation et corrige immédiatement.
+- Résume clairement ce qui a été ajouté/modifié.
+- Indique ce qu’il reste à faire et les blocages.
+- Pas de refactor hors scope.
+
+Fin obligatoire :
+- Sauvegarde tous les fichiers.
+- Commit avec message clair.
+- Pousse tout sur GitHub sur la branche main.
+- Confirme le remote à jour.
+- Vérifie que Railway peut redéployer automatiquement depuis main.
+- Ne termine pas sans confirmer le push réussi.

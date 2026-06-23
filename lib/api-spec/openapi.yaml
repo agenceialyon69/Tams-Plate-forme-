@@ -1,0 +1,1019 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: TAMS API - Life copilot
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: captures
+    description: Universal capture (text, voice)
+  - name: tasks
+    description: Extracted tasks
+  - name: events
+    description: Extracted calendar events
+  - name: learnings
+    description: Knowledge base entries
+  - name: decisions
+    description: Decision analysis
+  - name: memory
+    description: Personal memory entries
+  - name: briefings
+    description: Daily briefing and evening review
+  - name: overload
+    description: Overload detection and wellbeing
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ─── CAPTURES ───────────────────────────────────────────────
+  /captures:
+    get:
+      operationId: listCaptures
+      tags: [captures]
+      summary: List all captures
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of captures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Capture"
+    post:
+      operationId: createCapture
+      tags: [captures]
+      summary: Create a new capture (text or voice transcript)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureInput"
+      responses:
+        "201":
+          description: Capture created with extracted elements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureResult"
+
+  /captures/{id}:
+    get:
+      operationId: getCapture
+      tags: [captures]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Capture detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capture"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCapture
+      tags: [captures]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── TASKS ───────────────────────────────────────────────────
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, done, dismissed]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [high, medium, low]
+      responses:
+        "200":
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /tasks/summary:
+    get:
+      operationId: getTasksSummary
+      tags: [tasks]
+      summary: Summary counts by status and priority
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TasksSummary"
+
+  # ─── EVENTS ──────────────────────────────────────────────────
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List upcoming events
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+    post:
+      operationId: createEvent
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarEventInput"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+
+  /events/{id}:
+    patch:
+      operationId: updateEvent
+      tags: [events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendarEventUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+    delete:
+      operationId: deleteEvent
+      tags: [events]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── LEARNINGS ───────────────────────────────────────────────
+  /learnings:
+    get:
+      operationId: listLearnings
+      tags: [learnings]
+      summary: List knowledge base entries
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Learnings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Learning"
+    post:
+      operationId: createLearning
+      tags: [learnings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningInput"
+      responses:
+        "201":
+          description: Learning created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Learning"
+
+  /learnings/{id}:
+    delete:
+      operationId: deleteLearning
+      tags: [learnings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── DECISIONS ───────────────────────────────────────────────
+  /decisions:
+    get:
+      operationId: listDecisions
+      tags: [decisions]
+      summary: List past decisions
+      responses:
+        "200":
+          description: Decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Decision"
+    post:
+      operationId: createDecision
+      tags: [decisions]
+      summary: Submit decision for AI analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionInput"
+      responses:
+        "201":
+          description: Decision with analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+
+  /decisions/{id}:
+    get:
+      operationId: getDecision
+      tags: [decisions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Decision detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+    delete:
+      operationId: deleteDecision
+      tags: [decisions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── MEMORY ──────────────────────────────────────────────────
+  /memory:
+    get:
+      operationId: listMemory
+      tags: [memory]
+      summary: Search personal memory
+      parameters:
+        - name: domain
+          in: query
+          schema:
+            type: string
+            enum: [work, family, admin, projects, personal]
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Memory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryEntry"
+    post:
+      operationId: createMemoryEntry
+      tags: [memory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryEntryInput"
+      responses:
+        "201":
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryEntry"
+
+  /memory/{id}:
+    delete:
+      operationId: deleteMemoryEntry
+      tags: [memory]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── BRIEFINGS ───────────────────────────────────────────────
+  /briefings/morning:
+    get:
+      operationId: getMorningBriefing
+      tags: [briefings]
+      summary: Get today's morning briefing
+      responses:
+        "200":
+          description: Morning briefing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MorningBriefing"
+
+  /briefings/evening:
+    post:
+      operationId: submitEveningReview
+      tags: [briefings]
+      summary: Submit evening reflection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EveningReviewInput"
+      responses:
+        "201":
+          description: Evening review saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EveningReview"
+
+  /briefings/evening/history:
+    get:
+      operationId: listEveningReviews
+      tags: [briefings]
+      summary: Past evening reviews
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EveningReview"
+
+  # ─── OVERLOAD ────────────────────────────────────────────────
+  /overload/status:
+    get:
+      operationId: getOverloadStatus
+      tags: [overload]
+      summary: Current overload detection status
+      responses:
+        "200":
+          description: Overload status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverloadStatus"
+
+  /overload/energy:
+    post:
+      operationId: logEnergyLevel
+      tags: [overload]
+      summary: Log energy level
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnergyLogInput"
+      responses:
+        "201":
+          description: Energy logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnergyLog"
+
+  /overload/energy/history:
+    get:
+      operationId: getEnergyHistory
+      tags: [overload]
+      summary: Energy level history (last 30 days)
+      responses:
+        "200":
+          description: Energy history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EnergyLog"
+
+  # ─── AI TRANSCRIPTION ────────────────────────────────────────
+  /ai/transcribe:
+    post:
+      operationId: transcribeAudio
+      tags: [captures]
+      summary: Transcribe audio via Groq Whisper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranscribeInput"
+      responses:
+        "200":
+          description: Transcript
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscribeResult"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    # ─── CAPTURE ─────────────────────────────────────────────
+    Capture:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        source:
+          type: string
+          enum: [text, voice]
+        extractedTasks:
+          type: integer
+        extractedEvents:
+          type: integer
+        extractedLearnings:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, content, source, extractedTasks, extractedEvents, extractedLearnings, createdAt]
+
+    CaptureInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+        source:
+          type: string
+          enum: [text, voice]
+          default: text
+      required: [content]
+
+    CaptureResult:
+      type: object
+      properties:
+        capture:
+          $ref: "#/components/schemas/Capture"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        learnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Learning"
+        tamsComment:
+          type: ["string", "null"]
+      required: [capture, tasks, events, learnings]
+
+    # ─── TASK ─────────────────────────────────────────────────
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+        status:
+          type: string
+          enum: [pending, done, dismissed]
+        priorityDomain:
+          type: ["string", "null"]
+          description: "TAMS priority compass domain"
+        captureId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, priority, status, createdAt, updatedAt]
+
+    TaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        dueDate:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+          default: medium
+        priorityDomain:
+          type: ["string", "null"]
+        captureId:
+          type: ["integer", "null"]
+      required: [title]
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+        status:
+          type: string
+          enum: [pending, done, dismissed]
+        priorityDomain:
+          type: ["string", "null"]
+
+    TasksSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        pending:
+          type: integer
+        done:
+          type: integer
+        highPriority:
+          type: integer
+        overdue:
+          type: integer
+      required: [total, pending, done, highPriority, overdue]
+
+    # ─── EVENT ────────────────────────────────────────────────
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        eventDate:
+          type: string
+        eventTime:
+          type: ["string", "null"]
+        category:
+          type: string
+          enum: [work, family, admin, personal, health]
+        captureId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required: [id, title, eventDate, category, createdAt]
+
+    CalendarEventInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        eventDate:
+          type: string
+        eventTime:
+          type: ["string", "null"]
+        category:
+          type: string
+          enum: [work, family, admin, personal, health]
+          default: personal
+        captureId:
+          type: ["integer", "null"]
+      required: [title, eventDate]
+
+    CalendarEventUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        eventDate:
+          type: string
+        eventTime:
+          type: ["string", "null"]
+        category:
+          type: string
+          enum: [work, family, admin, personal, health]
+
+    # ─── LEARNING ─────────────────────────────────────────────
+    Learning:
+      type: object
+      properties:
+        id:
+          type: integer
+        subject:
+          type: string
+        content:
+          type: string
+        category:
+          type: string
+          enum: [technical, professional, personal, administrative]
+        captureId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required: [id, subject, content, category, createdAt]
+
+    LearningInput:
+      type: object
+      properties:
+        subject:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          enum: [technical, professional, personal, administrative]
+          default: personal
+        captureId:
+          type: ["integer", "null"]
+      required: [subject, content]
+
+    # ─── DECISION ─────────────────────────────────────────────
+    Decision:
+      type: object
+      properties:
+        id:
+          type: integer
+        question:
+          type: string
+        context:
+          type: ["string", "null"]
+        analysis:
+          type: ["string", "null"]
+        priorityConflicts:
+          type: ["string", "null"]
+        alternatives:
+          type: ["string", "null"]
+        blindSpots:
+          type: ["string", "null"]
+        outcome:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required: [id, question, createdAt]
+
+    DecisionInput:
+      type: object
+      properties:
+        question:
+          type: string
+          minLength: 1
+        context:
+          type: ["string", "null"]
+      required: [question]
+
+    # ─── MEMORY ───────────────────────────────────────────────
+    MemoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        domain:
+          type: string
+          enum: [work, family, admin, projects, personal]
+        title:
+          type: string
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+      required: [id, domain, title, content, tags, createdAt]
+
+    MemoryEntryInput:
+      type: object
+      properties:
+        domain:
+          type: string
+          enum: [work, family, admin, projects, personal]
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
+      required: [domain, title, content]
+
+    # ─── BRIEFINGS ────────────────────────────────────────────
+    MorningBriefing:
+      type: object
+      properties:
+        date:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+          description: ISO timestamp of when this briefing was generated by the server
+        topPriorities:
+          type: array
+          items:
+            type: string
+        todayEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        pendingHighPriorityTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        upcomingDeadlines:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        estimatedLoad:
+          type: string
+          enum: [light, moderate, heavy, critical]
+        tamsMessage:
+          type: ["string", "null"]
+        overloadAlert:
+          type: ["string", "null"]
+      required: [date, topPriorities, todayEvents, pendingHighPriorityTasks, upcomingDeadlines, estimatedLoad]
+
+    EveningReviewInput:
+      type: object
+      properties:
+        mostImportantThing:
+          type: string
+        energyLevel:
+          type: integer
+          minimum: 1
+          maximum: 10
+        deferredItems:
+          type: ["string", "null"]
+        abandonedItems:
+          type: ["string", "null"]
+        freeReflection:
+          type: ["string", "null"]
+      required: [mostImportantThing, energyLevel]
+
+    EveningReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        mostImportantThing:
+          type: string
+        energyLevel:
+          type: integer
+        deferredItems:
+          type: ["string", "null"]
+        abandonedItems:
+          type: ["string", "null"]
+        freeReflection:
+          type: ["string", "null"]
+        tamsResponse:
+          type: ["string", "null"]
+        reviewDate:
+          type: string
+        createdAt:
+          type: string
+      required: [id, mostImportantThing, energyLevel, reviewDate, createdAt]
+
+    # ─── OVERLOAD ─────────────────────────────────────────────
+    OverloadStatus:
+      type: object
+      properties:
+        riskLevel:
+          type: string
+          enum: [none, low, medium, high, critical]
+        consecutiveWorkDays:
+          type: integer
+        activeTasks:
+          type: integer
+        averageEnergyLastWeek:
+          type: ["number", "null"]
+        alerts:
+          type: array
+          items:
+            type: string
+        suggestion:
+          type: ["string", "null"]
+      required: [riskLevel, consecutiveWorkDays, activeTasks, alerts]
+
+    EnergyLogInput:
+      type: object
+      properties:
+        level:
+          type: integer
+          minimum: 1
+          maximum: 10
+        note:
+          type: ["string", "null"]
+      required: [level]
+
+    EnergyLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        level:
+          type: integer
+        note:
+          type: ["string", "null"]
+        logDate:
+          type: string
+        createdAt:
+          type: string
+      required: [id, level, logDate, createdAt]
+
+    # ─── AI ───────────────────────────────────────────────────
+    TranscribeInput:
+      type: object
+      properties:
+        audioBase64:
+          type: string
+          description: Base64-encoded audio file
+        mimeType:
+          type: string
+          default: audio/webm
+      required: [audioBase64]
+
+    TranscribeResult:
+      type: object
+      properties:
+        transcript:
+          type: string
+        language:
+          type: ["string", "null"]
+      required: [transcript]

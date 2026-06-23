@@ -1,0 +1,31 @@
+# Render Blueprint — one-click deploy of KORE (web app + API + Postgres).
+# Render provisions the database and wires DATABASE_URL automatically, so there
+# is no manual variable linking. At deploy you'll be asked for API_AUTH_TOKEN.
+databases:
+  - name: kore-db
+    plan: free
+
+services:
+  - type: web
+    name: kore
+    runtime: node
+    plan: free
+    healthCheckPath: /api/healthz
+    buildCommand: >-
+      pnpm install --no-frozen-lockfile --prod=false &&
+      PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build &&
+      pnpm --filter @workspace/api-server run build &&
+      CI=true pnpm prune --prod
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: BASE_PATH
+        value: "/"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kore-db
+          property: connectionString
+      # You will be prompted to enter this securely at deploy time.
+      - key: API_AUTH_TOKEN
+        sync: false

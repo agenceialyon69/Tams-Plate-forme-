@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TAMS — Hors ligne</title>
+  <style>
+    :root { --bg: #0f1117; --card: #161b27; --fg: #e8e0d4; --muted: #7a7a8a; --border: #2a2d3a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; }
+    .logo { width: 64px; height: 64px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+    .logo span { font-family: Georgia, serif; font-size: 36px; font-weight: 600; color: var(--fg); }
+    h1 { font-family: Georgia, serif; font-size: 1.5rem; font-weight: 600; margin-bottom: 0.75rem; }
+    p { color: var(--muted); font-size: 0.925rem; line-height: 1.6; max-width: 320px; margin-bottom: 2rem; }
+    button { background: var(--fg); color: var(--bg); border: none; border-radius: 10px; padding: 0.75rem 1.75rem; font-size: 0.925rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    button:hover { opacity: 0.85; }
+    .status { margin-top: 1.5rem; font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="logo"><span>T</span></div>
+  <h1>Tu es hors ligne</h1>
+  <p>TAMS ne peut pas se connecter au serveur. Vérifie ta connexion, puis réessaie.</p>
+  <button onclick="window.location.reload()">Réessayer</button>
+  <p class="status" id="status"></p>
+  <script>
+    window.addEventListener('online', () => window.location.reload());
+    const s = document.getElementById('status');
+    function check() {
+      s.textContent = navigator.onLine ? 'Connexion détectée, rechargement…' : 'En attente de connexion…';
+      if (navigator.onLine) window.location.reload();
+    }
+    setInterval(check, 5000);
+  </script>
+</body>
+</html>

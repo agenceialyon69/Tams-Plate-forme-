@@ -1,0 +1,12 @@
+# Override the Nixpacks install phase so the build does not fail on a frozen
+# lockfile config mismatch (Nixpacks uses its own pnpm and runs a frozen
+# install by default). --prod=false guarantees devDependencies (vite, esbuild)
+# are present for the build.
+[phases.install]
+cmds = ["pnpm install --no-frozen-lockfile --prod=false"]
+
+# Install FFmpeg in the image for the (optional) video/audio tools. It is a
+# free, account-less binary; the integration stays disabled at runtime until
+# the binary is present, so this is the only thing needed to enable it.
+[phases.setup]
+aptPkgs = ["ffmpeg", "fonts-dejavu-core"]

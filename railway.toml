@@ -1,0 +1,18 @@
+[build]
+builder = "nixpacks"
+# 1. Build the frontend (needs PORT + BASE_PATH, set inline below)
+# 2. Build the API server
+# 3. Push DB schema to Supabase (needs DATABASE_URL — set in Railway Variables)
+# 4. Prune devDeps to reduce image size (drizzle-kit is a devDep, must run push BEFORE this)
+buildCommand = "chmod +x scripts/railway-start.sh && PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/db run push && CI=true pnpm prune --prod"
+
+[deploy]
+startCommand = "sh scripts/railway-start.sh"
+healthcheckPath = "/api/healthz"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
+
+[deploy.envVars]
+PORT = "8080"
+NODE_ENV = "production"
+BASE_PATH = "/"

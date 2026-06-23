@@ -1,0 +1,139 @@
+Tu reprends un projet personnel KORE.
+
+OBJECTIF
+- Le projet reste personnel pour l’instant.
+- On garde une base propre pour pouvoir le transformer en produit plus tard si la valeur se confirme.
+- Toute amélioration doit rester utile, simple, robuste et livrable.
+- Tout doit être poussé sur la branche main.
+- Si tu ne peux pas pousser sur main, le lot ne compte pas.
+
+RÈGLE ABSOLUE
+- Avant toute modification, vérifie la branche active.
+- Vérifie l’état exact du repo.
+- Compare avec main.
+- Si nécessaire, rebase sur main.
+- Puis seulement : cartographie, plus petit fix utile, test, push.
+- Après un push réussi, passe au lot suivant.
+- Si le push échoue, stoppe-toi et documente le blocage au lieu de continuer.
+
+MODE RED TEAM
+- Commence toujours par cartographier le problème.
+- Cherche le bug réel ou le faux signal réel.
+- Choisis le plus petit fix utile possible.
+- Ne fais jamais de refactor global caché dans un correctif ciblé.
+- Ne transforme jamais un lot en mini-reconstruction du produit.
+- Ne touche jamais au périmètre hors lot sans validation explicite.
+- Ne rajoute aucun “bonus” opportuniste.
+
+PRIORITÉS DE TRAVAIL
+1. Fiabilité des données.
+2. Visibilité des signaux utiles.
+3. Propreté TypeScript.
+4. Portabilité / build / install.
+5. Corrections de bugs visibles.
+6. Extensibilité seulement si elle ne dégrade pas la simplicité.
+
+LOT 1 — CONFIANCE DES DONNÉES DU DASHBOARD
+Cartographie :
+- Vérifier la source du timestamp de fraîcheur.
+- Vérifier si le dashboard affiche la vraie génération du briefing ou seulement l’heure du fetch client.
+- Vérifier si des signaux affichés peuvent être trompeurs.
+
+Fix minimal attendu si le problème existe encore :
+- Remplacer le faux signal de fraîcheur par le vrai timestamp de génération du briefing.
+- Utiliser le champ serveur correct s’il existe déjà.
+- Ne rien changer d’autre au dashboard.
+
+Validation :
+- typecheck
+- build si nécessaire
+- push sur main
+- puis seulement continuer
+
+LOT 2 — DASHBOARD DÉCISIONNEL
+Cartographie :
+- Vérifier si la charge du jour est calculée mais pas affichée.
+- Vérifier si l’utilisateur voit un signal clair même en light / moderate.
+- Identifier le plus petit rendu utile.
+
+Fix minimal attendu si le problème existe encore :
+- Ajouter un badge ou indicateur simple dans l’en-tête.
+- 4 états maximum : light, moderate, heavy, critical.
+- Pas de refonte UI.
+- Pas de comparaisons avancées.
+
+Validation :
+- typecheck
+- build
+- push sur main
+- puis seulement continuer
+
+LOT 3 — PROPRETÉ TYPESCRIPT
+Cartographie :
+- Relever les `as any`, `as BriefingExtended`, casts inutiles, champs fantômes, et schémas incomplets.
+- Vérifier si un cast masque un vrai désalignement de type.
+- Vérifier si un type peut être complété proprement au lieu d’être forcé.
+
+Fix minimal attendu si le problème existe encore :
+- Supprimer uniquement les casts qui cachent une erreur réelle.
+- Compléter le schéma si les champs existent réellement côté API.
+- Ne pas toucher aux fichiers hors périmètre si ce n’est pas indispensable.
+
+Validation :
+- typecheck obligatoire
+- build si pertinent
+- push sur main
+- puis seulement continuer
+
+LOT 4 — PORTABILITÉ / RAILWAY / PNPM
+Cartographie :
+- Vérifier si des dépendances Replit privées sont encore référencées.
+- Vérifier `pnpm-workspace.yaml`.
+- Vérifier les `package.json` des artefacts concernés.
+- Vérifier que les configs Vite n’importent plus les plugins supprimés.
+
+Fix minimal attendu si le problème existe encore :
+- Retirer les entrées `@replit/vite-plugin-cartographer`, `@replit/vite-plugin-dev-banner`, `@replit/vite-plugin-runtime-error-modal` du `catalog:` si elles existent encore.
+- Retirer les références correspondantes dans les `package.json` concernés.
+- Régénérer le lockfile si nécessaire.
+- Objectif : `pnpm install` doit passer sur Railway.
+
+Validation :
+- install / typecheck / build
+- push sur main
+- puis seulement continuer
+
+LOT 5 — CAPTURES
+Cartographie :
+- Vérifier si le badge de type des captures repose sur un champ fantôme.
+- Vérifier si le type affiché peut être déduit depuis des données réellement présentes.
+
+Fix minimal attendu si le problème existe encore :
+- Corriger le badge avec la source de vérité réelle.
+- Ne pas ajouter de tags, de filtres ou de recherche tant que ce n’est pas demandé explicitement.
+
+Validation :
+- typecheck
+- build
+- push sur main
+- puis seulement continuer
+
+CONTRAINTES FINALES
+- Le projet reste personnel pour l’instant.
+- La préparation à une future transformation en produit ne doit pas dégrader la simplicité actuelle.
+- Tout push doit aller sur la branche main.
+- Sans push sur main, le lot ne compte pas.
+- À la fin de chaque lot, résume exactement :
+  1. ce qui a été cartographié,
+  2. le bug réel,
+  3. le plus petit fix,
+  4. les fichiers touchés,
+  5. le résultat du test,
+  6. la confirmation du push sur main.
+
+COMMENCE PAR
+1. Identifier la branche active.
+2. Vérifier l’état du repo.
+3. Comparer avec main.
+4. Rebaser sur main si nécessaire.
+5. Puis attaquer uniquement le premier lot réellement bloquant.
