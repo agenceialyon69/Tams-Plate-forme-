@@ -6,6 +6,9 @@ builder = "nixpacks"
 # 4. Prune devDeps to reduce image size (drizzle-kit is a devDep, must run push BEFORE this)
 buildCommand = "chmod +x scripts/railway-start.sh && PORT=8080 BASE_PATH=/ pnpm --filter @workspace/kore run build && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/db run push && CI=true pnpm prune --prod"
 
+[variables]
+NODE_VERSION = "22"
+
 [deploy]
 startCommand = "sh scripts/railway-start.sh"
 healthcheckPath = "/api/healthz"
