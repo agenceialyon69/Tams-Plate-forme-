@@ -9,8 +9,12 @@ import { analyzeFile, generateAuditprompt, type AnalyzedFile } from "../lib/file
 import { trackCopilotMessage } from "../lib/events";
 import { logger } from "../lib/logger";
 import { checkAndIncrementAiCalls } from "./quotas";
+import { rateLimitByUser } from "../middlewares/rate-limit";
 
 const router: IRouter = Router();
+
+// Red-team: prevent AI spam and runaway costs.
+const copilotLimiter = rateLimitByUser({ windowMs: 60_000, max: 20 });
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
@@ -23,7 +27,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 /** POST /api/copilot/chat — conversational AI copilot. */
-router.post("/copilot/chat", async (req, res): Promise<void> => {
+router.post("/copilot/chat", copilotLimiter, async (req, res): Promise<void> => {
   const body = (req.body ?? {}) as {
     messages?: unknown;
     productId?: unknown;
@@ -261,7 +265,7 @@ router.get("/products", (_req, res): void => {
 });
 
 /** POST /api/copilot/audit — analyze uploaded files in Red Team mode. */
-router.post("/copilot/audit", async (req, res): Promise<void> => {
+router.post("/copilot/audit", copilotLimiter, async (req, res): Promise<void> => {
   const userId = req.authUser?.id;
   if (!userId) {
     res.status(401).json({ error: "Authentification requise." });
