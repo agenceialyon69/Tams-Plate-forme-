@@ -301,7 +301,7 @@ router.post(
       captions?: unknown; captionPosition?: unknown; transition?: unknown; transitionDuration?: unknown;
       style?: unknown; kenBurns?: unknown; kenBurnsMode?: unknown;
       intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
-      subtitleStyle?: unknown; speed?: unknown;
+      subtitleStyle?: unknown; speed?: unknown; quality?: unknown;
     };
     const images = Array.isArray(body.images) ? body.images.filter((s) => typeof s === "string") as string[] : [];
     if (images.length === 0) {
@@ -317,6 +317,7 @@ router.post(
     const CAP_POS = new Set(["top","center","bottom"]);
     const SUB_STYLES = new Set(["box","shadow","clean"]);
     const SPEEDS = new Set(["slow","normal","fast"]);
+    const QUALITIES = new Set(["fast","balanced","pro"]);
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
     try {
       const video = await makeSlideshow(images, {
@@ -337,6 +338,7 @@ router.post(
         logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
         subtitleStyle: SUB_STYLES.has(String(body.subtitleStyle)) ? (body.subtitleStyle as "box") : "box",
         speed: SPEEDS.has(String(body.speed)) ? (body.speed as "normal") : "normal",
+        quality: QUALITIES.has(String(body.quality)) ? (body.quality as "balanced") : "balanced",
       });
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });
       res.json(video);
@@ -366,19 +368,20 @@ router.post(
       musicBase64?: unknown; transition?: unknown; transitionDuration?: unknown;
       style?: unknown; kenBurns?: unknown; kenBurnsMode?: unknown;
       intro?: unknown; outro?: unknown; brand?: unknown; logoBase64?: unknown;
-      subtitleStyle?: unknown; speed?: unknown;
+      subtitleStyle?: unknown; speed?: unknown; quality?: unknown;
     };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) {
       res.status(400).json({ error: "Prompt requis." });
       return;
     }
-    const scenes = Math.min(Math.max(Number(body.scenes) || 4, 2), 6);
+    const scenes = Math.min(Math.max(Number(body.scenes) || 4, 2), 12);
     const fmt = VIDEO_FORMATS[String(body.format)] ?? VIDEO_FORMATS["9:16"];
     const TRANSITIONS = new Set(["none","fade","dissolve","slide","circle","wipeleft","wiperight","wipeup","wipedown","pixelize","radial","fadeblack","fadewhite","zoomin","squeezeh","squeezev"]);
     const STYLES = new Set(["none","vivid","warm","cinema","bw","golden","cool","matte","vintage","neon"]);
     const KB_MODES = new Set(["zoom-in","zoom-out","pan-left","pan-right","diagonal","random"]);
     const SPEEDS = new Set(["slow","normal","fast"]);
+    const QUALITIES = new Set(["fast","balanced","pro"]);
 
     try {
       const images = await Promise.all(
@@ -403,6 +406,7 @@ router.post(
           brand: typeof body.brand === "string" ? body.brand : undefined,
           logoBase64: typeof body.logoBase64 === "string" ? body.logoBase64 : undefined,
           speed: SPEEDS.has(String(body.speed)) ? (body.speed as "normal") : "normal",
+          quality: QUALITIES.has(String(body.quality)) ? (body.quality as "balanced") : "balanced",
         }
       );
       trackMediaGenerated({ userId: req.authUser?.id, tenantId: req.tenantId, kind: "video", provider: "ffmpeg", req });

@@ -84,6 +84,8 @@ export interface SlideshowOptions {
   subtitleStyle?: "box" | "shadow" | "clean";
   /** Overall speed preset (affects per-image duration). Default "normal". */
   speed?: "slow" | "normal" | "fast";
+  /** Encoding quality preset. Default "balanced". */
+  quality?: "fast" | "balanced" | "pro";
 }
 
 // UI transition → ffmpeg xfade transition name
@@ -208,7 +210,7 @@ export async function makeSlideshow(
   imagesBase64: string[],
   opts: SlideshowOptions = {}
 ): Promise<{ videoBase64: string; mimeType: string; durationSec: number }> {
-  const images = imagesBase64.filter((s) => typeof s === "string" && s.length > 0).slice(0, 8);
+  const images = imagesBase64.filter((s) => typeof s === "string" && s.length > 0).slice(0, 20);
   if (images.length === 0) throw new Error("NO_IMAGES");
 
   const width  = clampDim(opts.width,  1080);
@@ -385,6 +387,14 @@ export async function makeSlideshow(
       audioArgs.push("-c:a", "aac", "-b:a", "192k", "-shortest");
     }
 
+    // Quality presets: fast (crf 26, ultrafast), balanced (crf 22, fast), pro (crf 18, medium)
+    const qualityPreset = opts.quality ?? "balanced";
+    const [preset, crf] = qualityPreset === "fast"
+      ? ["ultrafast", "26"]
+      : qualityPreset === "pro"
+        ? ["medium", "18"]
+        : ["fast", "22"];
+
     await execFileAsync(
       FFMPEG_BIN,
       [
@@ -394,8 +404,8 @@ export async function makeSlideshow(
         ...mapArgs,
         "-r", String(fps),
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "22",
+        "-preset", preset,
+        "-crf", crf,
         "-pix_fmt", "yuv420p",
         ...audioArgs,
         "-movflags", "+faststart",

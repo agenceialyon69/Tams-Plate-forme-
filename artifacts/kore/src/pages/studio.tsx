@@ -299,6 +299,12 @@ const SPEEDS = [
   { value: "fast", label: "Rapide", hint: "-30%" },
 ];
 
+const QUALITIES = [
+  { value: "fast", label: "Rapide", hint: "Preview" },
+  { value: "balanced", label: "Équilibré", hint: "Standard" },
+  { value: "pro", label: "Pro", hint: "Haute qualité" },
+];
+
 const CAP_POS = [
   { value: "bottom", label: "Bas" }, { value: "top", label: "Haut" }, { value: "center", label: "Centre" },
 ];
@@ -386,6 +392,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
   const [kenBurns, setKenBurns] = useState(true);
   const [kenBurnsMode, setKenBurnsMode] = useState("zoom-in");
   const [speed, setSpeed] = useState("normal");
+  const [quality, setQuality] = useState("balanced");
   const [capPos, setCapPos] = useState("bottom");
   const [subStyle, setSubStyle] = useState("box");
   const [brand, setBrand] = useState("");
@@ -465,7 +472,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     setError(null);
-    const slots = 8 - photos.length;
+    const slots = 20 - photos.length;
     for (const file of files.slice(0, slots)) {
       if (file.size > 6 * 1024 * 1024) { setError("Photo trop lourde (max 6 Mo)."); continue; }
       const url = await new Promise<string>((resolve, reject) => {
@@ -474,7 +481,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
         r.onerror = () => reject(new Error("read"));
         r.readAsDataURL(file);
       });
-      setPhotos((ps) => ps.length >= 8 ? ps : [...ps, { url, base64: url.split(",").pop() ?? "", caption: "" }]);
+      setPhotos((ps) => ps.length >= 20 ? ps : [...ps, { url, base64: url.split(",").pop() ?? "", caption: "" }]);
     }
   }
 
@@ -492,7 +499,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
     setVideo(null);
     try {
       const fx = {
-        transition, style, kenBurns, kenBurnsMode, speed,
+        transition, style, kenBurns, kenBurnsMode, speed, quality,
         captionPosition: capPos, subtitleStyle: subStyle,
         brand: brand.trim() || undefined,
         intro: introTitle.trim() || introSubtitle.trim() ? { title: introTitle, subtitle: introSubtitle } : undefined,
@@ -629,7 +636,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
                   <span className="text-xs font-semibold text-foreground bg-muted/50 px-2 py-0.5 rounded">{scenes}</span>
                 </div>
                 <input
-                  type="range" min={2} max={6} value={scenes}
+                  type="range" min={2} max={12} value={scenes}
                   onChange={(e) => setScenes(Number(e.target.value))}
                   className="w-full sm:w-60 accent-accent" disabled={loading}
                 />
@@ -638,7 +645,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {photos.length}/8 photos — ajoute un texte par photo (nom, prix, accroche)
+                {photos.length}/20 photos — ajoute un texte par photo (nom, prix, accroche)
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {photos.map((p, i) => (
@@ -656,7 +663,7 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
                     </button>
                   </div>
                 ))}
-                {photos.length < 8 && (
+                {photos.length < 20 && (
                   <label className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-6 cursor-pointer hover:bg-muted/30 text-muted-foreground transition-colors">
                     <Plus className="w-5 h-5" />
                     <span className="text-xs">Ajouter des photos</span>
@@ -710,6 +717,10 @@ function VideoPanel({ nexusConfigured }: { nexusConfigured: boolean }) {
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Vitesse globale</p>
               <ChoiceGrid options={SPEEDS} value={speed as "normal"} onChange={setSpeed as (v: "normal") => void} disabled={loading} />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Qualité d'encodage</p>
+              <ChoiceGrid options={QUALITIES} value={quality as "balanced"} onChange={setQuality as (v: "balanced") => void} disabled={loading} />
             </div>
           </div>
         </div>

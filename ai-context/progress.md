@@ -1,8 +1,29 @@
 # Progress
 
-_Mis à jour à chaque cycle. Dernière maj : 2026-06-23 (Supabase setup)._
+_Mis à jour à chaque cycle. Dernière maj : 2026-06-24 (Studio Pro + Copilot multimodal)._
 
 ## DONE
+- **Studio Pro - Limites supprimées** :
+  - Scènes AI : 6 → 12 maximum (vidéo from-prompt)
+  - Photos slideshow : 8 → 20 maximum
+  - Nouveaux presets qualité : Rapide (crf 26, ultrafast), Équilibré (crf 22, fast), Pro (crf 18, medium)
+  - Option qualité exposée dans l'UI du Studio
+  - FFmpeg 100% free, local, sans watermark
+- **Studio Pro - Qualité vidéo améliorée** :
+  - Ajout paramètre `quality` dans `SlideshowOptions` (video-maker.ts)
+  - CRF/preset dynamique selon preset sélectionné
+  - "Pro" = qualité broadcast (crf 18)
+  - "Rapide" = preview/itération rapide (crf 26)
+- **Copilot multimodal en chat régulier** :
+  - Les fichiers joints sont maintenant envoyés ET analysés dans le chat normal (pas seulement en mode Audit)
+  - Extraction texte, métadonnées vidéo/audio, dimensions, durée
+  - FFprobe pour métadonnées, analyse complète dans le contexte
+  - Images, PDFs, vidéos, audio, documents supportés
+  - Max 5 fichiers, 25 Mo par fichier
+- **Documentation multi-tenant** :
+  - `ai-context/multi-tenant-simplification.md` créé
+  - Chemin de retour documenté
+  - Tables/routes conservées mais mono-utilisateur
 - **Dashboard premium dark theme** : refonte complète du tableau de bord avec
   thème dark ultra-professionnel. Actions principales (Capturer, Consulter,
   Décider, Récupérer) mises en évidence. Navigation structurée par sections
