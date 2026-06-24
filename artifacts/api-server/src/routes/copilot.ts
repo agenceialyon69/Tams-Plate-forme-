@@ -24,7 +24,13 @@ const ALLOWED_MIME_TYPES = [
 
 /** POST /api/copilot/chat — conversational AI copilot. */
 router.post("/copilot/chat", async (req, res): Promise<void> => {
-  const body = (req.body ?? {}) as { messages?: unknown; productId?: unknown; webSearch?: unknown; conversationId?: unknown };
+  const body = (req.body ?? {}) as {
+    messages?: unknown;
+    productId?: unknown;
+    webSearch?: unknown;
+    conversationId?: unknown;
+    files?: unknown;
+  };
   const productId = typeof body.productId === "string" ? body.productId : null;
   const wantWeb = body.webSearch === true;
   // Memory: keep the thread id stable so the conversation persists across
@@ -32,13 +38,50 @@ router.post("/copilot/chat", async (req, res): Promise<void> => {
   const conversationId =
     typeof body.conversationId === "string" && body.conversationId.trim() ? body.conversationId : randomUUID();
   const raw = Array.isArray(body.messages) ? body.messages : [];
+  const rawFiles = Array.isArray(body.files) ? body.files as Array<{ name: string; type: string; size: number; data: string }> : [];
+
+  // Analyze attached files if present
+  let fileContext = "";
+  const analyzedFiles: AnalyzedFile[] = [];
+  if (rawFiles.length > 0 && rawFiles.length <= 5) {
+    for (const f of rawFiles) {
+      if (!ALLOWED_MIME_TYPES.includes(f.type) || f.size > MAX_FILE_SIZE) continue;
+      try {
+        const buffer = Buffer.from(f.data, "base64");
+        const analyzed = await analyzeFile(buffer, f.name, f.type);
+        analyzedFiles.push(analyzed);
+      } catch (err) {
+        logger.warn({ err, filename: f.name }, "Failed to analyze file in copilot chat");
+      }
+    }
+    if (analyzedFiles.length > 0) {
+      fileContext = "\n\n--- Fichiers joints ---\n" + analyzedFiles.map((f) => {
+        let ctx = `Fichier: ${f.filename} (${f.type}, ${f.size} bytes)`;
+        if (f.extractedText) ctx += `\nContenu extrait: ${f.extractedText.slice(0, 2000)}`;
+        if (f.extractedMetadata) {
+          const m = f.extractedMetadata;
+          if (m.duration) ctx += `\nDurée: ${m.duration}s`;
+          if (m.dimensions) ctx += `\nDimensions: ${m.dimensions.width}x${m.dimensions.height}`;
+        }
+        return ctx;
+      }).join("\n\n");
+    }
+  }
 
   const messages: CopilotMessage[] = raw
     .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === "object")
-    .map((m): CopilotMessage => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: typeof m.content === "string" ? m.content : "",
-    }))
+    .map((m): CopilotMessage => {
+      let content = typeof m.content === "string" ? m.content : "";
+      const mFiles = Array.isArray(m.files) ? m.files : [];
+      if (m.role === "user" && mFiles.length > 0) {
+        const fileSummary = mFiles.map((f: { name: string; type: string }) => `[${f.type}: ${f.name}]`).join(" ");
+        content = `${content}\n\nFichiers joints: ${fileSummary}`;
+      }
+      return {
+        role: m.role === "assistant" ? "assistant" : "user",
+        content,
+      };
+    })
     .filter((m) => m.content.trim().length > 0)
     .slice(-20);
 
@@ -72,7 +115,10 @@ router.post("/copilot/chat", async (req, res): Promise<void> => {
     }
   }
 
-  const reply = await copilotChat(messages, productId, webContext);
+  // Combine file context with web context
+  const fullContext = [webContext, fileContext].filter(Boolean).join("\n\n") || null;
+
+  const reply = await copilotChat(messages, productId, fullContext);
 
   // Persist this turn (last user message + reply) so the Copilot remembers.
   const lastUser = [...messages].reverse().find((m) => m.role === "user");

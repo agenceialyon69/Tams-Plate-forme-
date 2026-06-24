@@ -330,9 +330,15 @@ export default function Copilot() {
     if (!content || loading) return;
     setError(null);
     const ts = Date.now();
-    const next: Msg[] = [...messages, { id: `msg-${ts}`, role: "user", content, ts }];
+    const userMsg: Msg = { id: `msg-${ts}`, role: "user", content, ts };
+    if (attachedFiles.length > 0) {
+      userMsg.files = [...attachedFiles];
+    }
+    const next: Msg[] = [...messages, userMsg];
     setMessages(next);
     setInput("");
+    const filesToSend = [...attachedFiles];
+    setAttachedFiles([]);
     setLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     try {
@@ -342,7 +348,7 @@ export default function Copilot() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken() ?? ""}`,
         },
-        body: JSON.stringify({ messages: next, productId, webSearch, conversationId }),
+        body: JSON.stringify({ messages: next, productId, webSearch, conversationId, files: filesToSend.length > 0 ? filesToSend : undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
