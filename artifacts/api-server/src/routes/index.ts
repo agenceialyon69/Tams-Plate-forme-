@@ -23,6 +23,9 @@ import copilotRouter from "./copilot";
 import integrationsRouter from "./integrations";
 import nexusAiRouter from "./nexus-ai";
 import appEventsRouter from "./app-events";
+import approvalsRouter from "./approvals";
+import registryRouter from "./registry";
+import killSwitchRouter from "./kill-switch";
 import { rateLimit, rateLimitByTenant, rateLimitByUser } from "../middlewares/rate-limit";
 import { auditMiddleware } from "../middlewares/audit";
 
@@ -59,6 +62,9 @@ router.use(quotasRouter);
 router.use(integrationsRouter);
 router.use(nexusAiRouter);
 router.use(appEventsRouter);
+router.use(approvalsRouter);
+router.use(registryRouter);
+router.use(killSwitchRouter);
 
 // AI endpoints last, behind a single burst limiter. Because earlier routers
 // have already handled (and ended) their requests, this limiter only runs for

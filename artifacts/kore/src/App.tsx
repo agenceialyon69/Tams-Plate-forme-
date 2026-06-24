@@ -35,6 +35,9 @@ import {
   Plug,
   Wand2,
   Download,
+  Shield,
+  Bell,
+  BookOpen,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { QuickCapture } from "@/components/QuickCapture";
@@ -116,6 +119,9 @@ const navItems = [
   { href: "/overload", label: "Bien-être", icon: Activity },
   { href: "/weekly", label: "Bilan", icon: BarChart2 },
   { label: "divider", href: "", icon: Home },
+  { href: "/governance", label: "Gouvernance", icon: Shield },
+  { href: "/registry", label: "Registry", icon: BookOpen },
+  { href: "/approvals", label: "Approbations", icon: Bell },
   { href: "/observability", label: "Observabilité", icon: Eye },
   { href: "/events", label: "Événements", icon: Activity },
   { label: "divider", href: "", icon: Home },
@@ -295,6 +301,9 @@ function Router() {
           <Route path="/red-team" component={RedTeam} />
           <Route path="/diagnostics" component={DiagnosticsPage} />
           <Route path="/settings" component={SettingsPage} />
+          <Route path="/governance" component={GovernancePage} />
+          <Route path="/registry" component={RegistryPage} />
+          <Route path="/approvals" component={ApprovalsPage} />
           <Route path="/observability" component={ObservabilityPage} />
           <Route path="/events" component={EventsPage} />
           <Route path="/profile" component={ProfilePage} />
@@ -326,6 +335,9 @@ import Audit from "./pages/audit";
 import RedTeam from "./pages/red-team";
 import DiagnosticsPage from "./pages/diagnostics";
 import SettingsPage from "./pages/settings";
+import GovernancePage from "./pages/governance";
+import RegistryPage from "./pages/registry";
+import ApprovalsPage from "./pages/approvals";
 import ObservabilityPage from "./pages/observability";
 import EventsPage from "./pages/events";
 import ProfilePage from "./pages/profile";
