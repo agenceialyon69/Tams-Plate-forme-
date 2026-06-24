@@ -1,0 +1,5 @@
+{
+  "buildCommand": "echo 'Auto-deployment ready'",
+  "outputDirectory": ".",
+  "framework": "other"
+}
