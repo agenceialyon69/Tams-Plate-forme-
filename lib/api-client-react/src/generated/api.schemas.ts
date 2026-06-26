@@ -752,3 +752,133 @@ export type GetRecentActivityParams = {
 limit?: number;
 };
 
+export interface MemoryGraphNode {
+  id: number;
+  title: string;
+  type: MemoryGraphNodeType;
+  /** @nullable */
+  content?: string | null;
+  tags?: string[];
+}
+
+export type MemoryGraphNodeType = typeof MemoryGraphNodeType[keyof typeof MemoryGraphNodeType];
+
+
+export const MemoryGraphNodeType = {
+  person: 'person',
+  project: 'project',
+  company: 'company',
+  decision: 'decision',
+  note: 'note',
+  goal: 'goal',
+  event: 'event',
+} as const;
+
+export interface MemoryEdge {
+  id: number;
+  source: number;
+  target: number;
+  type: MemoryEdgeType;
+  /** @nullable */
+  note?: string | null;
+}
+
+export type MemoryEdgeType = typeof MemoryEdgeType[keyof typeof MemoryEdgeType];
+
+
+export const MemoryEdgeType = {
+  works_on: 'works_on',
+  knows: 'knows',
+  related_to: 'related_to',
+  decided_about: 'decided_about',
+  part_of: 'part_of',
+  leads_to: 'leads_to',
+  references: 'references',
+  collaborates_with: 'collaborates_with',
+} as const;
+
+export interface MemoryGraph {
+  nodes: MemoryGraphNode[];
+  edges: MemoryEdge[];
+}
+
+export interface MemoryEdgeInput {
+  targetId: number;
+  type: MemoryEdgeInputType;
+  note?: string;
+}
+
+export type MemoryEdgeInputType = typeof MemoryEdgeInputType[keyof typeof MemoryEdgeInputType];
+
+
+export const MemoryEdgeInputType = {
+  works_on: 'works_on',
+  knows: 'knows',
+  related_to: 'related_to',
+  decided_about: 'decided_about',
+  part_of: 'part_of',
+  leads_to: 'leads_to',
+  references: 'references',
+  collaborates_with: 'collaborates_with',
+} as const;
+
+export interface TasksFromDecisionInput {
+  tasks: TasksFromDecisionInputTasksItem[];
+}
+
+export type TasksFromDecisionInputTasksItemPriority = typeof TasksFromDecisionInputTasksItemPriority[keyof typeof TasksFromDecisionInputTasksItemPriority];
+
+
+export const TasksFromDecisionInputTasksItemPriority = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  urgent: 'urgent',
+} as const;
+
+export interface TasksFromDecisionInputTasksItem {
+  /** @minLength 1 */
+  title: string;
+  priority?: TasksFromDecisionInputTasksItemPriority;
+}
+
+export interface SystemStatsTables {
+  tasks?: number;
+  projects?: number;
+  contacts?: number;
+  memories?: number;
+  decisions?: number;
+  conversations?: number;
+  assets?: number;
+  activity?: number;
+}
+
+export interface SystemStats {
+  tables: SystemStatsTables;
+  totalRecords: number;
+  status: string;
+}
+
+export interface SystemExport {
+  exportedAt: string;
+  version: string;
+  data: Record<string, unknown>;
+}
+
+export type GetSystemAuditParams = {
+type?: GetSystemAuditType;
+limit?: number;
+};
+
+export type GetSystemAuditType = typeof GetSystemAuditType[keyof typeof GetSystemAuditType];
+
+
+export const GetSystemAuditType = {
+  task: 'task',
+  project: 'project',
+  contact: 'contact',
+  memory: 'memory',
+  decision: 'decision',
+  conversation: 'conversation',
+  asset: 'asset',
+} as const;
