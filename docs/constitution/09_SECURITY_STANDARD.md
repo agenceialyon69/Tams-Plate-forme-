@@ -15,11 +15,12 @@ Application single-user, sans auth réseau (Replit sandbox). Surface d'attaque l
 7. **XSS.** Jamais `dangerouslySetInnerHTML` sans sanitisation.
 8. **Pas de secrets en client-side.** `REPLIT_AI_API_KEY` côté serveur uniquement.
 
-## Middlewares requis (actuellement manquants)
+## Middlewares (état actuel)
 
-- `middlewares/rate-limit.ts` : rate limiting sur routes IA.
-- `middlewares/request-logger.ts` : logging des requêtes entrant.
-- `middlewares/error-handler.ts` : centraliser la gestion d'erreurs Express.
+- `middlewares/rate-limit.ts` : ✓ Existe et monté (20 req/min IA, 120 req/min général).
+- `middlewares/error-handler.ts` : ✓ Existe et monté, cache stack traces en production.
+- `middlewares/request-logger.ts` : Manquant — logging HTTP via pino-http dans app.ts.
+- `helmet` : Non installé — headers de sécurité manquants.
 
 ## Variables sensibles
 

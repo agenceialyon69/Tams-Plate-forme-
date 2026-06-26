@@ -50,6 +50,7 @@ Montée sur `/api`. 12+ routeurs. Voir `lib/api-spec/openapi.yaml` pour le contr
 - `tasks.project_id` : soft reference, pas de FK constraint.
 - `memories.related_ids` : jsonb plat (remplacé par `memory_edges`).
 - Pas de table `users`, pas d'auth (single-user hardcoded).
-- `middlewares/` vide : pas de rate-limit, pas de request logger.
+- `middlewares/` : rate-limit.ts et error-handler.ts existent et sont montés. request-logger.ts manquant.
 - Pas de migrations Drizzle commitées (schéma en code uniquement).
 - `SESSION_SECRET` déclaré mais non utilisé activement.
+- Helmet.js headers de sécurité non installés.
