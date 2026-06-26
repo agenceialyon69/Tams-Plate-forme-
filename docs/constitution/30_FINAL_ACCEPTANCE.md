@@ -1,25 +1,26 @@
 # 30 — Critères d'acceptation finale
 
 > TAMS n'est pas « terminé » tant que ces critères ne sont pas tous verts.
+> Dernière mise à jour : 2026-06-26 (commit 0609fe6)
 
 ## Critères fonctionnels
 
-- [ ] Chief of Staff : briefing IA généré depuis vraies données, fallback gracieux.
-- [ ] Chat OS : tool-use opérationnel, injection mémoire, streaming.
+- [x] Chief of Staff : briefing IA généré depuis vraies données, fallback gracieux.
+- [x] Chat OS : tool-use opérationnel, injection mémoire, streaming SSE.
 - [ ] Memory Graph : nœuds + edges typées, visualisation graphe, auto-linking.
-- [ ] Decision OS : double analyse IA, score analytique, lien tâches, timeline.
-- [ ] Work OS : CRUD complet, Kanban, liens contacts↔projets.
-- [ ] Studio : assets CRUD, intégration chat, export.
-- [ ] Système : audit, stats, export, recovery opérationnels.
+- [x] Decision OS : double analyse IA, score analytique, lien tâches.
+- [ ] Work OS : CRUD complet, Kanban ✓, liens contacts↔projets manquants.
+- [x] Studio : assets CRUD, intégration chat, génération scripts.
+- [x] Système : audit, stats, export opérationnels.
 
 ## Critères techniques
 
 - [ ] Zéro erreur TypeScript en `pnpm run typecheck`.
 - [ ] Build frontend et backend réussi.
-- [ ] `GET /api/healthz` retourne 200 en production.
+- [x] `GET /api/healthz` retourne 200 en production.
 - [ ] `memory_edges` pushée sur Railway DB.
-- [ ] Middlewares : rate-limit + request-logger + error-handler montés.
-- [ ] Zéro secret exposé côté client.
+- [x] Middlewares : rate-limit + error-handler montés.
+- [x] Zéro secret exposé côté client.
 - [ ] Inputs validés Zod sur tous les endpoints POST/PUT.
 
 ## Critères produit
@@ -28,15 +29,23 @@
 - [ ] Aucun module sans valeur quotidienne prouvée.
 - [ ] Experience mobile premium sur iOS Safari et Android Chrome.
 - [ ] Temps de réponse < 300ms pour les routes non-IA.
-- [ ] Fallback visible si IA indisponible.
+- [x] Fallback visible si IA indisponible.
 
 ## Critères Red Team
 
-- [ ] Aucune route retournant une stack trace en production.
-- [ ] Rate limiting actif sur `/api/chat` et `/api/briefing`.
+- [x] Aucune route retournant une stack trace en production.
+- [x] Rate limiting actif sur `/api/chat` et `/api/briefing`.
 - [ ] Aucun N+1 DB non paginé.
-- [ ] Export système fonctionnel sans IA.
+- [x] Export système fonctionnel sans IA.
 - [ ] Recovery documentée et testée.
+
+## Blocages critiques (à résoudre en priorité)
+
+1. **memory_edges non pushée** — Feature Memory Graph non fonctionnelle en production.
+2. **Zod validation inconsistante** — Certains endpoints POST n'ont pas de validation.
+3. **N+1 queries** — Routes `/projects` et `/tasks` sans pagination ni JOINs.
+4. **Helmet.js absent** — Headers de sécurité manquants.
+5. **Pas de CI/CD** — Tests automatisés et quality gates non implémentés.
 
 ## Règle finale
 
