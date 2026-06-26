@@ -34,6 +34,10 @@
 - [ ] Work OS : vue projet, liens contacts ↔ projets
 - [ ] Studio : cohérence avec le reste
 
+## Phase 5.5 — OpenAPI spec + Codegen
+- [x] OpenAPI spec mis à jour (31 paths, 42 schemas) — commit 624ca63
+- [x] Codegen Orval régénéré (8 nouveaux hooks React Query + schemas Zod) — commits 519b8e1, 1a3c3ca
+
 ## Phase 6 — Mobile premium
 - [ ] Safe areas, gestes, keyboard handling
 - [ ] 60 FPS, fluidité
@@ -43,5 +47,5 @@
 - [ ] Tests
 - [ ] CI/CD
 - [ ] Performance
-- [ ] OpenAPI spec à mettre à jour avec les nouvelles routes
-- [ ] Codegen Orval à régénérer
+- [ ] DB : créer la table memory_edges sur Railway via drizzle-kit push
+- [ ] Frontend : UI pour Memory Graph visualisation, System audit/stats, Decision tasks
