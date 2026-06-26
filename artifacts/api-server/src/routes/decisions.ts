@@ -1,32 +1,55 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { decisionsTable, tasksTable, activityTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { decisionsTable, tasksTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { logActivity } from "../lib/activity";
+import {
+  CreateDecisionBody,
+  UpdateDecisionBody,
+} from "@workspace/api-zod";
+import { z } from "zod";
 
 const router = Router();
 
-async function logActivity(type: string, title: string, description: string, entityId: number) {
-  try {
-    await db.insert(activityTable).values({ type: type as any, title, description, entityId });
-  } catch {}
-}
+// Schema for decision tasks creation
+const CreateDecisionTasksBody = z.object({
+  tasks: z.array(z.object({
+    title: z.string().min(1),
+    priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  })).min(1),
+});
 
-// LIST decisions
+// LIST decisions with pagination
 router.get("/decisions", async (req, res) => {
   try {
-    const all = await db.select().from(decisionsTable).orderBy(decisionsTable.createdAt);
-    return res.json(all);
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    const decisions = await db.select()
+      .from(decisionsTable)
+      .orderBy(decisionsTable.createdAt)
+      .limit(limit)
+      .offset(offset);
+
+    const [{ total }] = await db
+      .select({ total: sql<number>`COUNT(*)` })
+      .from(decisionsTable);
+
+    return res.json({ data: decisions, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing decisions");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// CREATE decision
+// CREATE decision with Zod validation
 router.post("/decisions", async (req, res) => {
   try {
-    const { title, context, options, advantages, risks } = req.body;
-    if (!title) return res.status(400).json({ error: "title is required" });
+    const parsed = CreateDecisionBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { title, context, options, advantages, risks } = parsed.data;
 
     const [created] = await db.insert(decisionsTable).values({
       title,
@@ -39,7 +62,7 @@ router.post("/decisions", async (req, res) => {
     }).returning();
 
     await logActivity("decision", title, `Décision créée : ${title}`, created.id);
-    return res.status(201).json(created);
+    return res.status(201).json({ data: created });
   } catch (err) {
     req.log.error({ err }, "Error creating decision");
     return res.status(500).json({ error: "Internal server error" });
@@ -49,21 +72,33 @@ router.post("/decisions", async (req, res) => {
 // GET decision
 router.get("/decisions/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
     const [decision] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, id));
     if (!decision) return res.status(404).json({ error: "Not found" });
-    return res.json(decision);
+    return res.json({ data: decision });
   } catch (err) {
     req.log.error({ err }, "Error getting decision");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// UPDATE decision
+// UPDATE decision with Zod validation
 router.patch("/decisions/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { title, context, options, advantages, risks, result, learnings, status, confidenceScore } = req.body;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
+    const parsed = UpdateDecisionBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { title, context, options, advantages, risks, result, learnings, status, confidenceScore } = parsed.data;
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
@@ -79,7 +114,7 @@ router.patch("/decisions/:id", async (req, res) => {
     const [updated] = await db.update(decisionsTable).set(updates).where(eq(decisionsTable.id, id)).returning();
     if (!updated) return res.status(404).json({ error: "Not found" });
 
-    return res.json(updated);
+    return res.json({ data: updated });
   } catch (err) {
     req.log.error({ err }, "Error updating decision");
     return res.status(500).json({ error: "Internal server error" });
@@ -89,7 +124,10 @@ router.patch("/decisions/:id", async (req, res) => {
 // DELETE decision
 router.delete("/decisions/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
     await db.delete(decisionsTable).where(eq(decisionsTable.id, id));
     return res.status(204).send();
   } catch (err) {
@@ -101,7 +139,11 @@ router.delete("/decisions/:id", async (req, res) => {
 // ANALYZE decision with AI + Red Team + analytical confidence score
 router.post("/decisions/:id/analyze", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
     const [decision] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, id));
     if (!decision) return res.status(404).json({ error: "Not found" });
 
@@ -174,7 +216,7 @@ Réponds en JSON strict : { "score": number, "breakdown": { "context": number, "
       .where(eq(decisionsTable.id, id))
       .returning();
 
-    return res.json(updated);
+    return res.json({ data: updated });
   } catch (err) {
     req.log.error({ err }, "Error analyzing decision");
     return res.status(500).json({ error: "Internal server error" });
@@ -184,12 +226,16 @@ Réponds en JSON strict : { "score": number, "breakdown": { "context": number, "
 // CREATE tasks from a decision — turn decision into action items
 router.post("/decisions/:id/tasks", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { tasks } = req.body as { tasks: { title: string; priority?: string }[] };
-
-    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
-      return res.status(400).json({ error: "tasks array is required" });
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
     }
+
+    const parsed = CreateDecisionTasksBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { tasks } = parsed.data;
 
     const [decision] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, id));
     if (!decision) return res.status(404).json({ error: "Decision not found" });
@@ -197,13 +243,13 @@ router.post("/decisions/:id/tasks", async (req, res) => {
     const created = await db.insert(tasksTable).values(
       tasks.map(t => ({
         title: t.title,
-        priority: (t.priority as "low" | "medium" | "high" | "urgent") || "medium",
+        priority: t.priority || "medium",
       }))
     ).returning();
 
     await logActivity("decision", decision.title, `${created.length} tâche(s) créée(s) depuis la décision "${decision.title}"`, id);
 
-    return res.status(201).json(created);
+    return res.status(201).json({ data: created });
   } catch (err) {
     req.log.error({ err }, "Error creating tasks from decision");
     return res.status(500).json({ error: "Internal server error" });

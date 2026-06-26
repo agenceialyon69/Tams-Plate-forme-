@@ -9,3 +9,4 @@ export * from "./memory-edges";
 export * from "./decisions";
 export * from "./assets";
 export * from "./activity";
+export * from "./project-contacts";

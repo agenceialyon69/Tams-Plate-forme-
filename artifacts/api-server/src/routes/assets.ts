@@ -1,28 +1,59 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { assetsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { CreateAssetBody, UpdateAssetBody } from "@workspace/api-zod";
 
 const router = Router();
 
-// LIST assets
+// LIST assets with pagination
 router.get("/assets", async (req, res) => {
   try {
-    const { type } = req.query;
-    const all = await db.select().from(assetsTable).orderBy(assetsTable.createdAt);
-    const filtered = type ? all.filter(a => a.type === type) : all;
-    return res.json(filtered);
+    // Pagination
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+    const type = req.query.type as string | undefined;
+
+    let query = db.select().from(assetsTable);
+    if (type) {
+      const assets = await query
+        .where(eq(assetsTable.type, type))
+        .orderBy(assetsTable.createdAt)
+        .limit(limit)
+        .offset(offset);
+
+      const [{ total }] = await db
+        .select({ total: sql<number>`COUNT(*)` })
+        .from(assetsTable)
+        .where(eq(assetsTable.type, type));
+
+      return res.json({ data: assets, total, limit, offset });
+    }
+
+    const assets = await query
+      .orderBy(assetsTable.createdAt)
+      .limit(limit)
+      .offset(offset);
+
+    const [{ total }] = await db
+      .select({ total: sql<number>`COUNT(*)` })
+      .from(assetsTable);
+
+    return res.json({ data: assets, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing assets");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// CREATE asset
+// CREATE asset with Zod validation
 router.post("/assets", async (req, res) => {
   try {
-    const { name, type, url, content, mimeType, size, tags } = req.body;
-    if (!name || !type) return res.status(400).json({ error: "name and type are required" });
+    const parsed = CreateAssetBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { name, type, url, content, mimeType, size, tags } = parsed.data;
 
     const [created] = await db.insert(assetsTable).values({
       name,
@@ -34,18 +65,26 @@ router.post("/assets", async (req, res) => {
       tags: tags ?? [],
     }).returning();
 
-    return res.status(201).json(created);
+    return res.status(201).json({ data: created });
   } catch (err) {
     req.log.error({ err }, "Error creating asset");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// UPDATE asset
+// UPDATE asset with Zod validation
 router.patch("/assets/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { name, url, content, tags } = req.body;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
+    const parsed = UpdateAssetBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { name, url, content, tags } = parsed.data;
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = name;
@@ -56,7 +95,7 @@ router.patch("/assets/:id", async (req, res) => {
     const [updated] = await db.update(assetsTable).set(updates).where(eq(assetsTable.id, id)).returning();
     if (!updated) return res.status(404).json({ error: "Not found" });
 
-    return res.json(updated);
+    return res.json({ data: updated });
   } catch (err) {
     req.log.error({ err }, "Error updating asset");
     return res.status(500).json({ error: "Internal server error" });
@@ -66,7 +105,10 @@ router.patch("/assets/:id", async (req, res) => {
 // DELETE asset
 router.delete("/assets/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
     await db.delete(assetsTable).where(eq(assetsTable.id, id));
     return res.status(204).send();
   } catch (err) {

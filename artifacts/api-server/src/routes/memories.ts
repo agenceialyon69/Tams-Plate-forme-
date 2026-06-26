@@ -1,26 +1,57 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { memoriesTable, memoryEdgesTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
+import {
+  CreateMemoryBody,
+  UpdateMemoryBody,
+  ListMemoriesQueryParams,
+} from "@workspace/api-zod";
 
 const router = Router();
 
-// LIST memories
+// LIST memories with pagination
 router.get("/memories", async (req, res) => {
   try {
-    const { type, q } = req.query;
-    let all = await db.select().from(memoriesTable).orderBy(memoriesTable.updatedAt);
+    const parsedQuery = ListMemoriesQueryParams.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({ error: "Invalid query parameters", details: parsedQuery.error.issues });
+    }
+    const { type, q } = parsedQuery.data;
 
-    if (type) all = all.filter(m => m.type === type);
+    // Pagination
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    let query = db.select().from(memoriesTable);
+
+    // Apply type filter
+    if (type) {
+      query = query.where(eq(memoriesTable.type, type)) as any;
+    }
+
+    const memories = await query
+      .orderBy(memoriesTable.updatedAt)
+      .limit(limit)
+      .offset(offset);
+
+    // Apply text search (in-memory for now, could be improved with full-text search)
+    let filtered = memories;
     if (q) {
-      const search = String(q).toLowerCase();
-      all = all.filter(m =>
+      const search = q.toLowerCase();
+      filtered = memories.filter(m =>
         m.title.toLowerCase().includes(search) ||
         (m.content ?? "").toLowerCase().includes(search)
       );
     }
 
-    return res.json(all);
+    // Get total count
+    const [{ total }] = await db
+      .select({ total: sql<number>`COUNT(*)` })
+      .from(memoriesTable)
+      .where(type ? eq(memoriesTable.type, type) : undefined);
+
+    return res.json({ data: filtered, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing memories");
     return res.status(500).json({ error: "Internal server error" });
@@ -55,11 +86,14 @@ router.get("/memories/graph", async (req, res) => {
   }
 });
 
-// CREATE memory
+// CREATE memory with Zod validation
 router.post("/memories", async (req, res) => {
   try {
-    const { title, type, content, tags, relatedIds } = req.body;
-    if (!title || !type) return res.status(400).json({ error: "title and type are required" });
+    const parsed = CreateMemoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { title, type, content, tags, relatedIds } = parsed.data;
 
     const [created] = await db.insert(memoriesTable).values({
       title,
@@ -69,18 +103,26 @@ router.post("/memories", async (req, res) => {
       relatedIds: relatedIds ?? [],
     }).returning();
 
-    return res.status(201).json(created);
+    return res.status(201).json({ data: created });
   } catch (err) {
     req.log.error({ err }, "Error creating memory");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// UPDATE memory
+// UPDATE memory with Zod validation
 router.patch("/memories/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { title, content, tags, relatedIds } = req.body;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
+    const parsed = UpdateMemoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+    const { title, content, tags, relatedIds } = parsed.data;
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (title !== undefined) updates.title = title;
@@ -91,17 +133,26 @@ router.patch("/memories/:id", async (req, res) => {
     const [updated] = await db.update(memoriesTable).set(updates).where(eq(memoriesTable.id, id)).returning();
     if (!updated) return res.status(404).json({ error: "Not found" });
 
-    return res.json(updated);
+    return res.json({ data: updated });
   } catch (err) {
     req.log.error({ err }, "Error updating memory");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// DELETE memory
+// DELETE memory (cascade edges)
 router.delete("/memories/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
+    // Delete edges first
+    await db.delete(memoryEdgesTable).where(
+      or(eq(memoryEdgesTable.sourceId, id), eq(memoryEdgesTable.targetId, id))
+    );
+
     await db.delete(memoriesTable).where(eq(memoriesTable.id, id));
     return res.status(204).send();
   } catch (err) {
@@ -115,27 +166,44 @@ router.delete("/memories/:id", async (req, res) => {
 // LIST edges for a memory
 router.get("/memories/:id/edges", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid ID" });
+    }
+
     const edges = await db
       .select()
       .from(memoryEdgesTable)
       .where(
-        sql`${memoryEdgesTable.sourceId} = ${id} OR ${memoryEdgesTable.targetId} = ${id}`
+        or(eq(memoryEdgesTable.sourceId, id), eq(memoryEdgesTable.targetId, id))
       );
-    return res.json(edges);
+
+    return res.json({ data: edges });
   } catch (err) {
     req.log.error({ err }, "Error listing edges");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// CREATE edge
+// CREATE edge with validation
 router.post("/memories/:id/edges", async (req, res) => {
   try {
-    const sourceId = Number(req.params.id);
+    const sourceId = parseInt(req.params.id, 10);
+    if (isNaN(sourceId) || sourceId <= 0) {
+      return res.status(400).json({ error: "Invalid source ID" });
+    }
+
     const { targetId, type, note } = req.body;
-    if (!targetId || !type) return res.status(400).json({ error: "targetId and type are required" });
+    if (!targetId) return res.status(400).json({ error: "targetId is required" });
+    if (!type) return res.status(400).json({ error: "type is required" });
     if (sourceId === Number(targetId)) return res.status(400).json({ error: "Cannot link a memory to itself" });
+
+    // Verify both memories exist
+    const [sourceMemory] = await db.select().from(memoriesTable).where(eq(memoriesTable.id, sourceId)).limit(1);
+    if (!sourceMemory) return res.status(404).json({ error: "Source memory not found" });
+
+    const [targetMemory] = await db.select().from(memoriesTable).where(eq(memoriesTable.id, Number(targetId))).limit(1);
+    if (!targetMemory) return res.status(404).json({ error: "Target memory not found" });
 
     const [created] = await db.insert(memoryEdgesTable).values({
       sourceId,
@@ -144,7 +212,7 @@ router.post("/memories/:id/edges", async (req, res) => {
       note: note ?? null,
     }).returning();
 
-    return res.status(201).json(created);
+    return res.status(201).json({ data: created });
   } catch (err) {
     req.log.error({ err }, "Error creating edge");
     return res.status(500).json({ error: "Internal server error" });
@@ -154,7 +222,10 @@ router.post("/memories/:id/edges", async (req, res) => {
 // DELETE edge
 router.delete("/memories/edges/:edgeId", async (req, res) => {
   try {
-    const edgeId = Number(req.params.edgeId);
+    const edgeId = parseInt(req.params.edgeId, 10);
+    if (isNaN(edgeId) || edgeId <= 0) {
+      return res.status(400).json({ error: "Invalid edge ID" });
+    }
     await db.delete(memoryEdgesTable).where(eq(memoryEdgesTable.id, edgeId));
     return res.status(204).send();
   } catch (err) {

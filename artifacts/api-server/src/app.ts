@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import pinoHttp from "pino-http";
 import path, { dirname } from "node:path";
 import { existsSync } from "node:fs";
@@ -10,6 +11,22 @@ import { aiRateLimit, defaultRateLimit } from "./middlewares/rate-limit";
 import { errorHandler } from "./middlewares/error-handler";
 
 const app: Express = express();
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 app.use(
   pinoHttp({
@@ -30,13 +47,24 @@ app.use(
     },
   }),
 );
-app.use(cors());
+
+// CORS: restrict in production
+app.use(cors({
+  origin: process.env.NODE_ENV === "production"
+    ? (process.env.ALLOWED_ORIGINS?.split(",") || false)
+    : true,
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting: AI endpoints first (stricter), then general API
 app.use("/api/chat", aiRateLimit);
 app.use("/api/briefing", aiRateLimit);
+app.use("/api/decisions", aiRateLimit);
+app.use("/api/studio", aiRateLimit);
+app.use("/api/conversations", aiRateLimit);
 app.use("/api", defaultRateLimit);
 
 app.use("/api", router);
