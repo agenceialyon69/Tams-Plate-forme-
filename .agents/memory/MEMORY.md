@@ -1,0 +1,1 @@
+- [TAMS stack](tams-stack.md) — full AI OS for Mohamed; French UI; Express+Drizzle+Postgres API, React+Vite+Wouter frontend, Orval codegen.
