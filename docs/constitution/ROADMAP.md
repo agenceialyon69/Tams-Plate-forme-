@@ -2,13 +2,14 @@
 
 > Priorisées par valeur quotidienne. Une phase à la fois.
 
-## Phase 0 — Base documentaire (ce commit)
-- [x] Créer /docs/constitution/ (11 documents)
+## Phase 0 — Base documentaire
+- [x] Créer /docs/constitution/ (11 documents) — commit 9efdb12
 
 ## Phase 1 — Chief of Staff intelligent
-- [ ] Briefing Accueil généré par IA depuis les vraies données (tâches, projets, contacts, décisions)
-- [ ] Remplacer le contenu hardcoded de briefing.ts par un appel IA
-- [ ] Le briefing doit analyser, prioriser, anticiper — pas juste afficher
+- [x] Briefing Accueil généré par IA depuis les vraies données (tâches, projets, contacts, décisions) — commit 4a0204f
+- [x] Remplacer le contenu hardcoded de briefing.ts par un appel IA
+- [x] Le briefing doit analyser, prioriser, anticiper — pas juste afficher
+- [x] Fallback gracieux basé sur règles si IA indisponible
 
 ## Phase 2 — Chat central intégré
 - [ ] Tool-use / function-calling : l'IA peut créer tâches, projets, contacts, décisions
