@@ -12,7 +12,7 @@ router.get("/assets", async (req, res) => {
     // Pagination
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const offset = Number(req.query.offset) || 0;
-    const type = req.query.type as string | undefined;
+    const type = req.query.type as "image" | "video" | "audio" | "document" | "prompt" | "template" | "result" | undefined;
 
     let query = db.select().from(assetsTable);
     if (type) {

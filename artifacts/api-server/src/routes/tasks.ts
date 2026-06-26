@@ -74,7 +74,7 @@ router.post("/tasks", async (req, res) => {
       status: status ?? "todo",
       priority: priority ?? "medium",
       projectId: projectId ?? null,
-      dueDate: dueDate ?? null,
+      dueDate: dueDate ? dueDate.toISOString().split('T')[0] : null,
     }).returning();
 
     // Get project name if linked
@@ -141,7 +141,7 @@ router.patch("/tasks/:id", async (req, res) => {
     if (data.status !== undefined) updates.status = data.status;
     if (data.priority !== undefined) updates.priority = data.priority;
     if (data.projectId !== undefined) updates.projectId = data.projectId;
-    if (data.dueDate !== undefined) updates.dueDate = data.dueDate;
+    if (data.dueDate !== undefined) updates.dueDate = data.dueDate ? data.dueDate.toISOString().split('T')[0] : null;
 
     const [updated] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, id)).returning();
     if (!updated) return res.status(404).json({ error: "Not found" });
