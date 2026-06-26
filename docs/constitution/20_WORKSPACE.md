@@ -32,12 +32,13 @@ Pas un CRM complet — un CRM léger intégré au reste du système.
 
 - CRUD tâches / projets / contacts opérationnel.
 - Vues liste fonctionnelles.
-- Vue Kanban : non implémentée.
+- Vue Kanban : implémentée (toggle liste/kanban).
 - Liens contacts ↔ projets : non implémentés.
 
 ## Manquant
 
-1. Vue Kanban pour les tâches.
+1. ~~Vue Kanban pour les tâches.~~ (terminé)
 2. Table de jointure `project_contacts` (contacts ↔ projets).
-3. Filtres et recherche sur les listes.
+3. Filtres et recherche avancée sur les listes.
 4. Vue projet détaillée (tâches + contacts + timeline).
+5. Pagination sur les listes (N+1 risk).

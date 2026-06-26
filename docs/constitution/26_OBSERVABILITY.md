@@ -23,17 +23,19 @@ Tous les événements importants doivent être inscrits dans `activity` :
 
 ## Request Logger
 
-Middleware Express manquant (`middlewares/request-logger.ts`) :
+Logging HTTP implémenté via `pino-http` dans `app.ts` :
 
 ```typescript
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    console.log(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
-  });
-  next();
-});
+app.use(pinoHttp({
+  logger,
+  serializers: {
+    req: (req) => ({ id: req.id, method: req.method, url: req.url?.split("?")[0] }),
+    res: (res) => ({ statusCode: res.statusCode }),
+  },
+}));
 ```
+
+Middleware dédié `middlewares/request-logger.ts` non nécessaire — pino-http déjà monté.
 
 ## Dashboard système
 
