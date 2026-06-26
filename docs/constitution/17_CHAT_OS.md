@@ -38,10 +38,9 @@ Avant chaque appel IA, injecter dans le system prompt :
 
 - Tool-use fonctionnel (commit `5254126`).
 - Injection mémoire opérationnelle.
-- Streaming : non implémenté.
+- Streaming SSE : implémenté (`POST /conversations/:id/stream`).
 
 ## Manquant
 
-- Streaming des réponses (SSE ou WebSocket).
-- Historique de conversations persisté par session.
-- Recherche dans l'historique.
+- Historique de conversations : améliorations UX (recherche, filtres).
+- Optimisation du context injection (limite de tokens).

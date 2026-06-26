@@ -2,8 +2,10 @@
 
 ## Healthcheck
 
-`GET /api/healthz` — retourne `{ status: "ok", timestamp: ISO, version: string }` avec HTTP 200.  
+`GET /api/healthz` — retourne `{ status: "ok" }` avec HTTP 200.
 Railway surveille ce endpoint (30s timeout, restart on_failure).
+
+Note : Le schéma OpenAPI `HealthStatus` ne contient que `status`. Ajouter `timestamp` et `version` si besoin de plus de télémétrie.
 
 ## Validation des inputs
 

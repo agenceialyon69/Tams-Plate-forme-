@@ -25,19 +25,19 @@ Pour chaque module :
 
 | Module | Statut | Issue principale |
 |---|---|---|
-| Chief of Staff | Fonctionnel | Briefing IA OK, streaming manquant |
-| Chat OS | Fonctionnel | Tool-use OK, streaming manquant |
+| Chief of Staff | Fonctionnel | Briefing IA OK, fallback gracieux |
+| Chat OS | Fonctionnel | Tool-use OK, streaming SSE implémenté |
 | Memory Graph | Backend OK | Visualisation frontend manquante, `memory_edges` non pushée DB |
-| Decision OS | Fonctionnel | Timeline décisions manquante |
-| Work OS | Fonctionnel | Vue Kanban manquante, liens contacts↔projets absents |
-| Studio | Fonctionnel | Pas de génération media réelle |
-| Système | Fonctionnel | UI audit/stats à compléter |
-| Mobile | Acceptable | Safe areas, gestes, keyboard non finalisés |
+| Decision OS | Fonctionnel | Score analytique implémenté, lien tâches OK |
+| Work OS | Fonctionnel | Vue Kanban implémentée, liens contacts↔projets absents |
+| Studio | Fonctionnel | CRUD assets OK, génération scripts IA OK |
+| Système | Fonctionnel | UI audit/stats implémentée, export OK |
+| Mobile | Partiel | Safe areas framework présent, pas pleinement appliqué |
 
 ## 5 risques majeurs actuels
 
 1. `memory_edges` non pushée sur Railway DB — le Memory Graph backend est mort en production.
-2. Chat sans streaming — UX dégradée sur réponses longues.
-3. `middlewares/` vide — pas de rate-limit sur routes IA (coût et abus).
+2. Zod validation inconsistante — certains endpoints POST manquent de validation.
+3. N+1 queries — routes `/projects` et `/tasks` chargent toute la table, pas de pagination.
 4. Pas de migrations Drizzle — schéma uniquement en code, dérive silencieuse possible.
-5. `SESSION_SECRET` non utilisé — surface d'attaque ouverte si sessions activées.
+5. Helmet.js non installé — headers de sécurité manquants (X-Frame-Options, CSP, HSTS).
