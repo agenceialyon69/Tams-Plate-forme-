@@ -37,6 +37,7 @@ import type {
   GenerateMediaScriptRequest,
   GenerateMediaScriptResponse,
   GetRecentActivityParams,
+  GetSystemAuditParams,
   HealthStatus,
   ListAssetsParams,
   ListContactsParams,
@@ -44,6 +45,9 @@ import type {
   ListMemoriesParams,
   ListTasksParams,
   Memory,
+  MemoryEdge,
+  MemoryEdgeInput,
+  MemoryGraph,
   MemoryInput,
   MemoryUpdate,
   Message,
@@ -53,9 +57,12 @@ import type {
   Project,
   ProjectInput,
   ProjectUpdate,
+  SystemExport,
+  SystemStats,
   Task,
   TaskInput,
   TaskUpdate,
+  TasksFromDecisionInput,
   WorkloadSummary
 } from './api.schemas';
 
@@ -163,6 +170,7 @@ export function useGetNotifications<TData = Awaited<ReturnType<typeof getNotific
 
 
 
+
 export const getGenerateMediaScriptUrl = () => {
 
 
@@ -208,6 +216,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  generateMediaScript(data,requestOptions)
         }
+
+
 
 
 
@@ -311,6 +321,7 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
 export const getGetTodayBriefingUrl = () => {
 
 
@@ -388,6 +399,7 @@ export function useGetTodayBriefing<TData = Awaited<ReturnType<typeof getTodayBr
 
 
 
+
 export const getGenerateBriefingUrl = () => {
 
 
@@ -433,6 +445,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  generateBriefing(requestOptions)
         }
+
+
 
 
 
@@ -543,6 +557,7 @@ export function useListConversations<TData = Awaited<ReturnType<typeof listConve
 
 
 
+
 export const getCreateConversationUrl = () => {
 
 
@@ -588,6 +603,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createConversation(data,requestOptions)
         }
+
+
 
 
 
@@ -691,6 +708,7 @@ export function useGetConversation<TData = Awaited<ReturnType<typeof getConversa
 
 
 
+
 export const getDeleteConversationUrl = (id: number,) => {
 
 
@@ -736,6 +754,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  deleteConversation(id,requestOptions)
         }
+
+
 
 
 
@@ -839,6 +859,7 @@ export function useListMessages<TData = Awaited<ReturnType<typeof listMessages>>
 
 
 
+
 export const getSendMessageUrl = (id: number,) => {
 
 
@@ -885,6 +906,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  sendMessage(id,data,requestOptions)
         }
+
+
 
 
 
@@ -995,6 +1018,7 @@ export function useListTasks<TData = Awaited<ReturnType<typeof listTasks>>, TErr
 
 
 
+
 export const getCreateTaskUrl = () => {
 
 
@@ -1040,6 +1064,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createTask(data,requestOptions)
         }
+
+
 
 
 
@@ -1143,6 +1169,7 @@ export function useGetTask<TData = Awaited<ReturnType<typeof getTask>>, TError =
 
 
 
+
 export const getUpdateTaskUrl = (id: number,) => {
 
 
@@ -1189,6 +1216,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  updateTask(id,data,requestOptions)
         }
+
+
 
 
 
@@ -1260,6 +1289,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  deleteTask(id,requestOptions)
         }
+
+
 
 
 
@@ -1363,6 +1394,7 @@ export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>
 
 
 
+
 export const getCreateProjectUrl = () => {
 
 
@@ -1408,6 +1440,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createProject(data,requestOptions)
         }
+
+
 
 
 
@@ -1486,6 +1520,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
+
+
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateProjectMutationResult = NonNullable<Awaited<ReturnType<typeof updateProject>>>
@@ -1551,6 +1587,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  deleteProject(id,requestOptions)
         }
+
+
 
 
 
@@ -1661,6 +1699,7 @@ export function useListContacts<TData = Awaited<ReturnType<typeof listContacts>>
 
 
 
+
 export const getCreateContactUrl = () => {
 
 
@@ -1706,6 +1745,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createContact(data,requestOptions)
         }
+
+
 
 
 
@@ -1784,6 +1825,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
+
+
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateContactMutationResult = NonNullable<Awaited<ReturnType<typeof updateContact>>>
@@ -1849,6 +1892,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  deleteContact(id,requestOptions)
         }
+
+
 
 
 
@@ -1959,6 +2004,7 @@ export function useListMemories<TData = Awaited<ReturnType<typeof listMemories>>
 
 
 
+
 export const getCreateMemoryUrl = () => {
 
 
@@ -2004,6 +2050,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createMemory(data,requestOptions)
         }
+
+
 
 
 
@@ -2082,6 +2130,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
+
+
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateMemory>>>
@@ -2147,6 +2197,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  deleteMemory(id,requestOptions)
         }
+
+
 
 
 
@@ -2250,6 +2302,7 @@ export function useListDecisions<TData = Awaited<ReturnType<typeof listDecisions
 
 
 
+
 export const getCreateDecisionUrl = () => {
 
 
@@ -2295,6 +2348,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createDecision(data,requestOptions)
         }
+
+
 
 
 
@@ -2398,6 +2453,7 @@ export function useGetDecision<TData = Awaited<ReturnType<typeof getDecision>>, 
 
 
 
+
 export const getUpdateDecisionUrl = (id: number,) => {
 
 
@@ -2444,6 +2500,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  updateDecision(id,data,requestOptions)
         }
+
+
 
 
 
@@ -2521,6 +2579,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
+
+
   return  { mutationFn, ...mutationOptions }}
 
     export type DeleteDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDecision>>>
@@ -2586,6 +2646,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  analyzeDecision(id,requestOptions)
         }
+
+
 
 
 
@@ -2696,6 +2758,7 @@ export function useListAssets<TData = Awaited<ReturnType<typeof listAssets>>, TE
 
 
 
+
 export const getCreateAssetUrl = () => {
 
 
@@ -2741,6 +2804,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  createAsset(data,requestOptions)
         }
+
+
 
 
 
@@ -2819,6 +2884,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
+
+
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateAssetMutationResult = NonNullable<Awaited<ReturnType<typeof updateAsset>>>
@@ -2884,6 +2951,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
           return  deleteAsset(id,requestOptions)
         }
+
+
 
 
 
@@ -2987,6 +3056,7 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
 
 
 
+
 export const getGetRecentActivityUrl = (params?: GetRecentActivityParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -3071,6 +3141,7 @@ export function useGetRecentActivity<TData = Awaited<ReturnType<typeof getRecent
 
 
 
+
 export const getGetWorkloadUrl = () => {
 
 
@@ -3148,3 +3219,620 @@ export function useGetWorkload<TData = Awaited<ReturnType<typeof getWorkload>>, 
 
 
 
+
+export const getGetMemoryGraphUrl = () => {
+
+
+
+
+  return `/api/memories/graph`
+}
+
+/**
+ * @summary Get memory graph nodes and edges for visualization
+ */
+export const getMemoryGraph = async ( options?: RequestInit): Promise<MemoryGraph> => {
+
+  return customFetch<MemoryGraph>(getGetMemoryGraphUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMemoryGraphQueryKey = () => {
+    return [
+    `/api/memories/graph`
+    ] as const;
+    }
+
+
+export const getGetMemoryGraphQueryOptions = <TData = Awaited<ReturnType<typeof getMemoryGraph>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMemoryGraphQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMemoryGraph>>> = ({ signal }) => getMemoryGraph({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMemoryGraph>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMemoryGraphQueryResult = NonNullable<Awaited<ReturnType<typeof getMemoryGraph>>>
+export type GetMemoryGraphQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get memory graph nodes and edges for visualization
+ */
+
+export function useGetMemoryGraph<TData = Awaited<ReturnType<typeof getMemoryGraph>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMemoryGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMemoryGraphQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+
+export const getListMemoryEdgesUrl = (id: number,) => {
+
+
+
+
+  return `/api/memories/${id}/edges`
+}
+
+/**
+ * @summary List edges for a memory node
+ */
+export const listMemoryEdges = async (id: number, options?: RequestInit): Promise<MemoryEdge[]> => {
+
+  return customFetch<MemoryEdge[]>(getListMemoryEdgesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMemoryEdgesQueryKey = (id: number,) => {
+    return [
+    `/api/memories/${id}/edges`
+    ] as const;
+    }
+
+
+export const getListMemoryEdgesQueryOptions = <TData = Awaited<ReturnType<typeof listMemoryEdges>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMemoryEdges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMemoryEdgesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMemoryEdges>>> = ({ signal }) => listMemoryEdges(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMemoryEdges>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMemoryEdgesQueryResult = NonNullable<Awaited<ReturnType<typeof listMemoryEdges>>>
+export type ListMemoryEdgesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List edges for a memory node
+ */
+
+export function useListMemoryEdges<TData = Awaited<ReturnType<typeof listMemoryEdges>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMemoryEdges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMemoryEdgesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+
+export const getCreateMemoryEdgeUrl = (id: number,) => {
+
+
+
+
+  return `/api/memories/${id}/edges`
+}
+
+/**
+ * @summary Create a typed edge between two memory nodes
+ */
+export const createMemoryEdge = async (id: number,
+    memoryEdgeInput: MemoryEdgeInput, options?: RequestInit): Promise<MemoryEdge> => {
+
+  return customFetch<MemoryEdge>(getCreateMemoryEdgeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(memoryEdgeInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMemoryEdgeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMemoryEdge>>, TError,{id: number;data: BodyType<MemoryEdgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMemoryEdge>>, TError,{id: number;data: BodyType<MemoryEdgeInput>}, TContext> => {
+
+const mutationKey = ['createMemoryEdge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMemoryEdge>>, {id: number;data: BodyType<MemoryEdgeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createMemoryEdge(id,data,requestOptions)
+        }
+
+
+
+
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMemoryEdgeMutationResult = NonNullable<Awaited<ReturnType<typeof createMemoryEdge>>>
+    export type CreateMemoryEdgeMutationBody = BodyType<MemoryEdgeInput>
+    export type CreateMemoryEdgeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a typed edge between two memory nodes
+ */
+export const useCreateMemoryEdge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMemoryEdge>>, TError,{id: number;data: BodyType<MemoryEdgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMemoryEdge>>,
+        TError,
+        {id: number;data: BodyType<MemoryEdgeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMemoryEdgeMutationOptions(options));
+    }
+
+export const getDeleteMemoryEdgeUrl = (edgeId: number,) => {
+
+
+
+
+  return `/api/memories/edges/${edgeId}`
+}
+
+/**
+ * @summary Delete a memory edge
+ */
+export const deleteMemoryEdge = async (edgeId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteMemoryEdgeUrl(edgeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMemoryEdgeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMemoryEdge>>, TError,{edgeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMemoryEdge>>, TError,{edgeId: number}, TContext> => {
+
+const mutationKey = ['deleteMemoryEdge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMemoryEdge>>, {edgeId: number}> = (props) => {
+          const {edgeId} = props ?? {};
+
+          return  deleteMemoryEdge(edgeId,requestOptions)
+        }
+
+
+
+
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMemoryEdgeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMemoryEdge>>>
+
+    export type DeleteMemoryEdgeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a memory edge
+ */
+export const useDeleteMemoryEdge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMemoryEdge>>, TError,{edgeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMemoryEdge>>,
+        TError,
+        {edgeId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteMemoryEdgeMutationOptions(options));
+    }
+
+export const getCreateTasksFromDecisionUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/tasks`
+}
+
+/**
+ * @summary Create tasks from a decision (turn decision into action items)
+ */
+export const createTasksFromDecision = async (id: number,
+    tasksFromDecisionInput: TasksFromDecisionInput, options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getCreateTasksFromDecisionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tasksFromDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTasksFromDecisionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTasksFromDecision>>, TError,{id: number;data: BodyType<TasksFromDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTasksFromDecision>>, TError,{id: number;data: BodyType<TasksFromDecisionInput>}, TContext> => {
+
+const mutationKey = ['createTasksFromDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTasksFromDecision>>, {id: number;data: BodyType<TasksFromDecisionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createTasksFromDecision(id,data,requestOptions)
+        }
+
+
+
+
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTasksFromDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof createTasksFromDecision>>>
+    export type CreateTasksFromDecisionMutationBody = BodyType<TasksFromDecisionInput>
+    export type CreateTasksFromDecisionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create tasks from a decision (turn decision into action items)
+ */
+export const useCreateTasksFromDecision = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTasksFromDecision>>, TError,{id: number;data: BodyType<TasksFromDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTasksFromDecision>>,
+        TError,
+        {id: number;data: BodyType<TasksFromDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTasksFromDecisionMutationOptions(options));
+    }
+
+export const getGetSystemAuditUrl = (params?: GetSystemAuditParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/system/audit?${stringifiedParams}` : `/api/system/audit`
+}
+
+/**
+ * @summary Get full audit log
+ */
+export const getSystemAudit = async (params?: GetSystemAuditParams, options?: RequestInit): Promise<ActivityItem[]> => {
+
+  return customFetch<ActivityItem[]>(getGetSystemAuditUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemAuditQueryKey = (params?: GetSystemAuditParams,) => {
+    return [
+    `/api/system/audit`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSystemAuditQueryOptions = <TData = Awaited<ReturnType<typeof getSystemAudit>>, TError = ErrorType<unknown>>(params?: GetSystemAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemAuditQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemAudit>>> = ({ signal }) => getSystemAudit(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemAuditQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemAudit>>>
+export type GetSystemAuditQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get full audit log
+ */
+
+export function useGetSystemAudit<TData = Awaited<ReturnType<typeof getSystemAudit>>, TError = ErrorType<unknown>>(
+ params?: GetSystemAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemAuditQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+
+export const getGetSystemStatsUrl = () => {
+
+
+
+
+  return `/api/system/stats`
+}
+
+/**
+ * @summary Get system health and data counts
+ */
+export const getSystemStats = async ( options?: RequestInit): Promise<SystemStats> => {
+
+  return customFetch<SystemStats>(getGetSystemStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemStatsQueryKey = () => {
+    return [
+    `/api/system/stats`
+    ] as const;
+    }
+
+
+export const getGetSystemStatsQueryOptions = <TData = Awaited<ReturnType<typeof getSystemStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemStats>>> = ({ signal }) => getSystemStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemStats>>>
+export type GetSystemStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get system health and data counts
+ */
+
+export function useGetSystemStats<TData = Awaited<ReturnType<typeof getSystemStats>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+
+export const getExportSystemDataUrl = () => {
+
+
+
+
+  return `/api/system/export`
+}
+
+/**
+ * @summary Export all data as JSON for recovery
+ */
+export const exportSystemData = async ( options?: RequestInit): Promise<SystemExport> => {
+
+  return customFetch<SystemExport>(getExportSystemDataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportSystemDataQueryKey = () => {
+    return [
+    `/api/system/export`
+    ] as const;
+    }
+
+
+export const getExportSystemDataQueryOptions = <TData = Awaited<ReturnType<typeof exportSystemData>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSystemData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportSystemDataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportSystemData>>> = ({ signal }) => exportSystemData({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportSystemData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportSystemDataQueryResult = NonNullable<Awaited<ReturnType<typeof exportSystemData>>>
+export type ExportSystemDataQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Export all data as JSON for recovery
+ */
+
+export function useExportSystemData<TData = Awaited<ReturnType<typeof exportSystemData>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportSystemData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportSystemDataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
