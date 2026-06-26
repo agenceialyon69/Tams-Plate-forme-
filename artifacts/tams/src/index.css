@@ -25,6 +25,7 @@
   --color-secondary-border: var(--secondary-border);
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-foreground: hsl(var(--muted-foreground));
   --color-muted-border: var(--muted-border);
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
@@ -47,71 +48,16 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-accent-border: var(--sidebar-accent-border);
   --color-sidebar-ring: hsl(var(--sidebar-ring));
-  --font-sans: var(--app-font-sans);
-  --font-serif: var(--app-font-serif);
-  --font-mono: var(--app-font-mono);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-/* DARK (default) */
-:root {
-  --button-outline: rgba(255,255,255,.10);
-  --badge-outline: rgba(255,255,255,.05);
-  --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255,.04);
-  --elevate-2: rgba(255,255,255,.09);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --radius: .75rem;
+  --radius-sm: .5rem;
+  --radius-md: .75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
 
-  --background: 222 20% 8%;
-  --foreground: 210 20% 92%;
-  --border: 220 15% 16%;
-  --card: 222 18% 11%;
-  --card-foreground: 210 20% 90%;
-  --card-border: 220 15% 18%;
-  --sidebar: 222 20% 7%;
-  --sidebar-foreground: 210 20% 85%;
-  --sidebar-border: 220 15% 14%;
-  --sidebar-primary: 217 91% 60%;
-  --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 220 15% 14%;
-  --sidebar-accent-foreground: 210 20% 85%;
-  --sidebar-ring: 217 91% 60%;
-  --popover: 222 18% 10%;
-  --popover-foreground: 210 20% 90%;
-  --popover-border: 220 15% 18%;
-  --primary: 217 91% 60%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 220 15% 16%;
-  --secondary-foreground: 210 20% 85%;
-  --muted: 220 15% 14%;
-  --muted-foreground: 215 16% 50%;
-  --accent: 220 15% 16%;
-  --accent-foreground: 210 20% 90%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 98%;
-  --input: 220 15% 18%;
-  --ring: 217 91% 60%;
-  --chart-1: 217 91% 60%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
-
-  --app-font-sans: 'Inter', sans-serif;
-  --app-font-serif: Georgia, serif;
-  --app-font-mono: 'JetBrains Mono', Menlo, monospace;
-  --radius: .5rem;
-
-  --shadow-2xs: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-xs: 0 1px 3px rgba(0,0,0,.4);
-  --shadow-sm: 0 2px 4px rgba(0,0,0,.4);
-  --shadow: 0 2px 8px rgba(0,0,0,.5);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.5);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,.6);
-  --shadow-xl: 0 16px 40px rgba(0,0,0,.6);
-  --shadow-2xl: 0 24px 64px rgba(0,0,0,.7);
   --tracking-normal: -.01em;
   --spacing: 0.25rem;
 
@@ -122,6 +68,49 @@
   --muted-border: hsl(var(--muted));
   --accent-border: hsl(var(--accent));
   --destructive-border: hsl(var(--destructive));
+}
+
+:root {
+  --button-outline: rgba(255,255,255,.08);
+  --badge-outline: rgba(255,255,255,.04);
+  --opaque-button-border-intensity: 8;
+  --elevate-1: rgba(255,255,255,.03);
+  --elevate-2: rgba(255,255,255,.08);
+
+  --background: 222 20% 9%;
+  --foreground: 210 20% 96%;
+  --border: 217 19% 19%;
+  --input: 217 19% 16%;
+  --ring: 217 91% 55%;
+  --card: 222 20% 11%;
+  --card-foreground: 210 20% 96%;
+  --card-border: 217 19% 20%;
+  --popover: 222 20% 10%;
+  --popover-foreground: 210 20% 96%;
+  --popover-border: 217 19% 18%;
+  --primary: 217 91% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 19% 15%;
+  --secondary-foreground: 210 20% 96%;
+  --muted: 217 19% 14%;
+  --muted-foreground: 215 16% 56%;
+  --accent: 217 19% 18%;
+  --accent-foreground: 210 20% 96%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --chart-1: 217 91% 55%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 35 80% 55%;
+  --chart-4: 280 65% 55%;
+  --chart-5: 340 75% 50%;
+  --sidebar: 222 20% 8%;
+  --sidebar-foreground: 210 20% 92%;
+  --sidebar-border: 217 19% 16%;
+  --sidebar-primary: 217 91% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 217 19% 14%;
+  --sidebar-accent-foreground: 210 20% 96%;
+  --sidebar-ring: 217 91% 55%;
 }
 
 /* LIGHT override */
@@ -212,3 +201,44 @@
   .hover-elevate-2:hover:not(.no-default-hover-elevate)::after, .active-elevate-2:active:not(.no-default-active-elevate)::after { background-color: var(--elevate-2); }
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after, .border.active-elevate:not(.no-active-interaction-elevate)::after, .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after, .border.active-elevate-2:not(.no-active-interaction-elevate)::after { inset: -1px; }
 }
+
+/* ─── Mobile premium ──────────────────────────────────────────────────────────
+   Safe areas, keyboard, touch — applied globally so all pages benefit.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* Prevent iOS zoom on input focus (font-size must be >= 16px) */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Bottom nav spacer — pages scroll above the fixed BottomNav */
+@media (max-width: 768px) {
+  main > * {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Disable overscroll bounce on root — prevents white flash on iOS */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Prevent text selection on interactive elements (better touch UX) */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Smooth momentum scroll on iOS */
+.overflow-y-auto, .overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }

@@ -4,18 +4,21 @@ import { cn } from "@/lib/utils";
 import { NotificationBell } from "./notifications-panel";
 
 const navItems = [
-  { href: "/", label: "Accueil", icon: Home },
-  { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/",        label: "Accueil", icon: Home },
+  { href: "/chat",    label: "Chat",    icon: MessageSquare },
   { href: "/travail", label: "Travail", icon: Briefcase },
-  { href: "/studio", label: "Studio", icon: Layers },
+  { href: "/studio",  label: "Studio",  icon: Layers },
   { href: "/systeme", label: "Système", icon: Cpu },
 ];
 
 export function BottomNav() {
   const [location] = useLocation();
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-sidebar md:hidden">
-      <div className="flex items-center justify-around px-1 py-2 safe-area-inset-bottom">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-sidebar md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex items-center justify-around px-1 py-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? location === "/" : location.startsWith(href);
           return (
@@ -23,14 +26,17 @@ export function BottomNav() {
               <button
                 data-testid={`nav-${label.toLowerCase()}`}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200",
+                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[44px] min-h-[44px] justify-center",
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className={cn("w-5 h-5 transition-all", active && "scale-110")} strokeWidth={active ? 2.2 : 1.7} />
-                <span className={cn("text-[10px] font-medium tracking-wide", active ? "opacity-100" : "opacity-70")}>
+                <Icon
+                  className={cn("w-5 h-5 transition-transform", active && "scale-110")}
+                  strokeWidth={active ? 2.2 : 1.7}
+                />
+                <span className={cn("text-[10px] font-medium tracking-wide", active ? "opacity-100" : "opacity-60")}>
                   {label}
                 </span>
               </button>
@@ -45,7 +51,13 @@ export function BottomNav() {
 export function Sidebar() {
   const [location] = useLocation();
   return (
-    <aside className="hidden md:flex flex-col w-56 min-h-screen border-r border-sidebar-border bg-sidebar shrink-0">
+    <aside
+      className="hidden md:flex flex-col w-56 min-h-screen border-r border-sidebar-border bg-sidebar shrink-0"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingLeft: "env(safe-area-inset-left)",
+      }}
+    >
       <div className="px-5 pt-7 pb-6 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -82,7 +94,10 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="px-5 py-4 border-t border-sidebar-border">
+      <div
+        className="px-5 py-4 border-t border-sidebar-border"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="text-xs text-muted-foreground">Mohamed · Personal OS</div>
       </div>
     </aside>

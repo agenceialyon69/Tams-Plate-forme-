@@ -37,9 +37,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <div className="flex h-screen overflow-hidden bg-background">
+          {/* dvh = dynamic viewport height — correct on iOS Safari with keyboard */}
+          <div className="flex overflow-hidden bg-background" style={{ height: "100dvh" }}>
             <Sidebar />
-            <main className="flex-1 flex flex-col overflow-hidden">
+            <main
+              className="flex-1 flex flex-col overflow-hidden"
+              style={{ paddingRight: "env(safe-area-inset-right)" }}
+            >
               <Router />
             </main>
           </div>
