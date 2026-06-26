@@ -1,35 +1,38 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  useListConversations, useCreateConversation, useGetConversation,
-  useDeleteConversation, useListMessages, useSendMessage,
-  getListConversationsQueryKey, getListMessagesQueryKey
+  useListConversations, useCreateConversation,
+  useDeleteConversation, useListMessages,
+  getListConversationsQueryKey, getListMessagesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Send, Trash2, MessageSquare, ChevronLeft } from "lucide-react";
+import { Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const MODES = [
-  { value: "chat", label: "Conversation" },
+  { value: "chat",           label: "Conversation" },
   { value: "chief_of_staff", label: "Chef de Cabinet" },
-  { value: "decision", label: "Décision" },
-  { value: "red_team", label: "Red Team" },
-  { value: "execution", label: "Exécution" },
+  { value: "decision",       label: "Décision" },
+  { value: "red_team",       label: "Red Team" },
+  { value: "execution",      label: "Exécution" },
 ] as const;
 
 type Mode = typeof MODES[number]["value"];
 
 const modeColor: Record<Mode, string> = {
-  chat: "text-blue-400 bg-blue-500/10",
+  chat:           "text-blue-400 bg-blue-500/10",
   chief_of_staff: "text-violet-400 bg-violet-500/10",
-  decision: "text-amber-400 bg-amber-500/10",
-  red_team: "text-red-400 bg-red-500/10",
-  execution: "text-emerald-400 bg-emerald-500/10",
+  decision:       "text-amber-400 bg-amber-500/10",
+  red_team:       "text-red-400 bg-red-500/10",
+  execution:      "text-emerald-400 bg-emerald-500/10",
 };
 
 function formatTime(d: string) {
   return new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
+
+// Resolve API base URL from env (Vite exposes VITE_* vars)
+const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
 
 export default function Chat() {
   const { toast } = useToast();
@@ -40,6 +43,12 @@ export default function Chat() {
   const [mode, setMode] = useState<Mode>("chat");
   const [newTitle, setNewTitle] = useState("");
   const [showNew, setShowNew] = useState(false);
+
+  // Streaming state
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
+  const [toolNotices, setToolNotices] = useState<string[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const { data: conversations = [], isLoading: convLoading } = useListConversations();
@@ -49,7 +58,7 @@ export default function Chat() {
 
   const createConv = useCreateConversation({
     mutation: {
-      onSuccess: (conv) => {
+      onSuccess: conv => {
         qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
         setSelectedId(conv.id);
         setShowConvList(false);
@@ -70,35 +79,95 @@ export default function Chat() {
     },
   });
 
-  const sendMsg = useSendMessage({
-    mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListMessagesQueryKey(selectedId!) });
-        qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-        setMessage("");
-      },
-      onError: () => toast({ title: "Erreur lors de l'envoi", variant: "destructive" }),
-    },
-  });
-
+  // Auto-scroll on new messages or streaming
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingContent]);
+
+  const streamMessage = useCallback(async (content: string) => {
+    if (!selectedId || !content.trim() || isStreaming) return;
+
+    setIsStreaming(true);
+    setStreamingContent("");
+    setToolNotices([]);
+
+    // Optimistically append user message to UI
+    // (server will persist it; React Query refetch on done)
+
+    abortRef.current = new AbortController();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/conversations/${selectedId}/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === "token") {
+              setStreamingContent(prev => prev + event.content);
+            } else if (event.type === "tool") {
+              setToolNotices(prev => [...prev, `${event.name}: ${event.result}`]);
+            } else if (event.type === "done") {
+              // Refresh messages from server
+              qc.invalidateQueries({ queryKey: getListMessagesQueryKey(selectedId) });
+              qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+            }
+          } catch {
+            // malformed event — skip
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        toast({ title: "Erreur de connexion", description: "Impossible d'envoyer le message", variant: "destructive" });
+      }
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent("");
+      setToolNotices([]);
+    }
+  }, [selectedId, isStreaming, qc, toast]);
 
   function handleSend() {
-    if (!message.trim() || !selectedId || sendMsg.isPending) return;
-    sendMsg.mutate({ id: selectedId, data: { content: message.trim() } });
+    if (!message.trim() || !selectedId) return;
+    const content = message.trim();
+    setMessage("");
+    streamMessage(content);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   }
 
   const selectedConv = conversations.find(c => c.id === selectedId);
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Conversation list */}
+      {/* ── Conversation list ── */}
       <div className={cn(
         "flex flex-col border-r border-border bg-sidebar",
         "absolute inset-0 z-10 md:relative md:inset-auto md:z-auto md:w-64 md:shrink-0",
@@ -107,7 +176,6 @@ export default function Chat() {
         <div className="flex items-center justify-between px-4 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Conversations</h2>
           <button
-            data-testid="button-new-conversation"
             onClick={() => setShowNew(true)}
             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -116,69 +184,87 @@ export default function Chat() {
         </div>
 
         {showNew && (
-          <div className="px-3 py-2 border-b border-border bg-card animate-fade-in">
-            <input
-              data-testid="input-conversation-title"
-              autoFocus
-              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring mb-2"
-              placeholder="Titre de la conversation..."
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && newTitle.trim()) { createConv.mutate({ data: { title: newTitle.trim(), mode } }); } if (e.key === "Escape") setShowNew(false); }}
-            />
-            <div className="flex flex-wrap gap-1 mb-2">
+          <div className="px-3 py-2 border-b border-border bg-card">
+            {/* Mode selector */}
+            <div className="flex gap-1 flex-wrap mb-2">
               {MODES.map(m => (
                 <button
                   key={m.value}
                   onClick={() => setMode(m.value)}
-                  className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors", mode === m.value ? modeColor[m.value] : "bg-secondary text-muted-foreground hover:text-foreground")}
+                  className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
+                    mode === m.value ? "bg-primary text-primary-foreground" : cn("bg-secondary", modeColor[m.value])
+                  )}
                 >
                   {m.label}
                 </button>
               ))}
             </div>
-            <button
-              data-testid="button-create-conversation"
-              disabled={!newTitle.trim() || createConv.isPending}
-              onClick={() => createConv.mutate({ data: { title: newTitle.trim(), mode } })}
-              className="w-full py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-50 hover:opacity-90 transition-opacity"
-            >
-              Créer
-            </button>
+            <input
+              autoFocus
+              className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring mb-2"
+              placeholder="Titre de la conversation..."
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && newTitle.trim()) {
+                  createConv.mutate({ data: { title: newTitle.trim(), mode } });
+                }
+                if (e.key === "Escape") { setShowNew(false); setNewTitle(""); }
+              }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { if (newTitle.trim()) createConv.mutate({ data: { title: newTitle.trim(), mode } }); }}
+                disabled={!newTitle.trim() || createConv.isPending}
+                className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
+              >
+                {createConv.isPending ? "Création..." : "Créer"}
+              </button>
+              <button
+                onClick={() => { setShowNew(false); setNewTitle(""); }}
+                className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-xs"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="flex-1 overflow-y-auto">
           {convLoading ? (
-            <div className="space-y-2 px-3">
-              {[...Array(4)].map((_, i) => <div key={i} className="h-14 bg-accent rounded-xl animate-pulse" />)}
+            <div className="p-4 space-y-2">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-secondary rounded-lg animate-pulse" />)}
             </div>
           ) : conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-              <MessageSquare className="w-8 h-8 text-muted-foreground mb-3" strokeWidth={1.5} />
-              <p className="text-sm text-muted-foreground">Aucune conversation</p>
-              <p className="text-xs text-muted-foreground mt-1">Créez votre premier échange avec TAMS</p>
+            <div className="flex flex-col items-center justify-center h-full text-center p-6">
+              <MessageSquare className="w-8 h-8 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">Aucune conversation</p>
             </div>
           ) : (
-            <div className="space-y-0.5 px-2 stagger">
+            <div className="p-2 space-y-0.5">
               {conversations.map(conv => (
                 <button
                   key={conv.id}
-                  data-testid={`conv-item-${conv.id}`}
                   onClick={() => { setSelectedId(conv.id); setShowConvList(false); }}
                   className={cn(
-                    "w-full text-left px-3 py-3 rounded-xl transition-all duration-150",
-                    selectedId === conv.id ? "bg-accent" : "hover:bg-accent/60"
+                    "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors",
+                    selectedId === conv.id
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", modeColor[conv.mode as Mode] ?? "bg-muted text-muted-foreground")}>
-                      {MODES.find(m => m.value === conv.mode)?.label ?? conv.mode}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground ml-auto">{conv.messageCount} msg</span>
+                  <div className="flex items-start gap-2">
+                    <div className={cn("shrink-0 mt-0.5 px-1 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide", modeColor[conv.mode as Mode] ?? modeColor.chat)}>
+                      {MODES.find(m => m.value === conv.mode)?.label.slice(0, 4) ?? "Chat"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{conv.title}</div>
+                      {conv.lastMessage && (
+                        <div className="text-[10px] text-muted-foreground/70 truncate mt-0.5">{conv.lastMessage}</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm font-medium text-foreground truncate">{conv.title}</div>
-                  {conv.lastMessage && <div className="text-xs text-muted-foreground truncate mt-0.5">{conv.lastMessage}</div>}
                 </button>
               ))}
             </div>
@@ -186,128 +272,131 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Chat area */}
+      {/* ── Message area ── */}
       <div className={cn(
-        "flex-1 flex flex-col",
-        showConvList && !selectedId && "hidden md:flex"
+        "flex-1 flex flex-col overflow-hidden",
+        showConvList && "hidden md:flex"
       )}>
-        {!selectedId ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center px-8">
-            <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" strokeWidth={1} />
-            <h3 className="text-lg font-medium text-foreground mb-1">Sélectionnez une conversation</h3>
-            <p className="text-sm text-muted-foreground">ou créez-en une nouvelle pour commencer</p>
-          </div>
-        ) : (
-          <>
-            {/* Chat header */}
-            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border shrink-0">
-              <button
-                data-testid="button-back-conversations"
-                onClick={() => setShowConvList(true)}
-                className="md:hidden p-1.5 rounded-lg hover:bg-accent text-muted-foreground"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-sidebar shrink-0">
+          <button
+            className="md:hidden p-1.5 rounded-lg hover:bg-accent text-muted-foreground"
+            onClick={() => setShowConvList(true)}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          {selectedConv ? (
+            <>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-foreground truncate">{selectedConv?.title}</div>
-                <div className={cn("text-xs font-medium", modeColor[selectedConv?.mode as Mode] ?? "text-muted-foreground")}>
-                  {MODES.find(m => m.value === selectedConv?.mode)?.label}
+                <div className="text-sm font-semibold text-foreground truncate">{selectedConv.title}</div>
+                <div className={cn("text-[10px] font-medium", modeColor[selectedConv.mode as Mode] ?? modeColor.chat)}>
+                  {MODES.find(m => m.value === selectedConv.mode)?.label}
                 </div>
               </div>
               <button
-                data-testid="button-delete-conversation"
-                onClick={() => { if (window.confirm("Supprimer cette conversation ?")) deleteConv.mutate({ id: selectedId }); }}
-                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                onClick={() => deleteConv.mutate({ id: selectedConv.id })}
+                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
-            </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">Sélectionner une conversation</div>
+          )}
+        </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              {msgsLoading ? (
-                <div className="space-y-3">
-                  {[...Array(3)].map((_, i) => <div key={i} className={cn("h-16 rounded-2xl animate-pulse max-w-xs", i % 2 === 0 ? "bg-accent ml-auto" : "bg-card")} />)}
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+          {!selectedId ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <MessageSquare className="w-12 h-12 text-muted-foreground/20 mb-3" />
+              <p className="text-sm text-muted-foreground">Sélectionne ou crée une conversation</p>
+            </div>
+          ) : msgsLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className={cn("flex", i % 2 === 0 ? "justify-start" : "justify-end")}>
+                  <div className="h-10 w-48 bg-secondary rounded-xl animate-pulse" />
                 </div>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className={cn("px-3 py-1.5 rounded-full text-xs font-medium mb-4", modeColor[selectedConv?.mode as Mode] ?? "bg-muted text-muted-foreground")}>
-                    {MODES.find(m => m.value === selectedConv?.mode)?.label ?? "Conversation"}
+              ))}
+            </div>
+          ) : (
+            <>
+              {messages.map(msg => (
+                <div key={msg.id} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  <div className={cn(
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-secondary text-foreground rounded-bl-sm"
+                  )}>
+                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                    <div className={cn(
+                      "text-[10px] mt-1 text-right",
+                      msg.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"
+                    )}>
+                      {formatTime(msg.createdAt)}
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">Commencez la conversation</p>
                 </div>
-              ) : (
-                <div className="space-y-4 stagger">
-                  {messages.map(msg => (
-                    <div key={msg.id} data-testid={`message-${msg.id}`} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
-                      {msg.role === "assistant" && (
-                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center mr-2 mt-1 shrink-0">
-                          <span className="text-[10px] font-bold text-primary">T</span>
-                        </div>
-                      )}
-                      <div className={cn(
-                        "max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : "bg-card border border-card-border text-foreground rounded-tl-sm"
-                      )}>
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
-                        <div className={cn("text-[10px] mt-1.5", msg.role === "user" ? "text-primary-foreground/60 text-right" : "text-muted-foreground")}>
-                          {formatTime(msg.createdAt)}
-                        </div>
+              ))}
+
+              {/* Streaming assistant bubble */}
+              {isStreaming && (
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] bg-secondary rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm text-foreground">
+                    {streamingContent ? (
+                      <div className="whitespace-pre-wrap break-words">{streamingContent}
+                        <span className="inline-block w-0.5 h-3.5 bg-foreground/50 ml-0.5 animate-pulse align-middle" />
                       </div>
-                    </div>
-                  ))}
-                  {sendMsg.isPending && (
-                    <div className="flex justify-start">
-                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center mr-2 mt-1 shrink-0">
-                        <span className="text-[10px] font-bold text-primary">T</span>
+                    ) : (
+                      <div className="flex gap-1 items-center py-0.5">
+                        {[0, 1, 2].map(i => (
+                          <div
+                            key={i}
+                            className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce"
+                            style={{ animationDelay: `${i * 150}ms` }}
+                          />
+                        ))}
                       </div>
-                      <div className="bg-card border border-card-border px-4 py-3 rounded-2xl rounded-tl-sm">
-                        <div className="flex gap-1.5 items-center h-4">
-                          {[0, 1, 2].map(i => (
-                            <div key={i} className="w-1.5 h-1.5 rounded-full bg-muted-foreground" style={{ animation: `pulse-dot 1.4s ${i * .2}s ease infinite` }} />
-                          ))}
-                        </div>
+                    )}
+                    {/* Tool notices */}
+                    {toolNotices.map((notice, i) => (
+                      <div key={i} className="mt-1.5 flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 rounded px-2 py-1">
+                        <Zap className="w-3 h-3 shrink-0" />
+                        {notice}
                       </div>
-                    </div>
-                  )}
-                  <div ref={endRef} />
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+            </>
+          )}
+          <div ref={endRef} />
+        </div>
 
-            {/* Input */}
-            <div className="shrink-0 border-t border-border px-4 py-3 bg-sidebar">
-              <div className="flex items-end gap-2 bg-input border border-border rounded-2xl px-4 py-2.5 focus-within:ring-1 focus-within:ring-ring focus-within:border-ring transition-all">
-                <textarea
-                  data-testid="input-message"
-                  rows={1}
-                  value={message}
-                  onChange={e => setMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Écrivez un message..."
-                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none max-h-32 leading-relaxed"
-                  style={{ scrollbarWidth: "none" }}
-                />
-                <button
-                  data-testid="button-send-message"
-                  onClick={handleSend}
-                  disabled={!message.trim() || sendMsg.isPending}
-                  className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center disabled:opacity-40 hover:opacity-90 transition-all shrink-0 mb-0.5"
-                >
-                  <Send className="w-3.5 h-3.5 text-primary-foreground" />
-                </button>
-              </div>
-              <div className="flex items-center gap-1 mt-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-                {MODES.map(m => (
-                  <button key={m.value} onClick={() => setMode(m.value)} className={cn("text-[10px] font-medium px-2.5 py-1 rounded-full shrink-0 transition-colors", mode === m.value ? modeColor[m.value] : "bg-secondary text-muted-foreground hover:text-foreground")}>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
+        {/* Input */}
+        {selectedId && (
+          <div className="px-4 pb-4 pt-2 shrink-0 border-t border-border bg-sidebar">
+            <div className="flex gap-2 items-end">
+              <textarea
+                className="flex-1 bg-secondary rounded-xl px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[40px] max-h-32"
+                placeholder={isStreaming ? "En cours..." : "Envoyer un message..."}
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isStreaming}
+                rows={1}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!message.trim() || isStreaming}
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-95"
+              >
+                <Send className="w-4 h-4" />
+              </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
