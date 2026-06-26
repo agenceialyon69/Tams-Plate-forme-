@@ -6,7 +6,7 @@
 
 Dépôt : `https://github.com/agenceialyon69/Tams-Plate-forme-.git`  
 Branche : `main`  
-Dernier audit architectural : commit `eea96c025db66b09a4e66791649a9d890d91cc65`
+Dernier audit architectural : commit `0609fe6ae05e69b3ab65274ccac0e1cf386d61d4` (2026-06-26)
 
 ## Index constitution
 
@@ -43,6 +43,7 @@ Dernier audit architectural : commit `eea96c025db66b09a4e66791649a9d890d91cc65`
 | 28 | `28_EXPORT_SYSTEM.md` | Export complet du système |
 | 29 | `29_LONG_TERM_ROADMAP.md` | Roadmap long terme |
 | 30 | `30_FINAL_ACCEPTANCE.md` | Critères d'acceptation finale |
+| 31 | `31_RED_TEAM_AUDIT_2026-06-26.md` | Audit Red Team (2026-06-26) |
 
 ## Règle d'entrée
 
