@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { memoriesTable } from "@workspace/db";
-import { eq, ilike, or } from "drizzle-orm";
+import { memoriesTable, memoryEdgesTable } from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -23,6 +23,34 @@ router.get("/memories", async (req, res) => {
     return res.json(all);
   } catch (err) {
     req.log.error({ err }, "Error listing memories");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET graph — nodes + edges for visualization
+router.get("/memories/graph", async (req, res) => {
+  try {
+    const nodes = await db.select().from(memoriesTable).orderBy(memoriesTable.updatedAt);
+    const edges = await db.select().from(memoryEdgesTable);
+
+    return res.json({
+      nodes: nodes.map(n => ({
+        id: n.id,
+        title: n.title,
+        type: n.type,
+        content: n.content,
+        tags: n.tags,
+      })),
+      edges: edges.map(e => ({
+        id: e.id,
+        source: e.sourceId,
+        target: e.targetId,
+        type: e.type,
+        note: e.note,
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error getting memory graph");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -78,6 +106,59 @@ router.delete("/memories/:id", async (req, res) => {
     return res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Error deleting memory");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ============ EDGES ============
+
+// LIST edges for a memory
+router.get("/memories/:id/edges", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const edges = await db
+      .select()
+      .from(memoryEdgesTable)
+      .where(
+        sql`${memoryEdgesTable.sourceId} = ${id} OR ${memoryEdgesTable.targetId} = ${id}`
+      );
+    return res.json(edges);
+  } catch (err) {
+    req.log.error({ err }, "Error listing edges");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// CREATE edge
+router.post("/memories/:id/edges", async (req, res) => {
+  try {
+    const sourceId = Number(req.params.id);
+    const { targetId, type, note } = req.body;
+    if (!targetId || !type) return res.status(400).json({ error: "targetId and type are required" });
+    if (sourceId === Number(targetId)) return res.status(400).json({ error: "Cannot link a memory to itself" });
+
+    const [created] = await db.insert(memoryEdgesTable).values({
+      sourceId,
+      targetId: Number(targetId),
+      type,
+      note: note ?? null,
+    }).returning();
+
+    return res.status(201).json(created);
+  } catch (err) {
+    req.log.error({ err }, "Error creating edge");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE edge
+router.delete("/memories/edges/:edgeId", async (req, res) => {
+  try {
+    const edgeId = Number(req.params.edgeId);
+    await db.delete(memoryEdgesTable).where(eq(memoryEdgesTable.id, edgeId));
+    return res.status(204).send();
+  } catch (err) {
+    req.log.error({ err }, "Error deleting edge");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

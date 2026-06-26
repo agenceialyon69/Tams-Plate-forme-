@@ -5,6 +5,7 @@ export * from "./tasks";
 export * from "./projects";
 export * from "./contacts";
 export * from "./memories";
+export * from "./memory-edges";
 export * from "./decisions";
 export * from "./assets";
 export * from "./activity";
