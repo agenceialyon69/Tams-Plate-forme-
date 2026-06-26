@@ -14,14 +14,33 @@ description: Architecture decisions and sharp edges for the TAMS AI OS project
 - Run `pnpm run typecheck:libs` after any `lib/db` schema change before leaf artifact typechecks
 - Hook pattern: `useXxx()` returns `T` directly; mutations: `mutate({ data: payload })` or `mutate({ id, data: payload })`
 - `SESSION_SECRET` env secret exists
+- `VITE_API_URL` env var needed for frontend dev (empty = same origin in prod)
 
 ## Navigation
 5 sections: Accueil (`/`), Chat (`/chat`), Travail (`/travail`), Studio (`/studio`), Système (`/systeme`)
 Desktop: Sidebar (`artifacts/tams/src/components/navigation.tsx`)
-Mobile: BottomNav (same file)
+Mobile: BottomNav (same file) — paddingBottom uses `env(safe-area-inset-bottom)`
+App root: `height: 100dvh` (not `h-screen`) for iOS keyboard correctness
 
 ## DB tables
 briefings, conversations, messages, tasks, projects, contacts, memories, decisions, assets, activity
-All seeded with realistic Mohamed/consulting data.
+Table `memory_edges` defined in schema but **NOT yet pushed to Railway DB** — run `pnpm --filter @workspace/db run push` on Railway.
 
-**Why:** API server uses esbuild CJS bundle — new route files are NOT picked up by HMR. Always restart the API Server workflow after touching `artifacts/api-server/src/`.
+## Middlewares (active since 2026-06-26)
+- `middlewares/rate-limit.ts`: aiRateLimit (20 req/min) on /api/chat + /api/briefing; defaultRateLimit (120 req/min) on all /api
+- `middlewares/error-handler.ts`: centralized Express error handler (hides stack traces in prod)
+
+## Chat streaming
+- Backend: `POST /api/conversations/:id/stream` → SSE events: `{type:user_id}`, `{type:token}`, `{type:tool}`, `{type:done}`
+- Frontend: `chat.tsx` uses `fetch()` + `ReadableStream` — no useSendMessage hook
+
+## Constitution
+`docs/constitution/` contains 30 numbered files (00_READ_FIRST.md → 30_FINAL_ACCEPTANCE.md).
+Legacy unnumbered docs removed 2026-06-26.
+
+## Last session SHA
+`3d288dff103362ff7eb2e9bbbf510bf50606626e` — feat(travail): Kanban view
+
+## Priority blockers
+1. Push `memory_edges` schema to Railway DB (manual Railway step)
+2. CI workflow `.github/workflows/ci.yml` needs GitHub Actions enabled in repo settings
