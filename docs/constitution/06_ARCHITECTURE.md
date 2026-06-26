@@ -1,4 +1,4 @@
-# 06 — Architecture
+# 08 — Architecture
 
 > État réel du dépôt — branche main.
 
@@ -12,7 +12,7 @@
 | AI | OpenAI SDK, model `google/gemini-2.5-flash` via `AI_GATEWAY_URL` |
 | Codegen | Orval (OpenAPI → React Query hooks + Zod schemas) |
 | Build | esbuild (backend), Vite (frontend) |
-| Déploiement | Railway + Nixpacks |
+| Déploiement | Railway + Nixpacks + Supabase PostgreSQL |
 
 ## Structure monorepo
 
@@ -37,9 +37,9 @@ Desktop : Sidebar. Mobile : BottomNav. (`artifacts/tams/src/components/navigatio
 
 ## Tables DB
 
-10 tables : `briefings`, `conversations`, `messages`, `tasks`, `projects`, `contacts`, `memories`, `decisions`, `assets`, `activity`.
+13 tables : `briefings`, `conversations`, `messages`, `tasks`, `projects`, `contacts`, `memories`, `memory_edges`, `decisions`, `assets`, `activity`, `project_contacts`.
 
-Table additionnelle : `memory_edges` (codée, doit être pushée sur Railway).
+Toutes les tables sont déployées sur Supabase PostgreSQL.
 
 ## API
 
@@ -48,9 +48,9 @@ Montée sur `/api`. 12+ routeurs. Voir `lib/api-spec/openapi.yaml` pour le contr
 ## Points de vigilance
 
 - `tasks.project_id` : soft reference, pas de FK constraint.
-- `memories.related_ids` : jsonb plat (remplacé par `memory_edges`).
+- `memories.related_ids` : jsonb legacy (remplacé par `memory_edges`).
 - Pas de table `users`, pas d'auth (single-user hardcoded).
-- `middlewares/` : rate-limit.ts et error-handler.ts existent et sont montés. request-logger.ts manquant.
 - Pas de migrations Drizzle commitées (schéma en code uniquement).
-- `SESSION_SECRET` déclaré mais non utilisé activement.
-- Helmet.js headers de sécurité non installés.
+- Helmet.js installé et configuré (commit `96fb610`).
+- CORS restrictif en production via `ALLOWED_ORIGINS`.
+- Rate limiting étendu à 5 endpoints IA.
