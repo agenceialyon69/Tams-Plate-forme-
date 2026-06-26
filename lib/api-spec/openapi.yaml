@@ -33,6 +33,8 @@ tags:
     description: Smart proactive notifications
   - name: studio
     description: Studio media generation
+  - name: system
+    description: System audit, stats, and recovery
 
 paths:
   # ── NOTIFICATIONS ────────────────────────────────────────────────────────────
@@ -563,6 +565,78 @@ paths:
         "204":
           description: Deleted
 
+  /memories/graph:
+    get:
+      operationId: getMemoryGraph
+      tags: [memories]
+      summary: Get memory graph nodes and edges for visualization
+      responses:
+        "200":
+          description: Graph with nodes and edges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGraph"
+
+  /memories/{id}/edges:
+    get:
+      operationId: listMemoryEdges
+      tags: [memories]
+      summary: List edges for a memory node
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of edges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryEdge"
+    post:
+      operationId: createMemoryEdge
+      tags: [memories]
+      summary: Create a typed edge between two memory nodes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryEdgeInput"
+      responses:
+        "201":
+          description: Created edge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryEdge"
+
+  /memories/edges/{edgeId}:
+    delete:
+      operationId: deleteMemoryEdge
+      tags: [memories]
+      summary: Delete a memory edge
+      parameters:
+        - name: edgeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   # ── DECISIONS ─────────────────────────────────────────────────────────────
   /decisions:
     get:
@@ -669,6 +743,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Decision"
+
+  /decisions/{id}/tasks:
+    post:
+      operationId: createTasksFromDecision
+      tags: [decisions]
+      summary: Create tasks from a decision (turn decision into action items)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TasksFromDecisionInput"
+      responses:
+        "201":
+          description: Created tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
 
   # ── ASSETS ────────────────────────────────────────────────────────────────
   /assets:
@@ -794,6 +895,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WorkloadSummary"
+
+  # ── SYSTEM ────────────────────────────────────────────────────────────────
+  /system/audit:
+    get:
+      operationId: getSystemAudit
+      tags: [system]
+      summary: Get full audit log
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [task, project, contact, memory, decision, conversation, asset]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /system/stats:
+    get:
+      operationId: getSystemStats
+      tags: [system]
+      summary: Get system health and data counts
+      responses:
+        "200":
+          description: System statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStats"
+
+  /system/export:
+    get:
+      operationId: exportSystemData
+      tags: [system]
+      summary: Export all data as JSON for recovery
+      responses:
+        "200":
+          description: Full data export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemExport"
 
 components:
   schemas:
@@ -1503,3 +1656,120 @@ components:
           type: array
           items:
             type: string
+
+    MemoryGraph:
+      type: object
+      required: [nodes, edges]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemoryGraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemoryEdge"
+
+    MemoryGraphNode:
+      type: object
+      required: [id, title, type]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+          enum: [person, project, company, decision, note, goal, event]
+        content:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+
+    MemoryEdge:
+      type: object
+      required: [id, source, target, type]
+      properties:
+        id:
+          type: integer
+        source:
+          type: integer
+        target:
+          type: integer
+        type:
+          type: string
+          enum: [works_on, knows, related_to, decided_about, part_of, leads_to, references, collaborates_with]
+        note:
+          type: string
+          nullable: true
+
+    MemoryEdgeInput:
+      type: object
+      required: [targetId, type]
+      properties:
+        targetId:
+          type: integer
+        type:
+          type: string
+          enum: [works_on, knows, related_to, decided_about, part_of, leads_to, references, collaborates_with]
+        note:
+          type: string
+
+    TasksFromDecisionInput:
+      type: object
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+              priority:
+                type: string
+                enum: [low, medium, high, urgent]
+
+    SystemStats:
+      type: object
+      required: [tables, totalRecords, status]
+      properties:
+        tables:
+          type: object
+          properties:
+            tasks:
+              type: integer
+            projects:
+              type: integer
+            contacts:
+              type: integer
+            memories:
+              type: integer
+            decisions:
+              type: integer
+            conversations:
+              type: integer
+            assets:
+              type: integer
+            activity:
+              type: integer
+        totalRecords:
+          type: integer
+        status:
+          type: string
+
+    SystemExport:
+      type: object
+      required: [exportedAt, version, data]
+      properties:
+        exportedAt:
+          type: string
+          format: date-time
+        version:
+          type: string
+        data:
+          type: object
