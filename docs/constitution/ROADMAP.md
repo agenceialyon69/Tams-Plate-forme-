@@ -27,10 +27,12 @@
 - [x] Lien décisions → tâches (POST /decisions/:id/tasks)
 - [ ] Timeline / historique des décisions
 
-## Phase 5 — Cohérence Work OS / Studio / System
+## Phase 5 — System layer
+- [x] Route audit (GET /system/audit) — commit 435da4d
+- [x] Route stats (GET /system/stats)
+- [x] Route export/recovery (GET /system/export)
 - [ ] Work OS : vue projet, liens contacts ↔ projets
 - [ ] Studio : cohérence avec le reste
-- [ ] System : audit, recovery, configuration
 
 ## Phase 6 — Mobile premium
 - [ ] Safe areas, gestes, keyboard handling
@@ -41,3 +43,5 @@
 - [ ] Tests
 - [ ] CI/CD
 - [ ] Performance
+- [ ] OpenAPI spec à mettre à jour avec les nouvelles routes
+- [ ] Codegen Orval à régénérer
