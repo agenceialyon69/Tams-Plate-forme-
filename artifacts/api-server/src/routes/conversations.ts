@@ -9,7 +9,6 @@ import { conversationsTable, messagesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import {
   getAgent,
-  getAllAgents,
   runAgent,
   executeTool,
   gatherUserContext,
@@ -322,31 +321,6 @@ router.post("/conversations/:id/stream", async (req, res) => {
   res.end();
 });
 
-// ─── Agent info endpoint ───────────────────────────────────────────────────
-
-router.get("/agents", (_req, res) => {
-  const agents = getAllAgents().map(a => ({
-    role: a.role,
-    name: a.name,
-    description: a.description,
-    capabilities: a.capabilities,
-  }));
-  res.json(agents);
-});
-
-router.get("/agents/:role", (req, res) => {
-  const agent = getAgent(req.params.role as AgentRole);
-  if (!agent) {
-    res.status(404).json({ error: "Agent not found" });
-    return;
-  }
-  res.json({
-    role: agent.role,
-    name: agent.name,
-    description: agent.description,
-    capabilities: agent.capabilities,
-    tools: agent.tools.map(t => t.name),
-  });
-});
+// Les endpoints /agents sont servis par routes/agents.ts (source unique).
 
 export default router;
