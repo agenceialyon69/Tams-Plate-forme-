@@ -213,10 +213,35 @@
   }
 }
 
+/* Dynamic viewport height - handles iOS Safari address bar */
+:root {
+  --dvh: 100vh;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --dvh: 100dvh;
+  }
+}
+
 /* Bottom nav spacer — pages scroll above the fixed BottomNav */
 @media (max-width: 768px) {
   main > * {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    padding-bottom: calc(64px + var(--safe-bottom));
+  }
+}
+
+/* Keyboard handling for chat input */
+.keyboard-avoiding {
+  position: relative;
+  transition: transform 0.2s ease-out;
+}
+
+@media (max-width: 768px) {
+  .keyboard-avoiding.keyboard-visible {
+    transform: translateY(calc(-1 * var(--keyboard-height, 0px)));
   }
 }
 
@@ -236,9 +261,82 @@ button, [role="button"] {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Touch target minimum 44x44px */
+@media (max-width: 768px) {
+  button:not(.touch-sm),
+  a:not(.touch-sm),
+  [role="button"]:not(.touch-sm) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-sm {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
+
+/* Swipe gesture containers */
+.swipe-container {
+  touch-action: pan-y;
+}
+
+/* Pull to refresh indicator */
+.pull-refresh {
+  position: absolute;
+  top: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.pull-refresh.pulling {
+  opacity: 1;
+  transform: translateX(-50%) translateY(48px);
+}
+
+/* Haptic feedback simulation */
+@media (pointer: coarse) {
+  button:active, [role="button"]:active {
+    transform: scale(0.97);
+    transition: transform 0.1s;
+  }
+}
+
 /* Scrollbar hide utility */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Safe area utilities */
+.pb-safe { padding-bottom: var(--safe-bottom); }
+.pt-safe { padding-top: var(--safe-top); }
+.mb-safe { margin-bottom: var(--safe-bottom); }
+.mt-safe { margin-top: var(--safe-top); }
+
+/* 60fps animations - use transform/opacity only */
+.gpu-accelerated {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Bottom sheet drag handle */
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(var(--muted-foreground) / 0.3);
+  margin: 8px auto;
+}
