@@ -58,11 +58,25 @@ app.use(
   }),
 );
 
-// CORS: restrict in production
+/**
+ * CORS — stratégie :
+ *   1. ALLOWED_ORIGINS défini   → liste restrictive (séparée par des virgules)
+ *   2. FRONTEND_URL défini      → autoriser cette origine spécifique
+ *   3. Aucun des deux           → origine réfléchie (reflect-origin, compatible credentials)
+ *      En production Railway, le frontend est servi par le même process :
+ *      les requêtes sont same-origin et les headers CORS ne s'appliquent pas.
+ *      Cette config n'affecte que les requêtes cross-origin (dev, Postman, etc.).
+ */
+function resolveOrigin(): cors.CorsOptions["origin"] {
+  if (process.env.NODE_ENV !== "production") return true;
+  if (process.env.ALLOWED_ORIGINS) return process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  // reflect-origin : compatible avec credentials et toutes origines
+  return true;
+}
+
 app.use(cors({
-  origin: process.env.NODE_ENV === "production"
-    ? (process.env.ALLOWED_ORIGINS?.split(",") || false)
-    : true,
+  origin: resolveOrigin(),
   credentials: true,
 }));
 
@@ -84,21 +98,21 @@ app.use("/api", router);
 app.use(errorHandler);
 
 if (process.env.NODE_ENV === "production") {
-  // Bundle is at: <root>/artifacts/api-server/dist/index.mjs
-  // Frontend is at: <root>/artifacts/tams/dist/public
-  // From dist/ → ../.. → artifacts/ → tams/dist/public
+  // Bundle est à : <root>/artifacts/api-server/dist/index.mjs
+  // Frontend est à : <root>/artifacts/tams/dist/public
+  // Depuis dist/ → ../.. → artifacts/ → tams/dist/public
   const __serverDir = dirname(fileURLToPath(import.meta.url));
   const staticDir = path.resolve(__serverDir, "..", "..", "tams", "dist", "public");
 
   if (existsSync(staticDir)) {
     app.use(express.static(staticDir));
-    // Express 5: use /{*splat} instead of * for wildcard
+    // Express 5 : /{*splat} pour le wildcard (pas *)
     app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(staticDir, "index.html"));
     });
     logger.info({ staticDir }, "Serving frontend static files");
   } else {
-    logger.warn({ staticDir }, "Frontend build not found");
+    logger.warn({ staticDir }, "Frontend build not found — only API routes will respond");
   }
 }
 

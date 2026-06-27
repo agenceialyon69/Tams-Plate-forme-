@@ -2,11 +2,15 @@
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["npm install -g pnpm@10 && pnpm install --frozen-lockfile"]
+cmds = ["npm install -g pnpm@10.26.1 && pnpm install --frozen-lockfile"]
 
 [phases.build]
 cmds = [
+  # 1. Compiler les libs partagées (db, api-zod, api-client-react)
+  "pnpm run typecheck:libs",
+  # 2. Build frontend Vite
   "BASE_PATH=/ PORT=3000 NODE_ENV=production pnpm --filter @workspace/tams run build",
+  # 3. Bundle backend (esbuild)
   "pnpm --filter @workspace/api-server run build"
 ]
 
