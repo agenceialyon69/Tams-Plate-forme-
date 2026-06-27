@@ -35,7 +35,7 @@ router.get("/decisions", async (req, res) => {
       .select({ total: sql<number>`COUNT(*)` })
       .from(decisionsTable);
 
-    return res.json(decisions);
+    return res.json({ data: decisions, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing decisions");
     return res.status(500).json({ error: "Internal server error" });

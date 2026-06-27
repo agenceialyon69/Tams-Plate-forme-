@@ -14,19 +14,13 @@ import notificationsRouter from "./notifications";
 import studioRouter from "./studio";
 import systemRouter from "./system";
 import observabilityRouter from "./observability";
-import agentsRouter from "./agents";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(briefingRouter);
-// Les routes conversations/agents définissent leurs chemins complets
-// (/conversations, /agents) : on applique seulement le rate-limit par préfixe,
-// puis on monte le routeur SANS préfixe (sinon double-préfixe → 404).
-router.use("/conversations", aiRateLimit);
-router.use(conversationsRouter);
+router.use("/conversations", aiRateLimit, conversationsRouter);
 router.use("/agents", aiRateLimit);
-router.use(agentsRouter);
 router.use(tasksRouter);
 router.use(projectsRouter);
 router.use(contactsRouter);

@@ -7,7 +7,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { assetsTable } from "@workspace/db";
 import { logActivity } from "../lib/activity";
-import { aiChat, aiConfigured } from "../lib/ai";
+import { aiChat } from "../lib/ai";
 
 const router = Router();
 
@@ -90,7 +90,7 @@ ${lengthGuidance[length]}
 
 IMPORTANT: Génère UNIQUEMENT le contenu du document, sans métadonnées.`;
 
-    if (!aiConfigured()) {
+    if (!process.env.REPLIT_AI_API_KEY) {
       const fallbackContent = generateFallbackDocument(type, title || "Sans titre", context);
       return res.json({
         content: fallbackContent,
@@ -167,7 +167,7 @@ Format JSON: { "script": "outline complet", "segments": [...], "suggestions": ["
 
 Format JSON: { "script": "brief complet", "elements": [...], "suggestions": ["titre1", "titre2", "titre3"] }`;
 
-    if (!aiConfigured()) {
+    if (!process.env.REPLIT_AI_API_KEY) {
       const fallback = generateFallbackScript(mediaType, prompt);
       return res.json(fallback);
     }
@@ -233,57 +233,12 @@ Format JSON: { "optimized": "prompt amélioré", "improvements": ["changement 1"
   }
 });
 
-// ─── Image Generation (réelle & gratuite) ──────────────────────────────────────
-// Moteur : Pollinations (Flux) — déterministe par URL, sans clé API, 100 % gratuit
-// (Pilier 7). Enrichissement optionnel du prompt via le routeur IA gratuit.
-// Retourne toujours une URL → jamais de bouton "Créer" qui échoue en silence.
-router.post("/studio/generate-image", async (req, res) => {
-  try {
-    const { prompt, width, height } = req.body as {
-      prompt?: string; width?: number; height?: number;
-    };
-    if (!prompt || !prompt.trim()) {
-      return res.status(400).json({ error: "prompt is required" });
-    }
-
-    const w = Math.min(Math.max(Number(width) || 1024, 256), 1536);
-    const h = Math.min(Math.max(Number(height) || 1024, 256), 1536);
-
-    let finalPrompt = prompt.trim();
-    let enhanced = false;
-
-    if (aiConfigured()) {
-      try {
-        const completion = await aiChat({
-          messages: [
-            { role: "system", content: "Tu transformes une idée brève en un prompt de génération d'image en ANGLAIS, riche et précis (sujet, style, éclairage, composition, qualité). Réponds UNIQUEMENT par le prompt, sans guillemets ni préambule." },
-            { role: "user", content: finalPrompt },
-          ],
-          max_tokens: 200,
-        }, "fast");
-        const out = completion.choices?.[0]?.message?.content?.trim();
-        if (out) { finalPrompt = out; enhanced = true; }
-      } catch {
-        /* best-effort : on garde le prompt brut */
-      }
-    }
-
-    const seed = Math.floor(Math.random() * 1_000_000);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${w}&height=${h}&nologo=true&model=flux&seed=${seed}`;
-
-    return res.json({ url, prompt: finalPrompt, enhanced, engine: "pollinations" });
-  } catch (err) {
-    req.log.error({ err }, "Error generating image");
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
+// ─── Image Generation Status ──────────────────────────────────────────────────
 
 router.get("/studio/image-generation/status", (_req, res) => {
   res.json({
-    available: true,
-    engine: "pollinations",
-    free: true,
-    note: "Génération d'image gratuite via Pollinations/Flux (sans clé). ComfyUI/SD optionnels en self-host.",
+    available: false,
+    reason: "ComfyUI/Stable Diffusion non configuré localement",
     endpoints: {
       comfyui: process.env.COMFYUI_URL || "http://localhost:8188",
       automatic1111: process.env.AUTOMATIC1111_URL || "http://localhost:7860",

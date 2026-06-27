@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BottomNav, Sidebar } from "@/components/navigation";
-import { ErrorBoundary } from "@/components/error-boundary";
 import Accueil from "@/pages/accueil";
 import Chat from "@/pages/chat";
 import Agents from "@/pages/agents";
@@ -47,9 +46,7 @@ function App() {
               className="flex-1 flex flex-col overflow-hidden"
               style={{ paddingRight: "env(safe-area-inset-right)" }}
             >
-              <ErrorBoundary>
-                <Router />
-              </ErrorBoundary>
+              <Router />
             </main>
           </div>
           <BottomNav />
