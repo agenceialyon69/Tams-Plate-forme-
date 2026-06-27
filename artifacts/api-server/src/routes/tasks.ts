@@ -52,7 +52,7 @@ router.get("/tasks", async (req, res) => {
       .from(tasksTable)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    return res.json({ data: tasks, total, limit, offset });
+    return res.json(tasks);
   } catch (err) {
     req.log.error({ err }, "Error listing tasks");
     return res.status(500).json({ error: "Internal server error" });
