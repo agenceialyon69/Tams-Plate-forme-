@@ -241,7 +241,7 @@ function AppSidebar({ onCommandPalette }: { onCommandPalette: () => void }) {
         </Sidebar>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border flex items-center justify-around pb-safe">
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border items-center justify-around pb-safe ${location === "/copilot" ? "hidden" : "flex"}`}>
         {mobileNav.map((item) => {
           const isActive = location === item.href;
           return (

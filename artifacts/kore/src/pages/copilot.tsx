@@ -1,8 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Send, Loader2, User, Globe, History, Plus, Trash2, X } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Sparkles, Send, Loader2, User, Globe, History, Plus, Trash2, X, ArrowLeft, MoreVertical, Check } from "lucide-react";
 import { getApiBase, apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 
@@ -159,64 +164,70 @@ export default function Copilot() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] max-w-3xl mx-auto pb-16 md:pb-0 relative">
-      <header className="px-6 md:px-8 pt-8 pb-4 border-b border-border/40">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-accent" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-serif font-semibold text-foreground leading-none">Copilot</h1>
-            <p className="text-xs text-muted-foreground mt-1 truncate">
-              {active?.tagline ?? "Ton assistant pour piloter ton activité"}
-            </p>
-          </div>
-          <button
-            onClick={newConversation}
-            title="Nouvelle conversation"
-            className="shrink-0 w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:bg-muted/40 flex items-center justify-center"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowHistory(true)}
-            title="Historique des conversations"
-            className="shrink-0 w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:bg-muted/40 flex items-center justify-center"
-          >
-            <History className="w-4 h-4" />
-          </button>
+    <div className="flex flex-col h-[100dvh] max-w-3xl mx-auto relative">
+      {/* WhatsApp-style top bar: fixed, compact, all options in a menu */}
+      <header className="flex items-center gap-2 px-2.5 md:px-5 h-16 border-b border-border/40 bg-card/85 backdrop-blur-md shrink-0">
+        <Link
+          href="/"
+          className="md:hidden w-9 h-9 -ml-0.5 rounded-full hover:bg-muted/50 flex items-center justify-center text-muted-foreground shrink-0"
+          aria-label="Retour"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+          <Sparkles className="w-5 h-5 text-accent" />
         </div>
-
-        <div className="flex items-center gap-2 mt-4">
-          {products.length > 1 && (
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 flex-1">
-              {products.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => switchProduct(p.id)}
-                  className={`text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors ${
-                    p.id === productId
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border/60 text-muted-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => setWebSearch((v) => !v)}
-            title="Rechercher sur le web pour répondre"
-            className={`shrink-0 inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
-              webSearch
-                ? "bg-accent/10 border-accent text-accent"
-                : "border-border/60 text-muted-foreground hover:bg-muted/40"
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" /> Web
-          </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-base font-semibold text-foreground leading-tight truncate">
+            {active?.name ?? "Copilot"}
+          </h1>
+          <p className="text-xs text-muted-foreground truncate">
+            {webSearch ? "🌐 Recherche web activée" : (active?.tagline ?? "Assistant IA")}
+          </p>
         </div>
+        <button
+          onClick={() => setWebSearch((v) => !v)}
+          title="Recherche web"
+          aria-label="Recherche web"
+          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+            webSearch ? "bg-accent/15 text-accent" : "text-muted-foreground hover:bg-muted/50"
+          }`}
+        >
+          <Globe className="w-5 h-5" />
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-muted-foreground hover:bg-muted/50"
+              aria-label="Options"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuItem onClick={newConversation}>
+              <Plus className="w-4 h-4 mr-2" /> Nouvelle conversation
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowHistory(true)}>
+              <History className="w-4 h-4 mr-2" /> Historique
+            </DropdownMenuItem>
+            <DropdownMenuCheckboxItem checked={webSearch} onCheckedChange={(v) => setWebSearch(Boolean(v))}>
+              Recherche web
+            </DropdownMenuCheckboxItem>
+            {products.length > 1 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Assistant</DropdownMenuLabel>
+                {products.map((p) => (
+                  <DropdownMenuItem key={p.id} onClick={() => switchProduct(p.id)}>
+                    <Check className={`w-4 h-4 mr-2 ${p.id === productId ? "opacity-100 text-accent" : "opacity-0"}`} />
+                    {p.name}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
@@ -293,7 +304,7 @@ export default function Copilot() {
         <div ref={endRef} />
       </div>
 
-      <div className="border-t border-border/40 px-4 md:px-8 py-4">
+      <div className="border-t border-border/40 px-3 md:px-8 py-3 pb-safe bg-card/50 shrink-0">
         <form
           onSubmit={(e) => { e.preventDefault(); send(input); }}
           className="flex items-end gap-2"

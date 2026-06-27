@@ -3,6 +3,11 @@
 Format : date — résumé (réf PR si applicable).
 
 ## 2026-06-22
+- **Chat pro (façon WhatsApp, mobile-first)** : le Copilot prend **tout l'écran**
+  sur mobile (nav du bas masquée sur `/copilot`), barre d'en-tête **fixe** et
+  compacte (retour, avatar, nom/statut, bouton recherche web), et **menu ⋮**
+  regroupant toutes les options (nouvelle conversation, historique, recherche
+  web, choix de l'assistant). Input fixe avec safe-area iOS.
 - **UI premium** : composant `PageHeader` réutilisable (chip dégradé + titre
   serif + sous-titre + action) appliqué aux pages clés (Studio, Intégrations,
   Événements) ; contrôles d'effets du Studio regroupés en carte « Effets ». Look
