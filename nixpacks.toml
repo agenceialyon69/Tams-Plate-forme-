@@ -1,6 +1,6 @@
 # pnpm fourni par nixPkgs → disponible sur le PATH dans TOUTES les phases
-# (install + build). `npm install -g pnpm` ne marchait pas : le bin global
-# n'était pas sur le PATH ("pnpm: command not found", exit 127).
+# (install + build). `npm install -g pnpm` ne marchait pas (bin global absent du
+# PATH → "pnpm: command not found").
 [phases.setup]
 nixPkgs = ["nodejs_22", "pnpm"]
 
@@ -14,4 +14,4 @@ cmds = [
 ]
 
 [start]
-cmd = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
+cmd = "NODE_ENV=production node --enable-source-maps ./artifacts/api-server/dist/index.mjs"

@@ -99,19 +99,6 @@ const searchMemoriesTool: AgentTool = {
   execute: async (args) => `Recherche: ${args.query}`,
 };
 
-const generateImageTool: AgentTool = {
-  name: "generate_image",
-  description: "Génère une image à partir d'une description textuelle (moteur gratuit Pollinations/Flux). Utilise-le quand l'utilisateur demande de créer/générer une image, un visuel, un poster, un logo.",
-  parameters: {
-    type: "object",
-    properties: {
-      prompt: { type: "string", description: "Description de l'image voulue" },
-    },
-    required: ["prompt"],
-  },
-  execute: async (args) => `Image générée: ${args.prompt}`,
-};
-
 const delegateTool: AgentTool = {
   name: "delegate_to_agent",
   description: "Délègue une tâche à un autre agent spécialisé",
@@ -135,7 +122,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: "Chief of Staff",
     description: "Orchestrateur exécutif. Analyse la situation globale, priorise, coordonne les autres agents.",
     capabilities: ["analyze", "create", "delegate", "monitor"],
-    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, generateImageTool, delegateTool],
+    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool],
     systemPrompt: `Tu es le Chief of Staff IA de Mohamed, consultant indépendant.
 
 Ton rôle est d'être l'orchestrateur exécutif de son AI Operating System.
@@ -309,7 +296,7 @@ Réponds en français avec des frameworks structurés.`,
     name: "Studio Agent",
     description: "Agent créatif. Génération d'images, audio, vidéo, documents.",
     capabilities: ["generate", "create", "analyze"],
-    tools: [generateImageTool, createTaskTool],
+    tools: [createTaskTool],
     systemPrompt: `Tu es le Studio Agent de TAMS.
 
 Ton rôle est de générer du contenu créatif :

@@ -18,12 +18,10 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      // Google Fonts : la feuille de style est servie par fonts.googleapis.com.
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       mediaSrc: ["'self'", "https:"],
-      // Google Fonts : les fichiers .woff2 sont servis par fonts.gstatic.com.
-      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      fontSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
       // Embeds Studio (lecteurs gratuits) : YouTube, Vimeo, SoundCloud, Spotify.
       frameSrc: [
@@ -96,11 +94,8 @@ app.use("/api", defaultRateLimit);
 
 app.use("/api", router);
 
-// Sert le frontend (SPA) dès que le build existe — INDÉPENDANT de NODE_ENV.
-// (Avant, c'était gardé par `NODE_ENV === "production"` ; au runtime cette
-// variable n'est pas définie → aucune route pour "/" → "Cannot GET /".)
-// Bundle : <root>/artifacts/api-server/dist/index.mjs
-// Frontend : <root>/artifacts/tams/dist/public  (dist/ → ../.. → artifacts/)
+// Sert le frontend (SPA) dès que le build existe — INDÉPENDANT de NODE_ENV
+// (sinon "/" n'a aucune route au runtime → "Cannot GET /").
 const __serverDir = dirname(fileURLToPath(import.meta.url));
 const staticDir = path.resolve(__serverDir, "..", "..", "tams", "dist", "public");
 

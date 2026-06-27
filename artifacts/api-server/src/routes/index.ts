@@ -20,9 +20,9 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(briefingRouter);
-// Les routes conversations/agents définissent leurs chemins complets
-// (/conversations, /agents) : on applique seulement le rate-limit par préfixe,
-// puis on monte le routeur SANS préfixe (sinon double-préfixe → 404).
+// conversations/agents définissent leurs chemins complets (/conversations,
+// /agents) : rate-limit par préfixe puis montage SANS préfixe (sinon
+// double-préfixe → 404).
 router.use("/conversations", aiRateLimit);
 router.use(conversationsRouter);
 router.use("/agents", aiRateLimit);

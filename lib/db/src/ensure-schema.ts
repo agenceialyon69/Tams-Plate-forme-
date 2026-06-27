@@ -2,15 +2,9 @@ import { pool } from "./index";
 
 /**
  * Crée les types/tables manquants au démarrage. Idempotent (CREATE ... IF NOT
- * EXISTS / garde EXCEPTION pour les enums) : permet de bootstrapper une base
- * Railway vierge sans aucune étape manuelle (`drizzle-kit push` non requis).
- *
- * IMPORTANT : ce SQL doit rester aligné avec `lib/db/src/schema/*`. Pour faire
- * évoluer un schéma existant (colonnes modifiées), utiliser
- * `pnpm --filter @workspace/db run push`.
+ * EXISTS / garde EXCEPTION pour les enums) : bootstrappe une base Railway vierge
+ * sans étape manuelle. Doit rester aligné avec `lib/db/src/schema/*`.
  */
-
-// Enums — garde idempotente (CREATE TYPE ne supporte pas IF NOT EXISTS).
 const ENUMS: Array<[string, string[]]> = [
   ["conversation_mode", ["chat", "chief_of_staff", "decision", "red_team", "execution"]],
   ["message_role", ["user", "assistant", "system"]],
@@ -32,136 +26,81 @@ function enumStatement(name: string, values: string[]): string {
   EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 }
 
-// Tables — ordre respectant les clés étrangères.
 const TABLES = [
   `CREATE TABLE IF NOT EXISTS conversations (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
+    id SERIAL PRIMARY KEY, title TEXT NOT NULL,
     mode conversation_mode NOT NULL DEFAULT 'chat',
-    message_count INTEGER NOT NULL DEFAULT 0,
-    last_message TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    message_count INTEGER NOT NULL DEFAULT 0, last_message TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS messages (
     id SERIAL PRIMARY KEY,
     conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    role message_role NOT NULL,
-    content TEXT NOT NULL,
+    role message_role NOT NULL, content TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS projects (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT,
     status project_status NOT NULL DEFAULT 'active',
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS tasks (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    status task_status NOT NULL DEFAULT 'todo',
-    priority task_priority NOT NULL DEFAULT 'medium',
-    project_id INTEGER,
-    due_date DATE,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT,
+    status task_status NOT NULL DEFAULT 'todo', priority task_priority NOT NULL DEFAULT 'medium',
+    project_id INTEGER, due_date DATE,
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS contacts (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    company TEXT,
-    email TEXT,
-    phone TEXT,
-    status contact_status NOT NULL DEFAULT 'prospect',
-    notes TEXT,
-    last_contacted_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL, company TEXT, email TEXT, phone TEXT,
+    status contact_status NOT NULL DEFAULT 'prospect', notes TEXT, last_contacted_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS memories (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    type memory_type NOT NULL,
-    content TEXT,
-    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
-    related_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY, title TEXT NOT NULL, type memory_type NOT NULL, content TEXT,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb, related_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS memory_edges (
     id SERIAL PRIMARY KEY,
     source_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
     target_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-    type edge_type NOT NULL,
-    note TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    type edge_type NOT NULL, note TEXT, created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS decisions (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    context TEXT,
-    options JSONB NOT NULL DEFAULT '[]'::jsonb,
-    advantages JSONB NOT NULL DEFAULT '[]'::jsonb,
-    risks JSONB NOT NULL DEFAULT '[]'::jsonb,
-    ai_advice TEXT,
-    red_team_advice TEXT,
-    result TEXT,
-    learnings TEXT,
-    status decision_status NOT NULL DEFAULT 'pending',
+    id SERIAL PRIMARY KEY, title TEXT NOT NULL, context TEXT,
+    options JSONB NOT NULL DEFAULT '[]'::jsonb, advantages JSONB NOT NULL DEFAULT '[]'::jsonb,
+    risks JSONB NOT NULL DEFAULT '[]'::jsonb, ai_advice TEXT, red_team_advice TEXT,
+    result TEXT, learnings TEXT, status decision_status NOT NULL DEFAULT 'pending',
     confidence_score INTEGER NOT NULL DEFAULT 50,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS assets (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    type asset_type NOT NULL,
-    url TEXT,
-    content TEXT,
-    mime_type TEXT,
-    size INTEGER,
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL, type asset_type NOT NULL,
+    url TEXT, content TEXT, mime_type TEXT, size INTEGER,
     tags JSONB NOT NULL DEFAULT '[]'::jsonb,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL DEFAULT now(), updated_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS activity (
-    id SERIAL PRIMARY KEY,
-    type activity_type NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    entity_id INTEGER,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY, type activity_type NOT NULL, title TEXT NOT NULL,
+    description TEXT NOT NULL, entity_id INTEGER, created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS briefings (
-    id SERIAL PRIMARY KEY,
-    date DATE NOT NULL,
-    greeting TEXT NOT NULL,
-    priorities JSONB NOT NULL DEFAULT '[]'::jsonb,
-    risks JSONB NOT NULL DEFAULT '[]'::jsonb,
-    opportunities JSONB NOT NULL DEFAULT '[]'::jsonb,
-    recommendations JSONB NOT NULL DEFAULT '[]'::jsonb,
-    active_projects_count INTEGER NOT NULL DEFAULT 0,
-    pending_tasks_count INTEGER NOT NULL DEFAULT 0,
+    id SERIAL PRIMARY KEY, date DATE NOT NULL, greeting TEXT NOT NULL,
+    priorities JSONB NOT NULL DEFAULT '[]'::jsonb, risks JSONB NOT NULL DEFAULT '[]'::jsonb,
+    opportunities JSONB NOT NULL DEFAULT '[]'::jsonb, recommendations JSONB NOT NULL DEFAULT '[]'::jsonb,
+    active_projects_count INTEGER NOT NULL DEFAULT 0, pending_tasks_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
   `CREATE TABLE IF NOT EXISTS project_contacts (
     id SERIAL PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     contact_id INTEGER NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-    role TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    role TEXT, created_at TIMESTAMP NOT NULL DEFAULT now()
   )`,
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Attend que la base accepte les connexions. Sur Railway/Render, Postgres peut
- * démarrer après l'app : on réessaie avec backoff léger.
- */
 async function waitForDatabase(attempts = 30, delayMs = 2000): Promise<void> {
   for (let i = 1; i <= attempts; i++) {
     try {
@@ -176,20 +115,12 @@ async function waitForDatabase(attempts = 30, delayMs = 2000): Promise<void> {
   }
 }
 
-/**
- * Garantit l'existence du schéma. Ne lève JAMAIS : l'appelant garde le serveur
- * HTTP en vie quoi qu'il arrive (pas de crash-loop). Retourne true en cas de
- * succès.
- */
+/** Garantit l'existence du schéma. Ne lève JAMAIS (pas de crash-loop). */
 export async function ensureSchema(): Promise<boolean> {
   try {
     await waitForDatabase();
-    for (const [name, values] of ENUMS) {
-      await pool.query(enumStatement(name, values));
-    }
-    for (const sql of TABLES) {
-      await pool.query(sql);
-    }
+    for (const [name, values] of ENUMS) await pool.query(enumStatement(name, values));
+    for (const sql of TABLES) await pool.query(sql);
     return true;
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
