@@ -18,10 +18,12 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      // Google Fonts : la feuille de style est servie par fonts.googleapis.com.
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "https:"],
       mediaSrc: ["'self'", "https:"],
-      fontSrc: ["'self'", "data:"],
+      // Google Fonts : les fichiers .woff2 sont servis par fonts.gstatic.com.
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
       connectSrc: ["'self'"],
       // Embeds Studio (lecteurs gratuits) : YouTube, Vimeo, SoundCloud, Spotify.
       frameSrc: [
