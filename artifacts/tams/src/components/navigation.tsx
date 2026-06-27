@@ -18,6 +18,7 @@ export function BottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-sidebar md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      aria-label="Navigation principale"
     >
       <div className="flex items-center justify-around px-1 py-2">
         {navItems.map(({ href, label, icon: Icon }) => {
@@ -26,6 +27,7 @@ export function BottomNav() {
             <Link key={href} href={href}>
               <button
                 data-testid={`nav-${label.toLowerCase()}`}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[44px] min-h-[44px] justify-center",
                   active
@@ -58,6 +60,7 @@ export function Sidebar() {
         paddingTop: "env(safe-area-inset-top)",
         paddingLeft: "env(safe-area-inset-left)",
       }}
+      aria-label="Barre latérale"
     >
       <div className="px-5 pt-7 pb-6 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
@@ -80,6 +83,7 @@ export function Sidebar() {
             <Link key={href} href={href}>
               <button
                 data-testid={`sidebar-${label.toLowerCase()}`}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 text-left",
                   active
