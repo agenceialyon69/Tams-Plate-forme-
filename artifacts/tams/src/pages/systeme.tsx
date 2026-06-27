@@ -140,7 +140,7 @@ function MemoireTab() {
     MEMORY_TYPES.find(x => x.value === t) ?? { label: t, color: "text-muted-foreground bg-secondary" };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden px-4 pb-4">
+    <div className="flex-1 flex flex-col overflow-hidden px-4 pb-24 md:pb-4">
       {/* Toolbar */}
       <div className="flex gap-2 mb-3 shrink-0">
         <div className="relative flex-1">
@@ -565,7 +565,7 @@ function DecisionsTab() {
   const statuses = ["all", "pending", "analyzing", "decided", "archived"];
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden px-4 pb-4">
+    <div className="flex-1 flex flex-col overflow-hidden px-4 pb-24 md:pb-4">
       {/* Filter + New */}
       <div className="flex gap-2 mb-3 shrink-0">
         <div className="flex gap-1 flex-1 overflow-x-auto scrollbar-hide">
@@ -799,7 +799,7 @@ function SystemeTab() {
   ] : [];
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+    <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-24 md:pb-4 space-y-4">
       {/* Actions header */}
       <div className="flex items-center justify-between shrink-0">
         <span className="text-xs font-medium text-muted-foreground">Observabilité</span>

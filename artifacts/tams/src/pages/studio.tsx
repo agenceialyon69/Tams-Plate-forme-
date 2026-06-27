@@ -455,7 +455,7 @@ export default function Studio() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-6 space-y-4">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-28 md:pb-6 space-y-4">
         {showForm && (
           selectedFormType === "video" ? (
             <VideoForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} />
