@@ -12,6 +12,7 @@ import {
   contactsTable,
   decisionsTable,
   memoriesTable,
+  assetsTable,
 } from "@workspace/db";
 import { eq, sql, desc, or, and, ilike } from "drizzle-orm";
 import { aiChat } from "../ai";
@@ -85,6 +86,28 @@ async function executeSearchMemories(args: Record<string, unknown>): Promise<str
   return `Mémoires trouvées (${results.length}):\n${results.map(m => `- ${m.title}: ${m.content?.slice(0, 100) || "pas de contenu"}`).join("\n")}`;
 }
 
+// Génère une image RÉELLE et gratuite (Pollinations/Flux, sans clé) et la
+// persiste comme asset Studio. Permet de piloter le Studio DEPUIS le Chat
+// (Pilier 2 + Pilier 7). Retourne l'URL de l'image.
+async function executeGenerateImage(args: Record<string, unknown>): Promise<string> {
+  const prompt = String(args.prompt || "").trim();
+  if (!prompt) return "Erreur: prompt requis pour générer une image.";
+  const seed = Math.floor(Math.random() * 1_000_000);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
+  try {
+    await db.insert(assetsTable).values({
+      name: prompt.slice(0, 60),
+      type: "image",
+      url,
+      content: prompt,
+      tags: ["image", "ai", "chat"],
+    });
+  } catch {
+    /* la persistance échoue ne doit pas bloquer le retour de l'URL */
+  }
+  return `Image générée (gratuite, Pollinations/Flux) et ajoutée au Studio : ${url}`;
+}
+
 // ─── Tool Dispatcher ────────────────────────────────────────────────────────
 
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -101,6 +124,8 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
       return executeCreateMemory(args);
     case "search_memories":
       return executeSearchMemories(args);
+    case "generate_image":
+      return executeGenerateImage(args);
     case "delegate_to_agent":
       // Delegation is handled at the orchestrator level
       return `Délégation demandée à: ${args.agent}`;
