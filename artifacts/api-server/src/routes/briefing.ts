@@ -104,7 +104,7 @@ async function gatherContext(): Promise<BriefingContext> {
     urgentTasks: urgentTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, dueDate: t.dueDate, projectId: t.projectId })),
     overdueTasks: overdueTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, dueDate: t.dueDate })),
     activeProjects: activeProjects.map(p => ({ id: p.id, name: p.name, description: p.description })),
-    staleContacts: staleContacts.map(c => ({ id: c.id, name: c.name, company: c.company, status: c.status, lastContactedAt: c.lastContactedAt })),
+    staleContacts: staleContacts.map(c => ({ id: c.id, name: c.name, company: c.company, status: c.status, lastContactedAt: c.lastContactedAt ? c.lastContactedAt.toISOString() : null })),
     pendingDecisions: pendingDecisions.map(d => ({ id: d.id, title: d.title, status: d.status })),
     pendingTasksCount: Number(pendingCount[0]?.count ?? 0),
     activeProjectsCount: Number(activeCount[0]?.count ?? 0),

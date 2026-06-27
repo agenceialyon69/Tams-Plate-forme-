@@ -196,7 +196,7 @@ router.get("/conversations", async (req, res) => {
     let query = db.select().from(conversationsTable).orderBy(desc(conversationsTable.updatedAt));
     if (mode) {
       const results = await db.select().from(conversationsTable)
-        .where(eq(conversationsTable.mode, mode as string))
+        .where(eq(conversationsTable.mode, mode as "chat" | "chief_of_staff" | "decision" | "red_team" | "execution"))
         .orderBy(desc(conversationsTable.updatedAt))
         .limit(Number(limit) || 20);
       return res.json(results);
@@ -308,6 +308,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
 
       if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
         for (const toolCall of choice.message.tool_calls) {
+          if (toolCall.type !== "function") continue;
           const fnName = toolCall.function.name;
           let fnArgs: any;
           try { fnArgs = JSON.parse(toolCall.function.arguments); } catch { fnArgs = {}; }
