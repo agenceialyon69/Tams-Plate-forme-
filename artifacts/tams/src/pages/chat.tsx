@@ -5,7 +5,7 @@ import {
   getListConversationsQueryKey, getListMessagesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap } from "lucide-react";
+import { Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -47,9 +47,11 @@ export default function Chat() {
   // Streaming state
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [pendingUser, setPendingUser] = useState<string | null>(null);
   const [toolNotices, setToolNotices] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: conversations = [], isLoading: convLoading } = useListConversations();
   const { data: messages = [], isLoading: msgsLoading } = useListMessages(selectedId!, {
@@ -82,7 +84,7 @@ export default function Chat() {
   // Auto-scroll on new messages or streaming
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+  }, [messages, streamingContent, pendingUser]);
 
   const streamMessage = useCallback(async (content: string) => {
     if (!selectedId || !content.trim() || isStreaming) return;
@@ -90,11 +92,12 @@ export default function Chat() {
     setIsStreaming(true);
     setStreamingContent("");
     setToolNotices([]);
-
-    // Optimistically append user message to UI
-    // (server will persist it; React Query refetch on done)
+    // Show the user's message immediately (WhatsApp-style), even before the
+    // server persists it. Cleared once the refetch returns the real record.
+    setPendingUser(content);
 
     abortRef.current = new AbortController();
+    let doneReceived = false;
 
     try {
       const res = await fetch(`${API_BASE}/api/conversations/${selectedId}/stream`, {
@@ -129,9 +132,7 @@ export default function Chat() {
             } else if (event.type === "tool") {
               setToolNotices(prev => [...prev, `${event.name}: ${event.result}`]);
             } else if (event.type === "done") {
-              // Refresh messages from server
-              qc.invalidateQueries({ queryKey: getListMessagesQueryKey(selectedId) });
-              qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+              doneReceived = true;
             }
           } catch {
             // malformed event — skip
@@ -143,17 +144,31 @@ export default function Chat() {
         toast({ title: "Erreur de connexion", description: "Impossible d'envoyer le message", variant: "destructive" });
       }
     } finally {
+      // Await the refetch BEFORE clearing optimistic state so the bubbles don't
+      // flicker out then back in.
+      if (doneReceived) {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: getListMessagesQueryKey(selectedId) }),
+          qc.invalidateQueries({ queryKey: getListConversationsQueryKey() }),
+        ]).catch(() => {});
+      }
       setIsStreaming(false);
       setStreamingContent("");
       setToolNotices([]);
+      setPendingUser(null);
     }
   }, [selectedId, isStreaming, qc, toast]);
 
   function handleSend() {
-    if (!message.trim() || !selectedId) return;
+    if (!message.trim() || !selectedId || isStreaming) return;
     const content = message.trim();
     setMessage("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     streamMessage(content);
+  }
+
+  function handleStop() {
+    abortRef.current?.abort();
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -341,6 +356,15 @@ export default function Chat() {
                 </div>
               ))}
 
+              {/* Optimistic user bubble (shown immediately while streaming) */}
+              {pendingUser && (
+                <div className="flex justify-end">
+                  <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm bg-primary text-primary-foreground">
+                    <div className="whitespace-pre-wrap break-words">{pendingUser}</div>
+                  </div>
+                </div>
+              )}
+
               {/* Streaming assistant bubble */}
               {isStreaming && (
                 <div className="flex justify-start">
@@ -380,21 +404,38 @@ export default function Chat() {
           <div className="px-4 pb-4 pt-2 shrink-0 border-t border-border bg-sidebar">
             <div className="flex gap-2 items-end">
               <textarea
+                ref={inputRef}
                 className="flex-1 bg-secondary rounded-xl px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[40px] max-h-32"
                 placeholder={isStreaming ? "En cours..." : "Envoyer un message..."}
                 value={message}
-                onChange={e => setMessage(e.target.value)}
+                onChange={e => {
+                  setMessage(e.target.value);
+                  const el = e.target;
+                  el.style.height = "auto";
+                  el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+                }}
                 onKeyDown={handleKeyDown}
-                disabled={isStreaming}
                 rows={1}
               />
-              <button
-                onClick={handleSend}
-                disabled={!message.trim() || isStreaming}
-                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-95"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+              {isStreaming ? (
+                <button
+                  onClick={handleStop}
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-secondary text-foreground border border-border transition-all hover:bg-accent active:scale-95"
+                  title="Arrêter la génération"
+                  aria-label="Arrêter la génération"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!message.trim()}
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-95"
+                  aria-label="Envoyer"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         )}
