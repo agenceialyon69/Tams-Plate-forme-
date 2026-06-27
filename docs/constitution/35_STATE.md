@@ -53,6 +53,10 @@ _Dernière mise à jour : 2026-06-27._
   unique, conversations.ts dédupliqué). API : `GET /api/agents`,
   `POST /api/agents/:id/run`, `POST /api/agents/orchestrate`. Inférence 100 %
   via routeur gratuit, dégradation propre (diagnostic, jamais d'erreur opaque).
+- **P3 Agent System (frontend)** : page `/agents` (nav ajoutée) — roster des 11
+  agents, composer (Équipe/CoS ou agent unique), affichage du plan + synthèse
+  exécutive + contributions par agent + outils utilisés. SPA route + API
+  vérifiées en production (200/200).
 
 ## 🔧 En cours / à corriger en priorité
 1. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider

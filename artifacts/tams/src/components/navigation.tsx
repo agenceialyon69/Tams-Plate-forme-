@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Home, MessageSquare, Briefcase, Layers, Cpu } from "lucide-react";
+import { Home, MessageSquare, Briefcase, Layers, Cpu, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./notifications-panel";
 
 const navItems = [
   { href: "/",        label: "Accueil", icon: Home },
   { href: "/chat",    label: "Chat",    icon: MessageSquare },
+  { href: "/agents",  label: "Agents",  icon: Users },
   { href: "/travail", label: "Travail", icon: Briefcase },
   { href: "/studio",  label: "Studio",  icon: Layers },
   { href: "/systeme", label: "Système", icon: Cpu },

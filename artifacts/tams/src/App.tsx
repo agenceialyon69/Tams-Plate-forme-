@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BottomNav, Sidebar } from "@/components/navigation";
 import Accueil from "@/pages/accueil";
 import Chat from "@/pages/chat";
+import Agents from "@/pages/agents";
 import Travail from "@/pages/travail";
 import Studio from "@/pages/studio";
 import Systeme from "@/pages/systeme";
@@ -24,6 +25,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Accueil} />
       <Route path="/chat" component={Chat} />
+      <Route path="/agents" component={Agents} />
       <Route path="/travail" component={Travail} />
       <Route path="/studio" component={Studio} />
       <Route path="/systeme" component={Systeme} />
