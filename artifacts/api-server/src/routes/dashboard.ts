@@ -4,47 +4,89 @@ import {
   tasksTable, projectsTable, contactsTable, memoriesTable,
   decisionsTable, conversationsTable, assetsTable, activityTable
 } from "@workspace/db";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 
 const router = Router();
 
-// DASHBOARD SUMMARY
+// ─── DASHBOARD SUMMARY (COUNT(*) SQL — pas de SELECT * global) ────────────────
 router.get("/dashboard/summary", async (req, res) => {
   try {
-    const [tasks, projects, contacts, memories, decisions, conversations, assets] = await Promise.all([
-      db.select().from(tasksTable),
-      db.select().from(projectsTable),
-      db.select().from(contactsTable),
-      db.select().from(memoriesTable),
-      db.select().from(decisionsTable),
-      db.select().from(conversationsTable),
-      db.select().from(assetsTable),
+    const [
+      taskStats,
+      projectStats,
+      contactStats,
+      [memRow],
+      [decRow],
+      [convRow],
+      [assetRow],
+    ] = await Promise.all([
+      db.select({
+        status: tasksTable.status,
+        priority: tasksTable.priority,
+        count: sql<number>`COUNT(*)`.mapWith(Number),
+      }).from(tasksTable).groupBy(tasksTable.status, tasksTable.priority),
+
+      db.select({
+        status: projectsTable.status,
+        count: sql<number>`COUNT(*)`.mapWith(Number),
+      }).from(projectsTable).groupBy(projectsTable.status),
+
+      db.select({
+        status: contactsTable.status,
+        count: sql<number>`COUNT(*)`.mapWith(Number),
+      }).from(contactsTable).groupBy(contactsTable.status),
+
+      db.select({ count: sql<number>`COUNT(*)`.mapWith(Number) }).from(memoriesTable),
+      db.select({ count: sql<number>`COUNT(*)`.mapWith(Number) }).from(decisionsTable),
+      db.select({ count: sql<number>`COUNT(*)`.mapWith(Number) }).from(conversationsTable),
+      db.select({ count: sql<number>`COUNT(*)`.mapWith(Number) }).from(assetsTable),
     ]);
+
+    // Agréger les stats tâches
+    const taskAgg = { total: 0, todo: 0, in_progress: 0, done: 0, cancelled: 0, urgent: 0 };
+    for (const row of taskStats) {
+      const c = Number(row.count);
+      taskAgg.total += c;
+      if (row.status === "todo") taskAgg.todo += c;
+      if (row.status === "in_progress") taskAgg.in_progress += c;
+      if (row.status === "done") taskAgg.done += c;
+      if (row.status === "cancelled") taskAgg.cancelled += c;
+      if (row.priority === "urgent") taskAgg.urgent += c;
+    }
+
+    const projectAgg = { total: 0, active: 0, paused: 0, completed: 0 };
+    for (const row of projectStats) {
+      const c = Number(row.count);
+      projectAgg.total += c;
+      if (row.status === "active") projectAgg.active += c;
+      if (row.status === "paused") projectAgg.paused += c;
+      if (row.status === "completed") projectAgg.completed += c;
+    }
+
+    const contactAgg = { total: 0, prospects: 0, clients: 0, active: 0, inactive: 0 };
+    for (const row of contactStats) {
+      const c = Number(row.count);
+      contactAgg.total += c;
+      if (row.status === "prospect") contactAgg.prospects += c;
+      if (row.status === "client") contactAgg.clients += c;
+      if (row.status === "active") contactAgg.active += c;
+      if (row.status === "inactive") contactAgg.inactive += c;
+    }
 
     return res.json({
       taskStats: {
-        total: tasks.length,
-        todo: tasks.filter(t => t.status === "todo").length,
-        inProgress: tasks.filter(t => t.status === "in_progress").length,
-        done: tasks.filter(t => t.status === "done").length,
-        urgent: tasks.filter(t => t.priority === "urgent").length,
+        total: taskAgg.total,
+        todo: taskAgg.todo,
+        inProgress: taskAgg.in_progress,
+        done: taskAgg.done,
+        urgent: taskAgg.urgent,
       },
-      projectStats: {
-        total: projects.length,
-        active: projects.filter(p => p.status === "active").length,
-        paused: projects.filter(p => p.status === "paused").length,
-        completed: projects.filter(p => p.status === "completed").length,
-      },
-      contactStats: {
-        total: contacts.length,
-        prospects: contacts.filter(c => c.status === "prospect").length,
-        clients: contacts.filter(c => c.status === "client").length,
-        active: contacts.filter(c => c.status === "active").length,
-      },
-      memoryCount: memories.length,
-      decisionCount: decisions.length,
-      conversationCount: conversations.length,
-      assetCount: assets.length,
+      projectStats: projectAgg,
+      contactStats: contactAgg,
+      memoryCount: memRow?.count ?? 0,
+      decisionCount: decRow?.count ?? 0,
+      conversationCount: convRow?.count ?? 0,
+      assetCount: assetRow?.count ?? 0,
     });
   } catch (err) {
     req.log.error({ err }, "Error getting dashboard summary");
@@ -52,16 +94,15 @@ router.get("/dashboard/summary", async (req, res) => {
   }
 });
 
-// RECENT ACTIVITY
+// ─── RECENT ACTIVITY ──────────────────────────────────────────────────────────
 router.get("/dashboard/activity", async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 20;
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
     const activity = await db
       .select()
       .from(activityTable)
       .orderBy(desc(activityTable.createdAt))
       .limit(limit);
-
     return res.json(activity);
   } catch (err) {
     req.log.error({ err }, "Error getting recent activity");
@@ -69,40 +110,43 @@ router.get("/dashboard/activity", async (req, res) => {
   }
 });
 
-// WORKLOAD
+// ─── WORKLOAD (tâches urgentes / overdue) ─────────────────────────────────────
 router.get("/dashboard/workload", async (req, res) => {
   try {
-    const tasks = await db.select().from(tasksTable);
-    const projects = await db.select().from(projectsTable);
+    const today = new Date().toISOString().split("T")[0];
 
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
+    const [urgent, overdue, inProgress] = await Promise.all([
+      db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        priority: tasksTable.priority,
+        dueDate: tasksTable.dueDate,
+      }).from(tasksTable)
+        .where(sql`${tasksTable.priority} = 'urgent' AND ${tasksTable.status} NOT IN ('done','cancelled')`)
+        .orderBy(tasksTable.dueDate)
+        .limit(10),
 
-    const urgent = tasks.filter(t => t.priority === "urgent" && t.status !== "done" && t.status !== "cancelled");
-    const dueToday = tasks.filter(t => t.dueDate === today && t.status !== "done" && t.status !== "cancelled");
-    const overdue = tasks.filter(t => t.dueDate && t.dueDate < today && t.status !== "done" && t.status !== "cancelled");
-    const activeProjects = projects.filter(p => p.status === "active");
+      db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        priority: tasksTable.priority,
+        dueDate: tasksTable.dueDate,
+      }).from(tasksTable)
+        .where(sql`${tasksTable.dueDate} IS NOT NULL AND ${tasksTable.dueDate} < ${today} AND ${tasksTable.status} NOT IN ('done','cancelled')`)
+        .orderBy(tasksTable.dueDate)
+        .limit(10),
 
-    const activeTasks = tasks.filter(t => t.status !== "done" && t.status !== "cancelled");
-    const capacity = Math.min(100, Math.max(0, Math.round((activeTasks.length / Math.max(1, activeTasks.length + 5)) * 100)));
+      db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        priority: tasksTable.priority,
+      }).from(tasksTable)
+        .where(sql`${tasksTable.status} = 'in_progress'`)
+        .orderBy(desc(tasksTable.updatedAt))
+        .limit(10),
+    ]);
 
-    const pOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-    const topPriorities = tasks
-      .filter(t => t.status !== "done" && t.status !== "cancelled")
-      .sort((a, b) => {
-        return (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
-      })
-      .slice(0, 5)
-      .map(t => ({ ...t, projectName: null }));
-
-    return res.json({
-      urgentTaskCount: urgent.length,
-      dueTodayCount: dueToday.length,
-      overdueCount: overdue.length,
-      activeProjectCount: activeProjects.length,
-      weeklyCapacity: capacity,
-      topPriorities,
-    });
+    return res.json({ urgent, overdue, inProgress });
   } catch (err) {
     req.log.error({ err }, "Error getting workload");
     return res.status(500).json({ error: "Internal server error" });
