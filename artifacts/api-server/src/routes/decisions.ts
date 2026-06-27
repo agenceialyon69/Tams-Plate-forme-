@@ -154,13 +154,12 @@ router.post("/decisions/:id/analyze", async (req, res) => {
     let confidenceScore = decision.confidenceScore;
 
     try {
-      const { default: OpenAI } = await import("openai");
-      const openai = new OpenAI({ baseURL: process.env.AI_GATEWAY_URL, apiKey: process.env.REPLIT_AI_API_KEY || "placeholder" });
+      const { aiChat } = await import("../lib/ai");
 
       const context = `Décision : ${decision.title}\nContexte : ${decision.context ?? "Non défini"}\nOptions : ${(decision.options as string[]).join(", ") || "Non définies"}\nAvantages : ${(decision.advantages as string[]).join(", ") || "Non définis"}\nRisques : ${(decision.risks as string[]).join(", ") || "Non définis"}`;
 
       const [aiResp, redTeamResp, scoreResp] = await Promise.all([
-        openai.chat.completions.create({
+        aiChat({
           model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: "Tu es un conseiller stratégique expert. Analyse cette décision et donne un avis structuré et actionnable en français. Sois direct, précis, sans jargon inutile." },
@@ -168,7 +167,7 @@ router.post("/decisions/:id/analyze", async (req, res) => {
           ],
           max_tokens: 500,
         }),
-        openai.chat.completions.create({
+        aiChat({
           model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: "Tu es un Red Team critique et sans complaisance. Identifie les failles, biais, risques cachés et erreurs de raisonnement dans cette décision. Sois direct, sceptique, utile. Réponds en français." },
@@ -176,7 +175,7 @@ router.post("/decisions/:id/analyze", async (req, res) => {
           ],
           max_tokens: 500,
         }),
-        openai.chat.completions.create({
+        aiChat({
           model: "google/gemini-2.5-flash",
           messages: [
             {

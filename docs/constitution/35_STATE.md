@@ -16,22 +16,23 @@ _Dernière mise à jour : 2026-06-27._
 ## ✅ Fait (vérifié sur `main`)
 - **Railway débloqué** : `pnpm-lock.yaml` régénéré (frozen install OK) ; builds
   `api-server` (esbuild) + `tams` (vite) passent. (SHA `4a1d8ff`)
-- **api-server TypeScript valide** : corrigés tool-calls OpenAI v6, enum mode,
-  dates briefing. (SHA `beb4e55`)
+- **api-server TypeScript valide** : corrigés tool-calls, enum mode, dates briefing. (SHA `beb4e55`)
+- **Zéro payant** : SDK `openai` **retiré** ; nouveau client `lib/ai.ts`
+  OpenAI-compatible par `fetch` (non-stream + streaming SSE) routé vers des
+  fournisseurs **gratuits** (`AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`, fallback
+  `AI_GATEWAY_URL`). briefing/decisions/conversations/studio-generate migrés.
+  Boot OK (healthz 200). Plus de défaut vers api.openai.com.
 - **Backend (routes présentes)** : health, briefing (Chief of Staff), conversations
   (Chat OS), tasks/projects/contacts (Workspace), memories (Memory), decisions
   (Decision OS), assets + studio-generate (Studio), dashboard, notifications, system.
 - **Frontend déployé** : `artifacts/tams` (accueil, chat, studio, systeme, travail).
 
 ## 🔧 En cours / à corriger en priorité
-1. **Retirer le payant** : `studio-generate.ts` importe le SDK `openai` et pointe
-   par défaut sur `api.openai.com` → remplacer par un client OpenAI-compatible
-   `fetch` routé vers un fournisseur **gratuit** (Ollama/Groq/Gemini/OpenRouter free).
-2. **Frontend `tams` — typecheck** : erreurs réelles à corriger (vite build passe
+1. **Frontend `tams` — typecheck** : erreurs réelles à corriger (vite build passe
    mais bugs runtime) : `systeme.tsx` (`decisionId`→`id`, `memoryId`→`id`,
    `.question`→`.title`), shapes d'options des hooks générés (queryKey) dans
    `chat.tsx`, `accueil.tsx`, `notifications-panel.tsx`.
-3. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider
+2. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider
    pour éviter la confusion (un seul frontend canonique).
 
 ## 🗺️ Reste (par pilier — voir `04_10_PILLARS.md`)

@@ -1,12 +1,7 @@
 import { Router } from "express";
-import OpenAI from "openai";
+import { aiChat, aiConfigured } from "../lib/ai";
 
 const router = Router();
-
-const openai = new OpenAI({
-  apiKey: process.env.REPLIT_AI_API_KEY ?? "dummy",
-  baseURL: process.env.AI_GATEWAY_URL ?? "https://api.openai.com/v1",
-});
 
 router.post("/studio/generate-script", async (req, res) => {
   try {
@@ -38,7 +33,7 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format:
   "suggestions": ["Titre 1", "Titre 2", "Titre 3"]
 }`;
 
-    if (!process.env.REPLIT_AI_API_KEY) {
+    if (!aiConfigured()) {
       const fallback = mediaType === "video"
         ? {
             script: `SCRIPT VIDÉO : ${prompt}\n\n[INTRO — 0:00-0:05]\nPlan d'ouverture accrocheur sur le thème.\n\n[SCÈNE 1 — 0:05-0:20]\nPrésentation du sujet principal avec visuel fort.\nNarration : "${prompt.substring(0, 60)}..."\n\n[SCÈNE 2 — 0:20-0:45]\nDéveloppement du message central.\nVisuels : plans moyens et gros plans alternés.\n\n[CONCLUSION — 0:45-0:55]\nAppel à l'action clair et mémorable.\n\n[OUTRO — 0:55-1:00]\nLogo et coordonnées.`,
@@ -51,7 +46,7 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format:
       return res.json(fallback);
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await aiChat({
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },

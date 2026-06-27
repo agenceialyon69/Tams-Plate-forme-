@@ -239,13 +239,8 @@ async function generateBriefing(
   log: { warn: (obj: any, msg: string) => void },
 ): Promise<BriefingData> {
   try {
-    const { default: OpenAI } = await import("openai");
-    const openai = new OpenAI({
-      baseURL: process.env.AI_GATEWAY_URL,
-      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
-    });
-
-    const completion = await openai.chat.completions.create({
+    const { aiChat } = await import("../lib/ai");
+    const completion = await aiChat({
       model: "google/gemini-2.5-flash",
       messages: [{ role: "system", content: buildContextPrompt(ctx) }],
       max_tokens: 1500,

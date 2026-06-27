@@ -285,8 +285,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
     let toolResults: string[] = [];
 
     try {
-      const { default: OpenAI } = await import("openai");
-      const openai = new OpenAI({ baseURL: process.env.AI_GATEWAY_URL, apiKey: process.env.REPLIT_AI_API_KEY || "placeholder" });
+      const { aiChat } = await import("../lib/ai");
 
       const modePrompt = MODE_PROMPTS[conv.mode] || MODE_PROMPTS.chat;
       const userContext = await gatherUserContext();
@@ -297,7 +296,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
         { role: "user", content },
       ];
 
-      const completion = await openai.chat.completions.create({
+      const completion = await aiChat({
         model: "google/gemini-2.5-flash",
         messages,
         max_tokens: 1000,
@@ -316,7 +315,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
           toolResults.push(result);
         }
 
-        const followUp = await openai.chat.completions.create({
+        const followUp = await aiChat({
           model: "google/gemini-2.5-flash",
           messages: [
             ...messages,
@@ -406,11 +405,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
   let toolResults: string[] = [];
 
   try {
-    const { default: OpenAI } = await import("openai");
-    const openai = new OpenAI({
-      baseURL: process.env.AI_GATEWAY_URL,
-      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
-    });
+    const { aiChatStream } = await import("../lib/ai");
 
     const modePrompt = MODE_PROMPTS[conv.mode] || MODE_PROMPTS.chat;
     const userContext = await gatherUserContext();
@@ -421,12 +416,11 @@ router.post("/conversations/:id/stream", async (req, res) => {
       { role: "user", content },
     ];
 
-    const stream = await openai.chat.completions.create({
+    const stream = aiChatStream({
       model: "google/gemini-2.5-flash",
       messages,
       max_tokens: 1200,
       tools: TOOLS,
-      stream: true,
     });
 
     let pendingToolCalls: any[] = [];
@@ -462,7 +456,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
 
       // Follow-up to summarize tool actions
-      const followUp = await openai.chat.completions.create({
+      const followUp = aiChatStream({
         model: "google/gemini-2.5-flash",
         messages: [
           ...messages,
@@ -470,7 +464,6 @@ router.post("/conversations/:id/stream", async (req, res) => {
           { role: "system", content: `Actions effectuées:\n${toolResults.join("\n")}\nRésume naturellement.` },
         ],
         max_tokens: 600,
-        stream: true,
       });
 
       for await (const chunk of followUp) {
