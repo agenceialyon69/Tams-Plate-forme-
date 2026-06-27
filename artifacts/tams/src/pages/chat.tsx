@@ -53,7 +53,7 @@ export default function Chat() {
 
   const { data: conversations = [], isLoading: convLoading } = useListConversations();
   const { data: messages = [], isLoading: msgsLoading } = useListMessages(selectedId!, {
-    query: { enabled: !!selectedId },
+    query: { enabled: !!selectedId } as any,
   });
 
   const createConv = useCreateConversation({

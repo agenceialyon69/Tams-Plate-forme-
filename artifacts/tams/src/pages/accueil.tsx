@@ -72,7 +72,7 @@ export default function Accueil() {
           </div>
           <button
             data-testid="button-generate-briefing"
-            onClick={() => generate.mutate({})}
+            onClick={() => generate.mutate()}
             disabled={generate.isPending}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-accent text-secondary-foreground text-xs font-medium transition-colors disabled:opacity-50"
           >

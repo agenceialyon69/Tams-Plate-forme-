@@ -26,13 +26,13 @@ _Dernière mise à jour : 2026-06-27._
   (Chat OS), tasks/projects/contacts (Workspace), memories (Memory), decisions
   (Decision OS), assets + studio-generate (Studio), dashboard, notifications, system.
 - **Frontend déployé** : `artifacts/tams` (accueil, chat, studio, systeme, travail).
+- **Frontend `tams` TypeScript valide** : bugs runtime corrigés (`systeme.tsx`
+  `decisionId`→`id`, `memoryId`→`id`, `.question`→`.title`, `accueil.tsx`
+  `generate.mutate()`), shapes d'options des hooks Orval surtypés neutralisés.
+  `tams` + `api-server` typecheck **propres**, builds **OK**, boot **OK** (healthz 200).
 
 ## 🔧 En cours / à corriger en priorité
-1. **Frontend `tams` — typecheck** : erreurs réelles à corriger (vite build passe
-   mais bugs runtime) : `systeme.tsx` (`decisionId`→`id`, `memoryId`→`id`,
-   `.question`→`.title`), shapes d'options des hooks générés (queryKey) dans
-   `chat.tsx`, `accueil.tsx`, `notifications-panel.tsx`.
-2. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider
+1. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider
    pour éviter la confusion (un seul frontend canonique).
 
 ## 🗺️ Reste (par pilier — voir `04_10_PILLARS.md`)

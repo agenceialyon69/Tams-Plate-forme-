@@ -264,7 +264,7 @@ function MemoireTab() {
                     {m.content && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{m.content}</div>}
                   </div>
                   <button
-                    onClick={() => del.mutate({ memoryId: m.id })}
+                    onClick={() => del.mutate({ id: m.id })}
                     className="shrink-0 p-1.5 rounded-lg hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -517,11 +517,12 @@ function DecisionsTab() {
   const [question, setQuestion] = useState("");
   const [context, setContext] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
-  const { data: decisions = [], isLoading } = useListDecisions(
-    statusFilter !== "all" ? { status: statusFilter as any } : {}
-  );
+  const { data: allDecisions = [], isLoading } = useListDecisions();
+  const decisions = statusFilter === "all"
+    ? allDecisions
+    : allDecisions.filter(d => d.status === statusFilter);
 
   const create = useCreateDecision({
     mutation: {
@@ -611,7 +612,7 @@ function DecisionsTab() {
             <button
               onClick={() => {
                 if (!question.trim()) return;
-                create.mutate({ data: { question: question.trim(), context: context.trim() || undefined } });
+                create.mutate({ data: { title: question.trim(), context: context.trim() || undefined } });
               }}
               disabled={!question.trim() || create.isPending}
               className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
@@ -654,12 +655,12 @@ function DecisionsTab() {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm font-medium text-foreground line-clamp-2">{d.question}</div>
+                    <div className="text-sm font-medium text-foreground line-clamp-2">{d.title}</div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {d.status === "pending" && (
                       <button
-                        onClick={e => { e.stopPropagation(); analyze.mutate({ decisionId: d.id }); }}
+                        onClick={e => { e.stopPropagation(); analyze.mutate({ id: d.id }); }}
                         disabled={analyze.isPending}
                         className="p-1.5 rounded-lg hover:bg-background text-amber-400 hover:text-amber-300 transition-colors"
                         title="Analyser avec l'IA"
@@ -669,14 +670,14 @@ function DecisionsTab() {
                     )}
                     {d.status === "decided" && (
                       <button
-                        onClick={e => { e.stopPropagation(); update.mutate({ decisionId: d.id, data: { status: "archived" } }); }}
+                        onClick={e => { e.stopPropagation(); update.mutate({ id: d.id, data: { status: "archived" } }); }}
                         className="p-1.5 rounded-lg hover:bg-background text-muted-foreground hover:text-foreground transition-colors text-xs"
                       >
                         Archiver
                       </button>
                     )}
                     <button
-                      onClick={e => { e.stopPropagation(); del.mutate({ decisionId: d.id }); }}
+                      onClick={e => { e.stopPropagation(); del.mutate({ id: d.id }); }}
                       className="p-1.5 rounded-lg hover:bg-background text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -731,7 +732,7 @@ function DecisionsTab() {
                     )}
                     {d.status === "pending" && (
                       <button
-                        onClick={() => analyze.mutate({ decisionId: d.id })}
+                        onClick={() => analyze.mutate({ id: d.id })}
                         disabled={analyze.isPending}
                         className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-amber-500/10 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors disabled:opacity-50"
                       >
@@ -767,7 +768,7 @@ function SystemeTab() {
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useGetSystemStats();
   const { data: audit, isLoading: auditLoading, refetch: refetchAudit } = useGetSystemAudit({ limit: 20 });
   const exportData = useExportSystemData({
-    query: { enabled: false },
+    query: { enabled: false } as any,
   });
 
   const handleExport = async () => {

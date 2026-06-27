@@ -23,7 +23,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [, setLocation] = useLocation();
   const { data: notifications = [], isLoading } = useGetNotifications({
-    query: { refetchInterval: 60_000, staleTime: 30_000 },
+    query: { refetchInterval: 60_000, staleTime: 30_000 } as any,
   });
 
   const criticalCount = notifications.filter(n => n.severity === "critical").length;
