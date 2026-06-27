@@ -1,24 +1,31 @@
+/**
+ * Conversations Route
+ * Core chat endpoint with multi-agent system integration
+ */
+
 import { Router } from "express";
 import { db } from "@workspace/db";
-import {
-  conversationsTable,
-  messagesTable,
-} from "@workspace/db";
+import { conversationsTable, messagesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import {
-  SYSTEM_PROMPT,
-  MODE_PROMPTS,
-  TOOLS,
-  gatherUserContext,
+  getAgent,
+  getAllAgents,
+  selectAgentForQuery,
+  runAgent,
   executeTool,
-} from "../lib/agent-tools";
+  gatherUserContext,
+  getAllTools,
+} from "../lib/agents";
+import type { AgentRole, AgentContext } from "../lib/agents/types";
 
 const router = Router();
+
+// ─── List conversations ─────────────────────────────────────────────────────
 
 router.get("/conversations", async (req, res) => {
   try {
     const { mode, limit } = req.query;
-    let query = db.select().from(conversationsTable).orderBy(desc(conversationsTable.updatedAt));
+
     if (mode) {
       const results = await db.select().from(conversationsTable)
         .where(eq(conversationsTable.mode, mode as "chat" | "chief_of_staff" | "decision" | "red_team" | "execution"))
@@ -26,7 +33,10 @@ router.get("/conversations", async (req, res) => {
         .limit(Number(limit) || 20);
       return res.json(results);
     }
-    const results = await query.limit(Number(limit) || 20);
+
+    const results = await db.select().from(conversationsTable)
+      .orderBy(desc(conversationsTable.updatedAt))
+      .limit(Number(limit) || 20);
     return res.json(results);
   } catch (err) {
     req.log.error({ err }, "Error listing conversations");
@@ -34,14 +44,18 @@ router.get("/conversations", async (req, res) => {
   }
 });
 
+// ─── Create conversation ────────────────────────────────────────────────────
+
 router.post("/conversations", async (req, res) => {
   try {
     const { title, mode = "chat" } = req.body;
     if (!title) return res.status(400).json({ error: "title is required" });
+
     const [created] = await db.insert(conversationsTable).values({
       title,
       mode,
     }).returning();
+
     return res.status(201).json(created);
   } catch (err) {
     req.log.error({ err }, "Error creating conversation");
@@ -49,10 +63,13 @@ router.post("/conversations", async (req, res) => {
   }
 });
 
+// ─── Get conversation ──────────────────────────────────────────────────────
+
 router.get("/conversations/:id", async (req, res) => {
   try {
     const [conv] = await db.select().from(conversationsTable)
       .where(eq(conversationsTable.id, Number(req.params.id)));
+
     if (!conv) return res.status(404).json({ error: "Conversation not found" });
     return res.json(conv);
   } catch (err) {
@@ -60,6 +77,8 @@ router.get("/conversations/:id", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// ─── Delete conversation ───────────────────────────────────────────────────
 
 router.delete("/conversations/:id", async (req, res) => {
   try {
@@ -71,12 +90,15 @@ router.delete("/conversations/:id", async (req, res) => {
   }
 });
 
+// ─── Get messages ──────────────────────────────────────────────────────────
+
 router.get("/conversations/:id/messages", async (req, res) => {
   try {
     const messages = await db.select().from(messagesTable)
       .where(eq(messagesTable.conversationId, Number(req.params.id)))
       .orderBy(messagesTable.createdAt)
       .limit(50);
+
     return res.json(messages);
   } catch (err) {
     req.log.error({ err }, "Error listing messages");
@@ -84,87 +106,53 @@ router.get("/conversations/:id/messages", async (req, res) => {
   }
 });
 
+// ─── Send message (non-streaming) ──────────────────────────────────────────
+
 router.post("/conversations/:id/messages", async (req, res) => {
   try {
     const conversationId = Number(req.params.id);
     const { content } = req.body;
+
     if (!content) return res.status(400).json({ error: "content is required" });
 
     const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, conversationId));
     if (!conv) return res.status(404).json({ error: "Conversation not found" });
 
+    // Persist user message
     const [userMsg] = await db.insert(messagesTable).values({
       conversationId,
       role: "user",
       content,
     }).returning();
 
-    const history = await db
-      .select()
-      .from(messagesTable)
+    // Get conversation history
+    const history = await db.select().from(messagesTable)
       .where(eq(messagesTable.conversationId, conversationId))
       .orderBy(messagesTable.createdAt)
       .limit(20);
 
-    let aiContent: string;
-    let toolResults: string[] = [];
+    const historyForAgent = history.slice(0, -1).map(m => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
-    try {
-      const { aiChat } = await import("../lib/ai");
+    // Select agent based on conversation mode or query content
+    const agentRole = (conv.mode || "chat") as AgentRole;
+    const agent = getAgent(agentRole) || getAgent("chief_of_staff")!;
 
-      const modePrompt = MODE_PROMPTS[conv.mode] || MODE_PROMPTS.chat;
-      const userContext = await gatherUserContext();
+    const context: AgentContext = { conversationId };
 
-      const messages: any[] = [
-        { role: "system", content: `${SYSTEM_PROMPT}\n\n${modePrompt}\n\nContexte actuel de Mohamed:\n${userContext}` },
-        ...history.slice(0, -1).map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
-        { role: "user", content },
-      ];
+    // Run agent
+    const response = await runAgent(agent, content, historyForAgent, context);
 
-      const completion = await aiChat({
-        model: "google/gemini-2.5-flash",
-        messages,
-        max_tokens: 1000,
-        tools: TOOLS,
-      });
-
-      const choice = completion.choices[0];
-
-      if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
-        for (const toolCall of choice.message.tool_calls) {
-          if (toolCall.type !== "function") continue;
-          const fnName = toolCall.function.name;
-          let fnArgs: any;
-          try { fnArgs = JSON.parse(toolCall.function.arguments); } catch { fnArgs = {}; }
-          const result = await executeTool(fnName, fnArgs);
-          toolResults.push(result);
-        }
-
-        const followUp = await aiChat({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            ...messages,
-            { role: "assistant", content: choice.message.content || "" },
-            { role: "system", content: `Résultats des actions effectuées:\n${toolResults.join("\n")}\n\nRésume ce qui a été fait à Mohamed de manière naturelle.` },
-          ],
-          max_tokens: 800,
-        });
-
-        aiContent = followUp.choices[0]?.message?.content || "Action effectuée.";
-      } else {
-        aiContent = choice?.message?.content || "Je n'ai pas pu générer une réponse. Veuillez réessayer.";
-      }
-    } catch (err) {
-      req.log.warn({ err }, "AI chat failed, using fallback");
-      aiContent = `[Mode ${conv.mode}] Je traite votre message : "${content.slice(0, 50)}${content.length > 50 ? "..." : ""}". La connexion IA sera disponible prochainement.`;
-    }
-
+    // Persist assistant message
     const [assistantMsg] = await db.insert(messagesTable).values({
       conversationId,
       role: "assistant",
-      content: aiContent,
+      content: response.content,
     }).returning();
 
+    // Update conversation
     await db.update(conversationsTable)
       .set({
         messageCount: sql`${conversationsTable.messageCount} + 2`,
@@ -173,17 +161,19 @@ router.post("/conversations/:id/messages", async (req, res) => {
       })
       .where(eq(conversationsTable.id, conversationId));
 
-    return res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
+    return res.json({
+      userMessage: userMsg,
+      assistantMessage: assistantMsg,
+      toolCalls: response.toolCalls,
+    });
   } catch (err) {
     req.log.error({ err }, "Error sending message");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// ─── Streaming endpoint (SSE) ─────────────────────────────────────────────────
-// POST /conversations/:id/stream
-// Body: { content: string }
-// Events: {"type":"token","content":"..."} | {"type":"tool","name":"...","result":"..."} | {"type":"done","id":N}
+// ─── Streaming endpoint (SSE) ───────────────────────────────────────────────
+
 router.post("/conversations/:id/stream", async (req, res) => {
   const conversationId = Number(req.params.id);
   const { content } = req.body;
@@ -219,36 +209,48 @@ router.post("/conversations/:id/stream", async (req, res) => {
 
   send({ type: "user_id", id: userMsg.id });
 
-  const history = await db
-    .select()
-    .from(messagesTable)
+  const history = await db.select().from(messagesTable)
     .where(eq(messagesTable.conversationId, conversationId))
     .orderBy(messagesTable.createdAt)
     .limit(20);
 
+  const historyForAgent = history.slice(0, -1).map(m => ({
+    role: m.role as "user" | "assistant",
+    content: m.content,
+  }));
+
+  // Select agent
+  const agentRole = (conv.mode || "chat") as AgentRole;
+  const agent = getAgent(agentRole) || getAgent("chief_of_staff")!;
+
+  // Get user context
+  const userContext = await gatherUserContext();
+
   let fullContent = "";
-  let toolResults: string[] = [];
+  let toolResults: Array<{ name: string; result: string }> = [];
 
   try {
-    const { aiChatStream } = await import("../lib/ai");
+    const { default: OpenAI } = await import("openai");
+    const openai = new OpenAI({
+      baseURL: process.env.AI_GATEWAY_URL,
+      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
+    });
 
-    const modePrompt = MODE_PROMPTS[conv.mode] || MODE_PROMPTS.chat;
-    const userContext = await gatherUserContext();
-
-    const messages: any[] = [
-      { role: "system", content: `${SYSTEM_PROMPT}\n\n${modePrompt}\n\nContexte actuel:\n${userContext}` },
-      ...history.slice(0, -1).map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
+      ...historyForAgent,
       { role: "user", content },
     ];
 
-    const stream = aiChatStream({
+    const stream = await openai.chat.completions.create({
       model: "google/gemini-2.5-flash",
       messages,
-      max_tokens: 1200,
-      tools: TOOLS,
+      max_tokens: 1500,
+      tools: getAllTools(),
+      stream: true,
     });
 
-    let pendingToolCalls: any[] = [];
+    let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta;
@@ -262,7 +264,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
       if (delta.tool_calls) {
         for (const tc of delta.tool_calls) {
           if (!pendingToolCalls[tc.index]) {
-            pendingToolCalls[tc.index] = { id: tc.id, name: tc.function?.name ?? "", args: "" };
+            pendingToolCalls[tc.index] = { id: tc.id || "", index: tc.index, name: "", args: "" };
           }
           if (tc.function?.name) pendingToolCalls[tc.index].name = tc.function.name;
           if (tc.function?.arguments) pendingToolCalls[tc.index].args += tc.function.arguments;
@@ -270,25 +272,28 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
     }
 
-    // Execute pending tool calls
+    // Execute tool calls
     if (pendingToolCalls.length > 0) {
       for (const tc of pendingToolCalls) {
-        let args: any;
+        let args: Record<string, unknown>;
         try { args = JSON.parse(tc.args); } catch { args = {}; }
         const result = await executeTool(tc.name, args);
-        toolResults.push(result);
+        toolResults.push({ name: tc.name, result });
         send({ type: "tool", name: tc.name, result });
       }
 
-      // Follow-up to summarize tool actions
-      const followUp = aiChatStream({
+      // Follow-up to summarize
+      const followUpMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        ...messages,
+        { role: "assistant", content: fullContent || "" },
+        { role: "system", content: `Actions effectuées:\n${toolResults.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume naturellement.` },
+      ];
+
+      const followUp = await openai.chat.completions.create({
         model: "google/gemini-2.5-flash",
-        messages: [
-          ...messages,
-          { role: "assistant", content: fullContent || "" },
-          { role: "system", content: `Actions effectuées:\n${toolResults.join("\n")}\nRésume naturellement.` },
-        ],
-        max_tokens: 600,
+        messages: followUpMessages,
+        max_tokens: 800,
+        stream: true,
       });
 
       for await (const chunk of followUp) {
@@ -300,8 +305,8 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
     }
   } catch (err) {
-    req.log.warn({ err }, "Streaming AI failed, using fallback");
-    const fallback = `[Mode ${conv.mode}] Connexion IA temporairement indisponible. Votre message a été reçu.`;
+    req.log.warn({ err }, "Streaming AI failed");
+    const fallback = agent.fallbackResponse;
     fullContent = fallback;
     send({ type: "token", content: fallback });
   }
@@ -323,6 +328,33 @@ router.post("/conversations/:id/stream", async (req, res) => {
 
   send({ type: "done", id: assistantMsg.id, toolResults });
   res.end();
+});
+
+// ─── Agent info endpoint ───────────────────────────────────────────────────
+
+router.get("/agents", (_req, res) => {
+  const agents = getAllAgents().map(a => ({
+    role: a.role,
+    name: a.name,
+    description: a.description,
+    capabilities: a.capabilities,
+  }));
+  res.json(agents);
+});
+
+router.get("/agents/:role", (req, res) => {
+  const agent = getAgent(req.params.role as AgentRole);
+  if (!agent) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+  res.json({
+    role: agent.role,
+    name: agent.name,
+    description: agent.description,
+    capabilities: agent.capabilities,
+    tools: agent.tools.map(t => t.name),
+  });
 });
 
 export default router;
