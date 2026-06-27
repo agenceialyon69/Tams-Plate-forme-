@@ -12,6 +12,7 @@ import dashboardRouter from "./dashboard";
 import notificationsRouter from "./notifications";
 import studioRouter from "./studio";
 import systemRouter from "./system";
+import observabilityRouter from "./observability";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(dashboardRouter);
 router.use(notificationsRouter);
 router.use(studioRouter);
 router.use(systemRouter);
+router.use(observabilityRouter);
 
 export default router;
