@@ -12,6 +12,7 @@ import dashboardRouter from "./dashboard";
 import notificationsRouter from "./notifications";
 import studioGenerateRouter from "./studio-generate";
 import systemRouter from "./system";
+import agentsRouter from "./agents";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(dashboardRouter);
 router.use(notificationsRouter);
 router.use(studioGenerateRouter);
 router.use(systemRouter);
+router.use(agentsRouter);
 
 export default router;

@@ -75,6 +75,7 @@ app.use("/api/briefing", aiRateLimit);
 app.use("/api/decisions", aiRateLimit);
 app.use("/api/studio", aiRateLimit);
 app.use("/api/conversations", aiRateLimit);
+app.use("/api/agents", aiRateLimit);
 app.use("/api", defaultRateLimit);
 
 app.use("/api", router);

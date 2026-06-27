@@ -44,6 +44,15 @@ _Dernière mise à jour : 2026-06-27._
   le routeur IA. UI Studio : formulaire Image (aperçu live, régénérer, enregistrer),
   rendu `<img>` dans les cartes, boutons Image (header + état vide). CSP `frameSrc`
   ajouté (YouTube/Vimeo/SoundCloud/Spotify) pour que les embeds vidéo/audio marchent.
+- **P3 Agent System (backend opérationnel)** : `lib/agents.ts` — registre de 11
+  agents spécialisés (Executive/CoS, Engineering, Product, Business, Marketing,
+  Research, Memory, Decision, Studio, DevOps, Red Team), chacun avec
+  responsabilités, outils (limites appliquées), contexte/mémoire, palier de
+  modèle gratuit. Le **Chief of Staff orchestre** : plan → délégation parallèle →
+  synthèse. Outils/contexte/prompts extraits dans `lib/agent-tools.ts` (source
+  unique, conversations.ts dédupliqué). API : `GET /api/agents`,
+  `POST /api/agents/:id/run`, `POST /api/agents/orchestrate`. Inférence 100 %
+  via routeur gratuit, dégradation propre (diagnostic, jamais d'erreur opaque).
 
 ## 🔧 En cours / à corriger en priorité
 1. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider
