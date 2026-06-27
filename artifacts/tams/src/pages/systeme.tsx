@@ -157,12 +157,16 @@ function MemoireTab() {
           <button
             onClick={() => setView("list")}
             className={cn("p-1.5 rounded-md transition-all", view === "list" ? "bg-background text-foreground" : "text-muted-foreground")}
+            aria-label="Vue liste"
+            aria-pressed={view === "list"}
           >
             <List className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setView("graph")}
             className={cn("p-1.5 rounded-md transition-all", view === "graph" ? "bg-background text-foreground" : "text-muted-foreground")}
+            aria-label="Vue graphe"
+            aria-pressed={view === "graph"}
           >
             <Share2 className="w-3.5 h-3.5" />
           </button>
@@ -435,7 +439,7 @@ function MemoryGraphView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
-      <svg ref={svgRef} width="100%" height="100%" className="flex-1">
+      <svg ref={svgRef} width="100%" height="100%" className="flex-1" role="img" aria-label="Graphe de mémoire interactif. Les nœuds représentent des mémoires de différents types reliées par des liens sémantiques.">
         <defs>
           <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
             <path d="M0,0 L0,6 L6,3 z" fill="#6b7280" opacity="0.5" />
@@ -460,7 +464,15 @@ function MemoryGraphView() {
         })}
         {/* Nodes */}
         {nodes.map(n => (
-          <g key={n.id} onClick={() => setSelected(selected?.id === n.id ? null : n)} style={{ cursor: "pointer" }}>
+          <g
+            key={n.id}
+            onClick={() => setSelected(selected?.id === n.id ? null : n)}
+            style={{ cursor: "pointer" }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Mémoire : ${n.title}, type ${n.type}`}
+            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setSelected(selected?.id === n.id ? null : n); }}
+          >
             <circle
               cx={n.x} cy={n.y} r={selected?.id === n.id ? 14 : 10}
               fill={getTypeColor(n.type)}

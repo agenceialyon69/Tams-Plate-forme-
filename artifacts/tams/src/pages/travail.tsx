@@ -274,8 +274,11 @@ function TaskListView({ tasks, onUpdate, onDelete }: {
           </span>
           <button
             data-testid={`button-delete-task-${task.id}`}
-            onClick={() => onDelete.mutate({ id: task.id })}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-destructive text-muted-foreground transition-all"
+            onClick={() => {
+              if (confirm("Supprimer cette tâche ?")) onDelete.mutate({ id: task.id });
+            }}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            aria-label="Supprimer la tâche"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -354,8 +357,9 @@ function KanbanCard({ task, onMove, onDelete }: {
           )}
         </div>
         <button
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-destructive text-muted-foreground transition-all shrink-0"
+          onClick={e => { e.stopPropagation(); if (confirm("Supprimer cette tâche ?")) onDelete(); }}
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+          aria-label="Supprimer la tâche"
         >
           <Trash2 className="w-3 h-3" />
         </button>
@@ -490,8 +494,9 @@ function ProjectsTab({ showForm, onCloseForm }: { showForm: boolean; onCloseForm
               </button>
               <button
                 data-testid={`button-delete-project-${proj.id}`}
-                onClick={() => del.mutate({ id: proj.id })}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-destructive text-muted-foreground transition-all"
+                onClick={() => { if (confirm("Supprimer ce projet ?")) del.mutate({ id: proj.id }); }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                aria-label="Supprimer le projet"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -616,8 +621,9 @@ function ContactsTab({ showForm, onCloseForm }: { showForm: boolean; onCloseForm
               </button>
               <button
                 data-testid={`button-delete-contact-${contact.id}`}
-                onClick={() => del.mutate({ id: contact.id })}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-destructive text-muted-foreground transition-all"
+                onClick={() => { if (confirm("Supprimer ce contact ?")) del.mutate({ id: contact.id }); }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                aria-label="Supprimer le contact"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
