@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const activityTypeEnum = pgEnum("activity_type", [
-  "task", "project", "contact", "memory", "decision", "conversation", "asset"
+  "task", "project", "contact", "memory", "decision", "conversation", "asset", "ai_call", "tool_call"
 ]);
 
 export const activityTable = pgTable("activity", {
