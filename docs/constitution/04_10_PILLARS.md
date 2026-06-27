@@ -1,4 +1,4 @@
-# 04 — Les 10 Piliers de TAMS
+# 04 — Les 11 Piliers de TAMS
 
 > Chaque pilier est un module vertical indissociable. Ensemble, ils forment l'AI Operating System.
 
@@ -150,3 +150,28 @@
 - [x] BottomNav implémentée
 - [x] Safe areas définies
 - [ ] Pull-to-refresh
+
+---
+
+## Pilier 11 — Personal Life OS
+
+**Mission :** Piloter toute la vie de l'utilisateur, pas seulement ses projets —
+ce qui manque à presque toutes les plateformes et donne à TAMS son identité.
+
+**Domaines :** santé · famille · finances · administratif · carrière · entreprise ·
+apprentissage · habitudes · objectifs de vie.
+
+**Pourquoi il existe :** un AI Operating System *personnel* doit réduire la charge
+mentale sur l'ensemble de la vie, pas seulement le travail. C'est le différenciateur.
+
+**Architecture concernée :** s'appuie sur les piliers existants (Chat OS, Memory
+Graph, Decision OS, Workspace) en y ajoutant des domaines de vie comme catégories
+de premier niveau (objectifs, habitudes, finances, santé…).
+
+**Ce qu'il ne doit jamais devenir :** un tracker de plus. Il doit **relier** la vie
+et le travail dans une seule mémoire et une seule logique de priorisation.
+
+**Critères d'acceptation :**
+- [ ] Domaines de vie comme catégories premières (santé/finances/famille/…)
+- [ ] Objectifs de vie + habitudes reliés au Memory Graph
+- [ ] Le Chief of Staff intègre la vie perso dans la priorisation

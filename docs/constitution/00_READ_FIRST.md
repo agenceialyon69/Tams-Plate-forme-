@@ -46,10 +46,21 @@ Dernier audit architectural : commit `96fb610` (2026-06-26)
 | 31 | `31_LONG_TERM_ROADMAP.md` | Roadmap long terme |
 | 32 | `32_FINAL_ACCEPTANCE.md` | Critères d'acceptation finale |
 | 33 | `33_RED_TEAM_AUDIT_2026-06-26.md` | Audit Red Team initial |
-| 34 | `34_RED_TEAM_REPORT_2026-06-26_FIXES.md` | Audit post-corrections (NOUVEAU) |
+| 34 | `34_RED_TEAM_REPORT_2026-06-26_FIXES.md` | Audit post-corrections |
+| 35 | `35_STATE.md` | **État vivant** : fait / en cours / reste (LIRE EN PREMIER) |
+| 36 | `36_FREE_STACK.md` | **Stack gratuite obligatoire** (zéro payant) |
 
-## Règle d'entrée
+## Les 11 piliers
+TAMS = AI Operating System **personnel**. Les 11 piliers (détail : `04_10_PILLARS.md`) :
+1. Chief of Staff · 2. Chat OS · 3. Agent System · 4. Memory Graph ·
+5. Decision OS · 6. Workspace · 7. Studio · 8. AI Router · 9. Mobile Premium ·
+10. Platform OS · **11. Personal Life OS** (santé, famille, finances, vie).
+> Chaque ligne de code doit améliorer **au moins un pilier**. Sinon, ne pas la développer.
 
-Avant tout travail : lire `01_MISSION.md` + `08_ARCHITECTURE.md` + le fichier du module concerné.  
-Ne jamais supposer une structure non présente dans le dépôt réel.  
-Ne jamais pousser du travail cassé sur main.
+## Règles d'entrée (non négociables)
+1. **Lire `35_STATE.md`** (avancement) avant de commencer ; le mettre à jour après chaque lot.
+2. **Une seule branche : `main`** (autodeploy Railway). Pas de branches divergentes.
+3. **Zéro payant** : uniquement la stack gratuite/auto-hébergeable (`36_FREE_STACK.md`).
+4. Lire aussi `01_MISSION.md` + `08_ARCHITECTURE.md` + le fichier du module concerné.
+5. Ne jamais supposer une structure absente du dépôt réel.
+6. Ne jamais pousser du travail cassé sur `main` (build + typecheck + démarrage OK).
