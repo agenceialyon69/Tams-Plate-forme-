@@ -68,4 +68,56 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format:
   }
 });
 
+/**
+ * Génération d'IMAGE réelle — 100 % gratuite, sans clé (Pilier 7).
+ * Moteur : Pollinations (https://image.pollinations.ai) — déterministe par URL,
+ * l'image est générée à la première requête du navigateur. Aucun fournisseur
+ * payant. Si un routeur IA gratuit est configuré, on enrichit d'abord le prompt
+ * pour de meilleurs résultats ; sinon on utilise le prompt brut (jamais d'échec).
+ */
+router.post("/studio/generate-image", async (req, res) => {
+  try {
+    const { prompt, width, height } = req.body as {
+      prompt?: string; width?: number; height?: number;
+    };
+    if (!prompt || !prompt.trim()) {
+      return res.status(400).json({ error: "prompt is required" });
+    }
+
+    const w = Math.min(Math.max(Number(width) || 1024, 256), 1536);
+    const h = Math.min(Math.max(Number(height) || 1024, 256), 1536);
+
+    let finalPrompt = prompt.trim();
+    let enhanced = false;
+
+    // Enrichissement optionnel via le routeur IA gratuit.
+    if (aiConfigured()) {
+      try {
+        const completion = await aiChat({
+          messages: [
+            {
+              role: "system",
+              content: "Tu transformes une idée brève en un prompt de génération d'image en ANGLAIS, riche et précis (sujet, style, éclairage, composition, qualité). Réponds UNIQUEMENT par le prompt, sans guillemets ni préambule.",
+            },
+            { role: "user", content: finalPrompt },
+          ],
+          max_tokens: 200,
+        }, "fast");
+        const out = completion.choices?.[0]?.message?.content?.trim();
+        if (out) { finalPrompt = out; enhanced = true; }
+      } catch {
+        /* enrichissement best-effort — on garde le prompt brut */
+      }
+    }
+
+    const seed = Math.floor(Math.random() * 1_000_000);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${w}&height=${h}&nologo=true&model=flux&seed=${seed}`;
+
+    return res.json({ url, prompt: finalPrompt, enhanced, engine: "pollinations" });
+  } catch (err) {
+    req.log.error({ err }, "Error generating image");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;

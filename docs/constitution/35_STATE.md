@@ -36,6 +36,14 @@ _Dernière mise à jour : 2026-06-27._
   Groq → Gemini → OpenRouter (`:free`). Diagnostic `GET /api/system/ai`
   (`{configured, providers, primary, hint}`). decisions/conversations/briefing/
   studio migrés (plus de `model` codé en dur imposé). Voir `36_FREE_STACK.md`.
+- **P2 Chat OS (mobile)** : bulle utilisateur optimiste (style WhatsApp), bouton
+  Stop pendant le streaming, textarea auto-redimensionnée, saisie possible
+  pendant la génération.
+- **P7 Studio — génération d'image RÉELLE & gratuite** : `POST /api/studio/generate-image`
+  (moteur Pollinations/Flux, sans clé) + enrichissement optionnel du prompt via
+  le routeur IA. UI Studio : formulaire Image (aperçu live, régénérer, enregistrer),
+  rendu `<img>` dans les cartes, boutons Image (header + état vide). CSP `frameSrc`
+  ajouté (YouTube/Vimeo/SoundCloud/Spotify) pour que les embeds vidéo/audio marchent.
 
 ## 🔧 En cours / à corriger en priorité
 1. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider

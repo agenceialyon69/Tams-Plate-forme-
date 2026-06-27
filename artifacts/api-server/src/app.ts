@@ -20,8 +20,18 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
+      mediaSrc: ["'self'", "https:"],
       fontSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
+      // Embeds Studio (lecteurs gratuits) : YouTube, Vimeo, SoundCloud, Spotify.
+      frameSrc: [
+        "'self'",
+        "https://www.youtube.com",
+        "https://www.youtube-nocookie.com",
+        "https://player.vimeo.com",
+        "https://w.soundcloud.com",
+        "https://open.spotify.com",
+      ],
       frameAncestors: ["'none'"],
     },
   },

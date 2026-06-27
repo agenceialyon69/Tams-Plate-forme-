@@ -8,6 +8,9 @@ import { Plus, Image, Film, Mic, FileText, Sparkles, Layout, Star, Trash2, Wand2
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
+// Resolve API base URL from env (Vite exposes VITE_* vars)
+const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
+
 type AssetType = "image" | "video" | "audio" | "document" | "prompt" | "template" | "result";
 
 const TYPES: { value: AssetType; label: string; icon: React.ElementType; color: string }[] = [
@@ -40,6 +43,12 @@ function AssetCard({ asset, onDelete }: { asset: any; onDelete: () => void }) {
 
   return (
     <div data-testid={`asset-item-${asset.id}`} className="bg-card border border-card-border rounded-xl overflow-hidden group hover:border-border/80 transition-colors">
+      {/* Image preview */}
+      {asset.type === "image" && asset.url && (
+        <a href={asset.url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-black/40 overflow-hidden">
+          <img src={asset.url} alt={asset.name} loading="lazy" className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]" />
+        </a>
+      )}
       {/* Video embed */}
       {asset.type === "video" && ytId && (
         <div className="aspect-video bg-black">
@@ -263,6 +272,88 @@ function AudioForm({ onCancel, onSave, isLoading }: { onCancel: () => void; onSa
   );
 }
 
+function ImageForm({ onCancel, onSave, isLoading }: { onCancel: () => void; onSave: (data: any) => void; isLoading: boolean }) {
+  const [name, setName] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [finalPrompt, setFinalPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [imgLoading, setImgLoading] = useState(false);
+  const { toast } = useToast();
+
+  async function generate() {
+    if (!prompt.trim() || generating) return;
+    setGenerating(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/studio/generate-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt.trim() }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setImageUrl(data.url);
+      setFinalPrompt(data.prompt ?? prompt.trim());
+      setImgLoading(true);
+      if (!name) setName(prompt.trim().slice(0, 40));
+      toast({ title: data.enhanced ? "Image générée (prompt enrichi par IA)" : "Image générée" });
+    } catch {
+      toast({ title: "Échec de la génération", description: "Réessayez dans un instant.", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  const canSave = name.trim() && imageUrl;
+
+  return (
+    <div className="bg-card border border-card-border rounded-xl p-4 animate-fade-in space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Image className="w-4 h-4 text-blue-400" />
+        <span className="text-sm font-semibold text-foreground">Générer une image</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">Gratuit · Pollinations (Flux)</span>
+      </div>
+
+      <div className="flex gap-2">
+        <input data-testid="input-image-prompt" autoFocus className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring" placeholder="Décrivez l'image voulue..." value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") generate(); }} />
+        <button data-testid="button-generate-image" disabled={!prompt.trim() || generating} onClick={generate} className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-xs font-medium hover:bg-blue-500/20 disabled:opacity-50 transition-colors shrink-0">
+          <Wand2 className={cn("w-3.5 h-3.5", generating && "animate-spin")} />
+          {generating ? "..." : "Générer"}
+        </button>
+      </div>
+
+      {imageUrl && (
+        <div className="space-y-2">
+          <div className="relative aspect-square rounded-lg overflow-hidden bg-black/40 border border-border">
+            {imgLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex gap-1">
+                  {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-blue-400/60 animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />)}
+                </div>
+              </div>
+            )}
+            <img src={imageUrl} alt={finalPrompt} onLoad={() => setImgLoading(false)} onError={() => { setImgLoading(false); toast({ title: "Image indisponible", variant: "destructive" }); }} className="w-full h-full object-cover" />
+          </div>
+          {finalPrompt && finalPrompt !== prompt && (
+            <p className="text-[10px] text-muted-foreground leading-relaxed"><span className="text-foreground/70">Prompt enrichi :</span> {finalPrompt}</p>
+          )}
+          <div className="flex gap-2">
+            <button onClick={generate} disabled={generating} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground disabled:opacity-50">
+              <Wand2 className="w-3 h-3" /> Régénérer
+            </button>
+            <input data-testid="input-image-name" className="flex-1 bg-input border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring" placeholder="Nom de l'image..." value={name} onChange={e => setName(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground">Annuler</button>
+        <button data-testid="button-save-image" disabled={!canSave || isLoading} onClick={() => onSave({ name: name.trim(), type: "image", url: imageUrl, content: finalPrompt || undefined, tags: ["image", "ai"] })} className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-50">Enregistrer</button>
+      </div>
+    </div>
+  );
+}
+
 function GenericForm({ type, onCancel, onSave, isLoading }: { type: AssetType; onCancel: () => void; onSave: (data: any) => void; isLoading: boolean }) {
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
@@ -332,6 +423,10 @@ export default function Studio() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-semibold text-foreground tracking-tight">Studio</h1>
           <div className="flex gap-2">
+            <button data-testid="button-new-image" onClick={() => openForm("image")} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition-colors">
+              <Image className="w-3.5 h-3.5" />
+              Image
+            </button>
             <button data-testid="button-new-video" onClick={() => openForm("video")} className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-lg text-xs font-medium hover:bg-violet-500/20 transition-colors">
               <Film className="w-3.5 h-3.5" />
               Vidéo
@@ -366,6 +461,8 @@ export default function Studio() {
             <VideoForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} />
           ) : selectedFormType === "audio" ? (
             <AudioForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} />
+          ) : selectedFormType === "image" ? (
+            <ImageForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} />
           ) : (
             <GenericForm type={selectedFormType} onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} />
           )
@@ -378,6 +475,10 @@ export default function Studio() {
         ) : assets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="flex gap-3 mb-4">
+              <button onClick={() => openForm("image")} className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
+                <Image className="w-6 h-6" />
+                <span className="text-xs">Image</span>
+              </button>
               <button onClick={() => openForm("video")} className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors">
                 <Film className="w-6 h-6" />
                 <span className="text-xs">Vidéo</span>
