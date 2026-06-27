@@ -1,8 +1,11 @@
+# pnpm fourni par nixPkgs → disponible sur le PATH dans TOUTES les phases
+# (install + build). `npm install -g pnpm` ne marchait pas : le bin global
+# n'était pas sur le PATH ("pnpm: command not found", exit 127).
 [phases.setup]
-nixPkgs = ["nodejs_22"]
+nixPkgs = ["nodejs_22", "pnpm"]
 
 [phases.install]
-cmds = ["npm install -g pnpm@10.33.0 && pnpm install --no-frozen-lockfile"]
+cmds = ["pnpm install --no-frozen-lockfile"]
 
 [phases.build]
 cmds = [

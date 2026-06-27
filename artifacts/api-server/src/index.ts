@@ -28,7 +28,7 @@ app.listen(port, (err) => {
   }
 
   startObservability();
-  logger.info({ port, builder: "nixpacks" }, "TAMS api-server listening (deploy OK)");
+  logger.info({ port, builder: "nixpacks", pnpm: "nixpkgs" }, "TAMS api-server listening (deploy OK)");
 
   // ensureSchema ne lève jamais : un souci DB dégrade les routes DB sans crasher
   // le process. Le serveur continue de servir le frontend et /api/healthz.
