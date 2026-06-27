@@ -719,7 +719,7 @@ export default function Studio() {
         )}
 
         {/* Main canvas */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4 pb-24 md:pb-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {/* Quick actions */}
           {!showForm && !isLoading && assets.length === 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">

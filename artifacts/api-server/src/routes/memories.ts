@@ -51,7 +51,7 @@ router.get("/memories", async (req, res) => {
       .from(memoriesTable)
       .where(type ? eq(memoriesTable.type, type) : undefined);
 
-    return res.json(filtered);
+    return res.json({ data: filtered, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing memories");
     return res.status(500).json({ error: "Internal server error" });

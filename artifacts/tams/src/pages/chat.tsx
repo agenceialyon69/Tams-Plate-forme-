@@ -5,37 +5,192 @@ import {
   getListConversationsQueryKey, getListMessagesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap, Square } from "lucide-react";
+import {
+  Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap, Square,
+  CheckCircle2, FolderOpen, UserPlus, Palette, Lightbulb, Shield,
+  ArrowRight, Command, X, Wand2, Image, Film, Music, FileText
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+
+const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
 
 const MODES = [
-  { value: "chat",           label: "Conversation" },
-  { value: "chief_of_staff", label: "Chef de Cabinet" },
-  { value: "decision",       label: "Décision" },
-  { value: "red_team",       label: "Red Team" },
-  { value: "execution",      label: "Exécution" },
+  { value: "chat", label: "Conversation", icon: MessageSquare },
+  { value: "chief_of_staff", label: "Chef de Cabinet", icon: Zap },
+  { value: "decision", label: "Décision", icon: Lightbulb },
+  { value: "red_team", label: "Red Team", icon: Shield },
+  { value: "execution", label: "Exécution", icon: CheckCircle2 },
 ] as const;
 
 type Mode = typeof MODES[number]["value"];
 
 const modeColor: Record<Mode, string> = {
-  chat:           "text-blue-400 bg-blue-500/10",
+  chat: "text-blue-400 bg-blue-500/10",
   chief_of_staff: "text-violet-400 bg-violet-500/10",
-  decision:       "text-amber-400 bg-amber-500/10",
-  red_team:       "text-red-400 bg-red-500/10",
-  execution:      "text-emerald-400 bg-emerald-500/10",
+  decision: "text-amber-400 bg-amber-500/10",
+  red_team: "text-red-400 bg-red-500/10",
+  execution: "text-emerald-400 bg-emerald-500/10",
 };
+
+/* ─── Slash commands ─── */
+const SLASH_COMMANDS = [
+  { command: "/tâche", label: "Créer une tâche", icon: CheckCircle2, color: "text-emerald-400", example: "/tâche Appeler le client demain à 14h" },
+  { command: "/projet", label: "Créer un projet", icon: FolderOpen, color: "text-blue-400", example: "/projet Refonte du site web" },
+  { command: "/contact", label: "Ajouter un contact", icon: UserPlus, color: "text-violet-400", example: "/contact Jean Dupont, Acme Corp, jean@acme.com" },
+  { command: "/studio", label: "Générer dans Studio", icon: Palette, color: "text-pink-400", example: "/studio image un portrait cyberpunk" },
+  { command: "/décision", label: "Analyser une décision", icon: Lightbulb, color: "text-amber-400", example: "/décision Dois-je changer de fournisseur ?" },
+];
+
+/* ─── Tool call cards ─── */
+interface ToolCall {
+  name: string;
+  result: string;
+}
+
+function ToolCallCard({ tool }: { tool: ToolCall }) {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+
+  function getToolMeta(name: string) {
+    const lower = name.toLowerCase();
+    if (lower.includes("task") || lower.includes("tâche")) return { icon: CheckCircle2, label: "Tâche créée", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail" };
+    if (lower.includes("project") || lower.includes("projet")) return { icon: FolderOpen, label: "Projet créé", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/travail" };
+    if (lower.includes("contact")) return { icon: UserPlus, label: "Contact ajouté", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/travail" };
+    if (lower.includes("memory") || lower.includes("mémoire")) return { icon: MessageSquare, label: "Mémoire enregistrée", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: "/systeme" };
+    if (lower.includes("decision") || lower.includes("décision")) return { icon: Lightbulb, label: "Décision analysée", color: "bg-orange-500/10 text-orange-400 border-orange-500/20", link: "/systeme" };
+    if (lower.includes("image") || lower.includes("studio")) return { icon: Image, label: "Asset Studio créé", color: "bg-pink-500/10 text-pink-400 border-pink-500/20", link: "/studio" };
+    return { icon: Zap, label: "Action effectuée", color: "bg-primary/10 text-primary border-primary/20", link: undefined };
+  }
+
+  const meta = getToolMeta(tool.name);
+
+  function handleClick() {
+    if (meta.link) {
+      navigate(meta.link);
+      toast({ title: `Ouverture : ${meta.label}` });
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className={cn(
+        "w-full mt-2 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all hover:shadow-sm",
+        meta.color,
+        meta.link && "hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+      )}
+    >
+      <meta.icon className="w-4 h-4 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-semibold">{meta.label}</div>
+        <div className="text-[10px] opacity-80 truncate">{tool.result}</div>
+      </div>
+      {meta.link && <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-60" />}
+    </button>
+  );
+}
+
+/* ─── Quick action buttons ─── */
+function QuickActions({ mode, onAction }: { mode: Mode; onAction: (text: string) => void }) {
+  const actions: Record<Mode, { label: string; icon: React.ElementType; text: string }[]> = {
+    chat: [
+      { label: "Créer tâche", icon: CheckCircle2, text: "Crée une tâche pour moi" },
+      { label: "Nouveau projet", icon: FolderOpen, text: "Crée un nouveau projet" },
+      { label: "Générer image", icon: Image, text: "Génère une image de..." },
+    ],
+    chief_of_staff: [
+      { label: "Briefing du jour", icon: Zap, text: "Quel est mon briefing du jour ?" },
+      { label: "Priorités", icon: CheckCircle2, text: "Quelles sont mes priorités ?" },
+      { label: "Risques", icon: Shield, text: "Quels risques dois-je surveiller ?" },
+    ],
+    decision: [
+      { label: "Analyser", icon: Lightbulb, text: "Aide-moi à décider : " },
+      { label: "Pros/Cons", icon: FileText, text: "Liste les avantages et inconvénients de..." },
+      { label: "Recommandation", icon: Zap, text: "Que me recommandes-tu ?" },
+    ],
+    red_team: [
+      { label: "Vérifier", icon: Shield, text: "Analyse les risques de..." },
+      { label: "Challenge", icon: Zap, text: "Qu'est-ce qui pourrait mal tourner ?" },
+      { label: "Alternatives", icon: Lightbulb, text: "Quelles sont les alternatives ?" },
+    ],
+    execution: [
+      { label: "Créer tâche", icon: CheckCircle2, text: "/tâche " },
+      { label: "Créer projet", icon: FolderOpen, text: "/projet " },
+      { label: "Ajouter contact", icon: UserPlus, text: "/contact " },
+    ],
+  };
+
+  const list = actions[mode] ?? actions.chat;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {list.map(a => (
+        <button
+          key={a.label}
+          onClick={() => onAction(a.text)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/80 text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        >
+          <a.icon className="w-3 h-3" />
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Slash command picker ─── */
+function SlashCommandPicker({ query, onSelect, onClose }: { query: string; onSelect: (cmd: string) => void; onClose: () => void }) {
+  const [selected, setSelected] = useState(0);
+  const filtered = SLASH_COMMANDS.filter(c => c.command.includes(query.toLowerCase()));
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setSelected(p => Math.min(p + 1, filtered.length - 1)); }
+      if (e.key === "ArrowUp") { e.preventDefault(); setSelected(p => Math.max(p - 1, 0)); }
+      if (e.key === "Enter") { e.preventDefault(); onSelect(filtered[selected]?.command ?? ""); }
+      if (e.key === "Escape") { onClose(); }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [filtered, selected, onSelect, onClose]);
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="absolute bottom-full left-0 right-0 mb-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
+      {filtered.map((cmd, i) => (
+        <button
+          key={cmd.command}
+          onClick={() => onSelect(cmd.command)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors",
+            i === selected ? "bg-accent" : "hover:bg-accent/50"
+          )}
+        >
+          <cmd.icon className={cn("w-4 h-4 shrink-0", cmd.color)} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-foreground">{cmd.command}</span>
+              <span className="text-[10px] text-muted-foreground">{cmd.label}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground/70 truncate">{cmd.example}</p>
+          </div>
+          {i === selected && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function formatTime(d: string) {
   return new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// Resolve API base URL from env (Vite exposes VITE_* vars)
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
-
 export default function Chat() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showConvList, setShowConvList] = useState(true);
@@ -44,14 +199,16 @@ export default function Chat() {
   const [newTitle, setNewTitle] = useState("");
   const [showNew, setShowNew] = useState(false);
 
-  // Streaming state
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [pendingUser, setPendingUser] = useState<string | null>(null);
-  const [toolNotices, setToolNotices] = useState<string[]>([]);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [showSlashPicker, setShowSlashPicker] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: conversations = [], isLoading: convLoading } = useListConversations();
   const { data: messages = [], isLoading: msgsLoading } = useListMessages(selectedId!, {
@@ -81,20 +238,31 @@ export default function Chat() {
     },
   });
 
-  // Auto-scroll on new messages or streaming
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent, pendingUser]);
+  }, [messages, streamingContent, pendingUser, toolCalls]);
+
+  // Detect slash commands
+  useEffect(() => {
+    if (message.startsWith("/")) {
+      const spaceIdx = message.indexOf(" ");
+      const query = spaceIdx === -1 ? message.slice(1) : message.slice(1, spaceIdx);
+      setSlashQuery(query);
+      setShowSlashPicker(true);
+    } else {
+      setShowSlashPicker(false);
+      setSlashQuery("");
+    }
+  }, [message]);
 
   const streamMessage = useCallback(async (content: string) => {
     if (!selectedId || !content.trim() || isStreaming) return;
 
     setIsStreaming(true);
     setStreamingContent("");
-    setToolNotices([]);
-    // Show the user's message immediately (WhatsApp-style), even before the
-    // server persists it. Cleared once the refetch returns the real record.
+    setToolCalls([]);
     setPendingUser(content);
+    setShowSlashPicker(false);
 
     abortRef.current = new AbortController();
     let doneReceived = false;
@@ -107,9 +275,7 @@ export default function Chat() {
         signal: abortRef.current.signal,
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -130,13 +296,11 @@ export default function Chat() {
             if (event.type === "token") {
               setStreamingContent(prev => prev + event.content);
             } else if (event.type === "tool") {
-              setToolNotices(prev => [...prev, `${event.name}: ${event.result}`]);
+              setToolCalls(prev => [...prev, { name: event.name, result: event.result }]);
             } else if (event.type === "done") {
               doneReceived = true;
             }
-          } catch {
-            // malformed event — skip
-          }
+          } catch { /* skip */ }
         }
       }
     } catch (err: any) {
@@ -144,8 +308,6 @@ export default function Chat() {
         toast({ title: "Erreur de connexion", description: "Impossible d'envoyer le message", variant: "destructive" });
       }
     } finally {
-      // Await the refetch BEFORE clearing optimistic state so the bubbles don't
-      // flicker out then back in.
       if (doneReceived) {
         await Promise.all([
           qc.invalidateQueries({ queryKey: getListMessagesQueryKey(selectedId) }),
@@ -154,7 +316,7 @@ export default function Chat() {
       }
       setIsStreaming(false);
       setStreamingContent("");
-      setToolNotices([]);
+      setToolCalls([]);
       setPendingUser(null);
     }
   }, [selectedId, isStreaming, qc, toast]);
@@ -172,10 +334,24 @@ export default function Chat() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    if (showSlashPicker && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === "Escape")) {
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  }
+
+  function handleSlashSelect(cmd: string) {
+    setMessage(cmd + " ");
+    setShowSlashPicker(false);
+    inputRef.current?.focus();
+  }
+
+  function handleQuickAction(text: string) {
+    setMessage(text);
+    inputRef.current?.focus();
   }
 
   const selectedConv = conversations.find(c => c.id === selectedId);
@@ -193,6 +369,7 @@ export default function Chat() {
           <button
             onClick={() => setShowNew(true)}
             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Nouvelle conversation"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -200,7 +377,6 @@ export default function Chat() {
 
         {showNew && (
           <div className="px-3 py-2 border-b border-border bg-card">
-            {/* Mode selector */}
             <div className="flex gap-1 flex-wrap mb-2">
               {MODES.map(m => (
                 <button
@@ -210,6 +386,7 @@ export default function Chat() {
                     "px-2 py-0.5 rounded text-[10px] font-medium transition-all",
                     mode === m.value ? "bg-primary text-primary-foreground" : cn("bg-secondary", modeColor[m.value])
                   )}
+                  aria-pressed={mode === m.value}
                 >
                   {m.label}
                 </button>
@@ -297,6 +474,7 @@ export default function Chat() {
           <button
             className="md:hidden p-1.5 rounded-lg hover:bg-accent text-muted-foreground"
             onClick={() => setShowConvList(true)}
+            aria-label="Retour aux conversations"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -309,8 +487,9 @@ export default function Chat() {
                 </div>
               </div>
               <button
-                onClick={() => deleteConv.mutate({ id: selectedConv.id })}
+                onClick={() => { if (confirm("Supprimer cette conversation ?")) deleteConv.mutate({ id: selectedConv.id }); }}
                 className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
+                aria-label="Supprimer la conversation"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -326,6 +505,7 @@ export default function Chat() {
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageSquare className="w-12 h-12 text-muted-foreground/20 mb-3" />
               <p className="text-sm text-muted-foreground">Sélectionne ou crée une conversation</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Tape / pour voir les commandes</p>
             </div>
           ) : msgsLoading ? (
             <div className="space-y-3">
@@ -352,11 +532,14 @@ export default function Chat() {
                     )}>
                       {formatTime(msg.createdAt)}
                     </div>
+                    {msg.role === "assistant" && (
+                      <QuickActions mode={selectedConv?.mode as Mode ?? "chat"} onAction={handleQuickAction} />
+                    )}
                   </div>
                 </div>
               ))}
 
-              {/* Optimistic user bubble (shown immediately while streaming) */}
+              {/* Optimistic user bubble */}
               {pendingUser && (
                 <div className="flex justify-end">
                   <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm bg-primary text-primary-foreground">
@@ -384,12 +567,8 @@ export default function Chat() {
                         ))}
                       </div>
                     )}
-                    {/* Tool notices */}
-                    {toolNotices.map((notice, i) => (
-                      <div key={i} className="mt-1.5 flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 rounded px-2 py-1">
-                        <Zap className="w-3 h-3 shrink-0" />
-                        {notice}
-                      </div>
+                    {toolCalls.map((tool, i) => (
+                      <ToolCallCard key={i} tool={tool} />
                     ))}
                   </div>
                 </div>
@@ -402,40 +581,54 @@ export default function Chat() {
         {/* Input */}
         {selectedId && (
           <div className="px-4 pb-4 pt-2 shrink-0 border-t border-border bg-sidebar">
-            <div className="flex gap-2 items-end">
-              <textarea
-                ref={inputRef}
-                className="flex-1 bg-secondary rounded-xl px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[40px] max-h-32"
-                placeholder={isStreaming ? "En cours..." : "Envoyer un message..."}
-                value={message}
-                onChange={e => {
-                  setMessage(e.target.value);
-                  const el = e.target;
-                  el.style.height = "auto";
-                  el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
-                }}
-                onKeyDown={handleKeyDown}
-                rows={1}
-              />
-              {isStreaming ? (
-                <button
-                  onClick={handleStop}
-                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-secondary text-foreground border border-border transition-all hover:bg-accent active:scale-95"
-                  title="Arrêter la génération"
-                  aria-label="Arrêter la génération"
-                >
-                  <Square className="w-3.5 h-3.5 fill-current" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleSend}
-                  disabled={!message.trim()}
-                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-95"
-                  aria-label="Envoyer"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
+            <div ref={inputContainerRef} className="relative">
+              {showSlashPicker && (
+                <SlashCommandPicker
+                  query={slashQuery}
+                  onSelect={handleSlashSelect}
+                  onClose={() => setShowSlashPicker(false)}
+                />
               )}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    className="w-full bg-secondary rounded-xl px-3.5 py-2.5 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[40px] max-h-32"
+                    placeholder={isStreaming ? "En cours..." : "Envoyer un message... (tape / pour les commandes)"}
+                    value={message}
+                    onChange={e => {
+                      setMessage(e.target.value);
+                      const el = e.target;
+                      el.style.height = "auto";
+                      el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+                    }}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                  />
+                  {message.startsWith("/") && (
+                    <Command className="absolute right-2.5 top-3 w-3.5 h-3.5 text-muted-foreground/50" />
+                  )}
+                </div>
+                {isStreaming ? (
+                  <button
+                    onClick={handleStop}
+                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-secondary text-foreground border border-border transition-all hover:bg-accent active:scale-95"
+                    title="Arrêter la génération"
+                    aria-label="Arrêter la génération"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!message.trim()}
+                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-95"
+                    aria-label="Envoyer"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

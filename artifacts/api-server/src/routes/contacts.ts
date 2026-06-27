@@ -37,7 +37,7 @@ router.get("/contacts", async (req, res) => {
         .from(contactsTable)
         .where(eq(contactsTable.status, status));
 
-      return res.json(contacts);
+      return res.json({ data: contacts, total, limit, offset });
     }
 
     const contacts = await query
@@ -49,7 +49,7 @@ router.get("/contacts", async (req, res) => {
       .select({ total: sql<number>`COUNT(*)` })
       .from(contactsTable);
 
-    return res.json(contacts);
+    return res.json({ data: contacts, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing contacts");
     return res.status(500).json({ error: "Internal server error" });

@@ -1,18 +1,4 @@
-# ============================================================================
-# Source de vérité unique du déploiement Railway (config-as-code).
-# Surpasse les réglages du dashboard (Custom Build/Start Command, Watch Paths).
-# NE PAS retirer ces clés : sans elles, Railway (Railpack) lance
-# `pnpm install --frozen-lockfile` et échoue (ERR_PNPM_LOCKFILE_CONFIG_MISMATCH),
-# et "/" renvoie "Cannot GET /".
-# ============================================================================
-
-[build]
-builder = "NIXPACKS"
-buildCommand = "BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/tams run build && pnpm --filter @workspace/api-server run build"
-watchPatterns = ["**"]
-
 [deploy]
-startCommand = "NODE_ENV=production node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

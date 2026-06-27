@@ -1,11 +1,8 @@
-# pnpm fourni par nixPkgs → disponible sur le PATH dans TOUTES les phases
-# (install + build). `npm install -g pnpm` ne marchait pas (bin global absent du
-# PATH → "pnpm: command not found").
 [phases.setup]
-nixPkgs = ["nodejs_22", "pnpm"]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["pnpm install --no-frozen-lockfile"]
+cmds = ["npm install -g pnpm@10 && pnpm install --no-frozen-lockfile"]
 
 [phases.build]
 cmds = [
@@ -14,4 +11,4 @@ cmds = [
 ]
 
 [start]
-cmd = "NODE_ENV=production node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
+cmd = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"

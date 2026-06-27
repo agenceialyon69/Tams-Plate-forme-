@@ -27,7 +27,7 @@ router.get("/assets", async (req, res) => {
         .from(assetsTable)
         .where(eq(assetsTable.type, type));
 
-      return res.json(assets);
+      return res.json({ data: assets, total, limit, offset });
     }
 
     const assets = await query
@@ -39,7 +39,7 @@ router.get("/assets", async (req, res) => {
       .select({ total: sql<number>`COUNT(*)` })
       .from(assetsTable);
 
-    return res.json(assets);
+    return res.json({ data: assets, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "Error listing assets");
     return res.status(500).json({ error: "Internal server error" });

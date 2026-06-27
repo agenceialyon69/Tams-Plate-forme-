@@ -93,7 +93,7 @@ export default function Agents() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-28 md:pb-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-28 md:pb-6 space-y-4">
         {/* Composer */}
         <div className="bg-card border border-card-border rounded-xl p-4 space-y-3">
           <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
