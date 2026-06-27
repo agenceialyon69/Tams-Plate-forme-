@@ -1,0 +1,53 @@
+{
+  "name": "KORE — AI Operating System",
+  "short_name": "KORE",
+  "description": "OS de direction : Chat IA, 11 agents spécialisés, mémoire, décisions, studio créatif.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f1117",
+  "theme_color": "#6366f1",
+  "lang": "fr",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chat OS",
+      "short_name": "Chat",
+      "description": "90% des actions depuis le chat",
+      "url": "/chat",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Agents",
+      "short_name": "Agents",
+      "description": "11 agents spécialisés",
+      "url": "/agents",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Chief of Staff",
+      "short_name": "CoS",
+      "description": "Priorités et décisions",
+      "url": "/cos",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Studio",
+      "short_name": "Studio",
+      "description": "Création IA et PDF",
+      "url": "/studio",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

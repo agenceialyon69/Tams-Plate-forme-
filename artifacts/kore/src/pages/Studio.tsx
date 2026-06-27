@@ -7,11 +7,12 @@ import {
   listTemplates, createTemplate,
   listTools, createTool, updateTool,
   type Prompt, type PromptTemplate, type ToolDefinition,
-  type PromptCategory, type PromptStatus,
+  type PromptCategory,
 } from "@/lib/studio";
 import {
   Wand2, Plus, Search, Trash2, Copy, Tag, Zap,
-  BookTemplate, Wrench, Save, RotateCcw, Check, X,
+  BookTemplate, Wrench, Save, RotateCcw, X,
+  Image, Download, Loader2, RefreshCw, FileText,
 } from "lucide-react";
 
 const CATEGORY_LABEL: Record<PromptCategory, string> = {
@@ -243,7 +244,7 @@ export default function Studio() {
   const qc = useQueryClient();
   const inv = (keys: string[]) => keys.forEach(k => qc.invalidateQueries({ queryKey: [k] }));
 
-  const [tab, setTab] = useState<"prompts" | "templates" | "tools">("prompts");
+  const [tab, setTab] = useState<"prompts" | "templates" | "tools" | "creation">("prompts");
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<PromptCategory | "">("");
   const [creating, setCreating] = useState(false);
@@ -298,6 +299,7 @@ export default function Studio() {
     { id: "prompts", label: `Prompts (${allPrompts.length})` },
     { id: "templates", label: `Templates (${(templates.data ?? []).length})` },
     { id: "tools", label: `Outils (${(tools.data ?? []).length})` },
+    { id: "creation", label: "🎨 Création" },
   ] as const;
 
   return (
@@ -602,7 +604,250 @@ export default function Studio() {
             </div>
           </div>
         )}
+        {/* ─── CRÉATION ─────────────────────────────────────────────────── */}
+        {tab === "creation" && <CreationPanel />}
+
       </div>
     </AuthedLayout>
+  );
+}
+
+// ─── Image generation + PDF export panel ─────────────────────────────────────
+
+interface GeneratedImage {
+  url: string;
+  prompt: string;
+  timestamp: string;
+}
+
+function CreationPanel() {
+  const [imgPrompt, setImgPrompt] = useState("");
+  const [imgLoading, setImgLoading] = useState(false);
+  const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfContent, setPdfContent] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [style, setStyle] = useState("realistic");
+
+  const STYLES = [
+    { id: "realistic", label: "Réaliste" },
+    { id: "cinematic", label: "Cinématique" },
+    { id: "illustration", label: "Illustration" },
+    { id: "minimalist", label: "Minimaliste" },
+    { id: "dark", label: "Dark & Moody" },
+    { id: "corporate", label: "Corporate" },
+  ];
+
+  function buildPrompt(base: string, s: string): string {
+    const suffixes: Record<string, string> = {
+      realistic: "photorealistic, high quality, 8k",
+      cinematic: "cinematic lighting, movie scene, dramatic",
+      illustration: "digital illustration, vector art, clean lines",
+      minimalist: "minimalist, white background, simple shapes",
+      dark: "dark moody, noir, dramatic shadows, high contrast",
+      corporate: "professional, clean, business, modern office",
+    };
+    return `${base}, ${suffixes[s] ?? ""}`;
+  }
+
+  async function generateImage() {
+    if (!imgPrompt.trim()) return;
+    setImgLoading(true);
+    const fullPrompt = buildPrompt(imgPrompt.trim(), style);
+    const seed = Math.floor(Math.random() * 99999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=512&nologo=true&seed=${seed}`;
+    setImages(prev => [{ url, prompt: fullPrompt, timestamp: new Date().toISOString() }, ...prev]);
+    setImgLoading(false);
+    toast.success("Image en cours de génération…");
+  }
+
+  async function exportPDF() {
+    if (!pdfContent.trim()) { toast.error("Contenu requis"); return; }
+    setPdfBusy(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 60;
+      const contentW = pageW - margin * 2;
+
+      // Header
+      doc.setFillColor(99, 102, 241);
+      doc.rect(0, 0, pageW, 80, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text(pdfTitle || "Document KORE", margin, 50);
+
+      // Metadata
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Généré par KORE — ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}`, margin, 68);
+
+      // Content
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      const lines = doc.splitTextToSize(pdfContent, contentW);
+      let y = 110;
+      const lineH = 16;
+      const pageH = doc.internal.pageSize.getHeight();
+
+      for (const line of lines) {
+        if (y + lineH > pageH - 60) {
+          doc.addPage();
+          y = 60;
+        }
+        doc.text(line, margin, y);
+        y += lineH;
+      }
+
+      // Footer
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`KORE AI Operating System — Page ${i} / ${totalPages}`, margin, pageH - 30);
+      }
+
+      const filename = `${(pdfTitle || "document").toLowerCase().replace(/\s+/g, "-")}-${Date.now()}.pdf`;
+      doc.save(filename);
+      toast.success(`PDF exporté : ${filename}`);
+    } catch (e) {
+      toast.error("Erreur d'export PDF");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-2">
+      {/* ── Image Generator ── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Image className="h-4 w-4 text-rose-400" />
+          <h2 className="text-sm font-medium">Génération d'images</h2>
+          <span className="ml-auto rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">Pollinations.ai</span>
+        </div>
+
+        <div className="rounded-xl border border-border/50 bg-card/20 p-4 space-y-3">
+          <textarea
+            value={imgPrompt}
+            onChange={e => setImgPrompt(e.target.value)}
+            placeholder="Décrivez votre image… ex: bureau minimaliste avec laptop, lumière naturelle"
+            rows={3}
+            className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+
+          <div className="flex flex-wrap gap-1.5">
+            {STYLES.map(s => (
+              <button key={s.id} onClick={() => setStyle(s.id)}
+                className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${
+                  style === s.id ? "bg-primary text-primary-foreground" : "border border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={generateImage} disabled={!imgPrompt.trim() || imgLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/20 disabled:opacity-40"
+          >
+            {imgLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {imgLoading ? "Génération…" : "Générer"}
+          </button>
+        </div>
+
+        {images.length > 0 && (
+          <div className="space-y-3">
+            {images.map((img, i) => (
+              <div key={i} className="rounded-xl border border-border/40 bg-card/10 p-3 space-y-2">
+                <img
+                  src={img.url}
+                  alt={img.prompt}
+                  loading="lazy"
+                  className="w-full rounded-lg object-cover aspect-video"
+                  onError={e => { (e.target as HTMLImageElement).alt = "Chargement…"; }}
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground/70 leading-relaxed flex-1 line-clamp-2">{img.prompt}</p>
+                  <a href={img.url} download={`kore-image-${i}.jpg`} target="_blank" rel="noopener noreferrer"
+                    className="shrink-0 rounded-md border border-border/50 p-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {images.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/40 py-12 text-center">
+            <Image className="h-8 w-8 text-muted-foreground/30 mb-2" />
+            <p className="text-xs text-muted-foreground/50">Vos images générées apparaîtront ici</p>
+            <p className="text-[10px] text-muted-foreground/30 mt-1">Gratuit · Sans clé API · Pollinations.ai</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── PDF Export ── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-indigo-400" />
+          <h2 className="text-sm font-medium">Export PDF</h2>
+          <span className="ml-auto rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-400">jsPDF</span>
+        </div>
+
+        <div className="rounded-xl border border-border/50 bg-card/20 p-4 space-y-3">
+          <input
+            value={pdfTitle}
+            onChange={e => setPdfTitle(e.target.value)}
+            placeholder="Titre du document"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <textarea
+            value={pdfContent}
+            onChange={e => setPdfContent(e.target.value)}
+            placeholder="Contenu du document… Collez un rapport, compte-rendu, décision, analyse…"
+            rows={14}
+            className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+          />
+
+          <div className="rounded-lg bg-muted/20 p-3 text-[11px] text-muted-foreground space-y-0.5">
+            <p>• En-tête KORE avec couleur primaire indigo</p>
+            <p>• Pagination automatique</p>
+            <p>• Format A4 · Police Helvetica</p>
+            <p>• Footer avec numéro de page</p>
+          </div>
+
+          <button onClick={exportPDF} disabled={!pdfContent.trim() || pdfBusy}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-4 py-2.5 text-sm font-medium text-indigo-400 hover:bg-indigo-500/20 disabled:opacity-40"
+          >
+            {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {pdfBusy ? "Export…" : "Télécharger le PDF"}
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-border/40 bg-card/10 p-4">
+          <p className="text-xs font-medium mb-2 text-muted-foreground">Modèles de contenu rapide</p>
+          <div className="space-y-1.5">
+            {[
+              { label: "Compte-rendu de réunion", content: `COMPTE-RENDU DE RÉUNION\n\nDate : ${new Date().toLocaleDateString("fr-FR")}\nParticipants : \nObjet : \n\n## Décisions prises\n\n1. \n\n## Actions à suivre\n\n- \n\n## Prochaine étape\n\n` },
+              { label: "Note de décision", content: `NOTE DE DÉCISION\n\nDate : ${new Date().toLocaleDateString("fr-FR")}\n\n## Contexte\n\n\n## Options analysées\n\n1. \n2. \n\n## Décision retenue\n\n\n## Justification\n\n\n## Critères de succès\n\n` },
+              { label: "Rapport d'analyse", content: `RAPPORT D'ANALYSE\n\nDate : ${new Date().toLocaleDateString("fr-FR")}\n\n## Résumé exécutif\n\n\n## Analyse détaillée\n\n\n## Conclusions\n\n\n## Recommandations\n\n` },
+            ].map(t => (
+              <button key={t.label} onClick={() => { setPdfTitle(t.label); setPdfContent(t.content); }}
+                className="w-full rounded-md border border-border/40 bg-background/50 px-3 py-2 text-left text-xs text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
