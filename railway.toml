@@ -1,11 +1,23 @@
-# Force le builder NIXPACKS (sinon Railway utilise Railpack par défaut, qui lance
-# `pnpm install --frozen-lockfile --prefer-offline` en IGNORANT ce nixpacks.toml
-# → échec ERR_PNPM_LOCKFILE_CONFIG_MISMATCH). Nixpacks lit nixpacks.toml et
-# utilise `--no-frozen-lockfile` : immunisé contre toute dérive de lockfile.
+# ============================================================================
+# Source de vérité unique du déploiement Railway (config-as-code).
+# Surpasse les réglages du dashboard (Custom Build/Start Command, Watch Paths)
+# qui contenaient des valeurs PÉRIMÉES (scripts/railway-start.sh — fichier
+# inexistant) et un Watch Path trop étroit (/artifacts/api-server/**) qui
+# empêchait les commits de config/frontend de déclencher un déploiement.
+# ============================================================================
+
 [build]
+# Builder NIXPACKS (lit nixpacks.toml pour l'install `--no-frozen-lockfile`,
+# immunisé contre la dérive de lockfile). Railpack lançait `--frozen-lockfile`.
 builder = "NIXPACKS"
+# Build explicite (surpasse la commande périmée du dashboard).
+buildCommand = "BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/tams run build && pnpm --filter @workspace/api-server run build"
+# Déployer à CHAQUE push (plus de SKIP). Tout le repo est surveillé.
+watchPatterns = ["**"]
 
 [deploy]
+# Démarrage explicite (surpasse `sh scripts/railway-start.sh` périmé du dashboard).
+startCommand = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
