@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { aiRateLimit, defaultRateLimit } from "../middlewares/rate-limit";
 import healthRouter from "./health";
 import briefingRouter from "./briefing";
 import conversationsRouter from "./conversations";
@@ -18,7 +19,8 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(briefingRouter);
-router.use(conversationsRouter);
+router.use("/conversations", aiRateLimit, conversationsRouter);
+router.use("/agents", aiRateLimit);
 router.use(tasksRouter);
 router.use(projectsRouter);
 router.use(contactsRouter);
@@ -30,5 +32,6 @@ router.use(notificationsRouter);
 router.use(studioRouter);
 router.use(systemRouter);
 router.use(observabilityRouter);
+router.use(defaultRateLimit);
 
 export default router;

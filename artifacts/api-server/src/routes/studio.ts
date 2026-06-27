@@ -4,17 +4,12 @@
  */
 
 import { Router } from "express";
-import OpenAI from "openai";
 import { db } from "@workspace/db";
 import { assetsTable } from "@workspace/db";
 import { logActivity } from "../lib/activity";
+import { aiChat } from "../lib/ai";
 
 const router = Router();
-
-const openai = new OpenAI({
-  apiKey: process.env.REPLIT_AI_API_KEY ?? "dummy",
-  baseURL: process.env.AI_GATEWAY_URL ?? "https://api.openai.com/v1",
-});
 
 // ─── Document Generation ───────────────────────────────────────────────────
 
@@ -104,7 +99,7 @@ IMPORTANT: Génère UNIQUEMENT le contenu du document, sans métadonnées.`;
       });
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await aiChat({
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
@@ -113,7 +108,7 @@ IMPORTANT: Génère UNIQUEMENT le contenu du document, sans métadonnées.`;
       max_tokens: length === "detailed" ? 2000 : 1000,
     });
 
-    const content = completion.choices[0]?.message?.content || "";
+    const content = completion.choices?.[0]?.message?.content || "";
 
     // Save as asset
     if (title) {
@@ -177,16 +172,16 @@ Format JSON: { "script": "brief complet", "elements": [...], "suggestions": ["ti
       return res.json(fallback);
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await aiChat({
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
-    });
+    }, "json");
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw = completion.choices?.[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as { script?: string; suggestions?: string[] };
 
     return res.json({
@@ -219,16 +214,16 @@ ${targetModel ? `Optimise pour le modèle: ${targetModel}` : "Optimise pour un u
 
 Format JSON: { "optimized": "prompt amélioré", "improvements": ["changement 1", "changement 2"], "suggestions": ["tip 1", "tip 2"] }`;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await aiChat({
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
-    });
+    }, "json");
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw = completion.choices?.[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
 
     return res.json(parsed);

@@ -121,7 +121,7 @@ export async function executeTool(
       clearTimeout(timeoutId);
 
       // ─── Logging ────────────────────────────────────────────────────────────
-      await logActivity("tool", name, `Tool ${name} executed successfully`, context?.conversationId || 0);
+      await logActivity("agent", name, `Tool ${name} executed successfully`, context?.conversationId || 0);
 
       return {
         success: true,
@@ -148,7 +148,7 @@ export async function executeTool(
   }
 
   // ─── Error result ────────────────────────────────────────────────────────────
-  await logActivity("tool", name, `Tool ${name} failed: ${lastError?.message}`, context?.conversationId || 0);
+  await logActivity("agent", name, `Tool ${name} failed: ${lastError?.message}`, context?.conversationId || 0);
 
   return {
     success: false,
@@ -378,11 +378,11 @@ registerTool({
   rateLimit: 60,
   execute: async (params) => {
     const { memoriesTable } = await import("@workspace/db");
-    const { or, like } = await import("drizzle-orm");
+    const { or, ilike } = await import("drizzle-orm");
     const results = await db.select().from(memoriesTable)
       .where(or(
-        like(memoriesTable.title, `%${params.query}%`),
-        like(memoriesTable.content, `%${params.query}%`)
+        ilike(memoriesTable.title, `%${params.query}%`),
+        ilike(memoriesTable.content, `%${params.query}%`)
       ))
       .limit(params.limit || 5);
     return results;

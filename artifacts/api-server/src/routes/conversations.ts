@@ -10,13 +10,13 @@ import { eq, desc, sql } from "drizzle-orm";
 import {
   getAgent,
   getAllAgents,
-  selectAgentForQuery,
   runAgent,
   executeTool,
   gatherUserContext,
   getAllTools,
-} from "../lib/agents";
+} from "../lib/agents/index";
 import type { AgentRole, AgentContext } from "../lib/agents/types";
+import { aiChat, aiChatStream } from "../lib/ai";
 
 const router = Router();
 
@@ -230,30 +230,23 @@ router.post("/conversations/:id/stream", async (req, res) => {
   let toolResults: Array<{ name: string; result: string }> = [];
 
   try {
-    const { default: OpenAI } = await import("openai");
-    const openai = new OpenAI({
-      baseURL: process.env.AI_GATEWAY_URL,
-      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
-    });
-
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
       ...historyForAgent,
       { role: "user", content },
     ];
 
-    const stream = await openai.chat.completions.create({
+    const stream = aiChatStream({
       model: "google/gemini-2.5-flash",
       messages,
       max_tokens: 1500,
       tools: getAllTools(),
-      stream: true,
     });
 
     let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta;
+      const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
 
       if (delta.content) {
@@ -289,15 +282,14 @@ router.post("/conversations/:id/stream", async (req, res) => {
         { role: "system", content: `Actions effectuées:\n${toolResults.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume naturellement.` },
       ];
 
-      const followUp = await openai.chat.completions.create({
+      const followUp = aiChatStream({
         model: "google/gemini-2.5-flash",
         messages: followUpMessages,
         max_tokens: 800,
-        stream: true,
       });
 
       for await (const chunk of followUp) {
-        const delta = chunk.choices[0]?.delta;
+        const delta = chunk.choices?.[0]?.delta;
         if (delta?.content) {
           fullContent += delta.content;
           send({ type: "token", content: delta.content });

@@ -4,5 +4,12 @@
  */
 
 export * from "./types";
-export * from "./definitions";
-export * from "./orchestrator";
+export { AGENTS, getAgent, getAllAgents, getAgentsForCapability } from "./definitions";
+export {
+  executeTool,
+  gatherUserContext,
+  selectAgentForQuery,
+  getToolsForAgent,
+  getAllTools,
+  runAgent,
+} from "./orchestrator";

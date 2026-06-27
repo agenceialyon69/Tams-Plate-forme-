@@ -13,7 +13,8 @@ import {
   decisionsTable,
   memoriesTable,
 } from "@workspace/db";
-import { eq, sql, desc, or, and, like } from "drizzle-orm";
+import { eq, sql, desc, or, and, ilike } from "drizzle-orm";
+import { aiChat } from "../ai";
 
 // ─── Tool Executors (real database operations) ───────────────────────────────
 
@@ -71,8 +72,8 @@ async function executeSearchMemories(args: Record<string, unknown>): Promise<str
     .from(memoriesTable)
     .where(
       or(
-        like(memoriesTable.title, `%${query}%`),
-        like(memoriesTable.content, `%${query}%`)
+        ilike(memoriesTable.title, `%${query}%`),
+        ilike(memoriesTable.content, `%${query}%`)
       )
     )
     .limit(limit);
@@ -242,20 +243,14 @@ export async function runAgent(
   ];
 
   try {
-    const { default: OpenAI } = await import("openai");
-    const openai = new OpenAI({
-      baseURL: process.env.AI_GATEWAY_URL,
-      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
-    });
-
-    const completion = await openai.chat.completions.create({
+    const completion = await aiChat({
       model: "google/gemini-2.5-flash",
       messages,
       max_tokens: 1200,
       tools: getToolsForAgent(agent),
     });
 
-    const choice = completion.choices[0];
+    const choice = completion.choices?.[0];
     const toolCalls: AgentResponse["toolCalls"] = [];
 
     // Execute tool calls
@@ -280,14 +275,14 @@ export async function runAgent(
         { role: "system", content: `Actions effectuées:\n${toolCalls.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume ce qui a été fait de manière naturelle.` },
       ];
 
-      const followUp = await openai.chat.completions.create({
+      const followUp = await aiChat({
         model: "google/gemini-2.5-flash",
         messages: followUpMessages,
         max_tokens: 800,
       });
 
       return {
-        content: followUp.choices[0]?.message?.content || agent.fallbackResponse,
+        content: followUp.choices?.[0]?.message?.content || agent.fallbackResponse,
         toolCalls,
       };
     }
@@ -305,4 +300,4 @@ export async function runAgent(
   }
 }
 
-export { getAgent, getAllAgents };
+
