@@ -33,3 +33,26 @@ Le routeur choisit automatiquement le meilleur modèle **gratuit** selon la tâc
 L'utilisateur ne choisit pas. Ordre de repli type : Ollama (local) → Groq →
 Gemini free → OpenRouter free. Si aucun n'est configuré, dégrader proprement
 (réponse déterministe + message clair), jamais d'erreur opaque.
+
+### Implémenté : `artifacts/api-server/src/lib/ai.ts`
+Routeur free-first multi-fournisseurs, OpenAI-compatible par `fetch`, avec
+**fallback en chaîne** (le premier fournisseur qui répond gagne). Sélection du
+modèle gratuit **par tâche** (`chat` | `fast` | `reasoning` | `json`). Le `model`
+passé par l'appelant est un simple indice — remplacé par le modèle adapté au
+fournisseur retenu.
+
+**Variables d'environnement** (toutes optionnelles ; activer celles voulues) :
+
+| Var | Fournisseur | Notes |
+|---|---|---|
+| `AI_BASE_URL` (+ `AI_API_KEY`, `AI_MODEL`) | override explicite | Ollama distant, passerelle perso… respecte `AI_MODEL` |
+| `OLLAMA_BASE_URL` (+ `OLLAMA_MODEL`, `OLLAMA_MODEL_FAST`, `OLLAMA_MODEL_REASONING`) | Ollama local | inclus seulement si défini (évite timeouts sur Railway) |
+| `GROQ_API_KEY` | Groq | quota gratuit, très rapide |
+| `GEMINI_API_KEY` | Gemini | quota gratuit (endpoint OpenAI-compatible) |
+| `OPENROUTER_API_KEY` (+ `OPENROUTER_REFERER`) | OpenRouter | modèles `:free` **uniquement** |
+
+Rétro-compat : `AI_GATEWAY_URL`, `REPLIT_AI_API_KEY`.
+
+**Diagnostic** : `GET /api/system/ai` → `{ configured, providers[], primary, hint }`.
+Si aucun fournisseur n'est configuré, `hint` explique quoi définir (jamais
+d'échec silencieux — Pilier 7).

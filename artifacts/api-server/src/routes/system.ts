@@ -59,6 +59,26 @@ router.get("/system/stats", async (req, res) => {
   }
 });
 
+// AI — état du routeur IA (Pilier 8) : fournisseurs gratuits actifs.
+// Diagnostic pour Chat/Studio (jamais d'échec silencieux — voir 36_FREE_STACK).
+router.get("/system/ai", async (req, res) => {
+  try {
+    const { aiConfigured, aiProviders } = await import("../lib/ai");
+    const provs = aiProviders();
+    return res.json({
+      configured: aiConfigured(),
+      providers: provs,
+      primary: provs[0] ?? null,
+      hint: provs.length === 0
+        ? "Aucun fournisseur IA gratuit configuré. Définir l'un de : OLLAMA_BASE_URL, GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY (ou AI_BASE_URL)."
+        : null,
+    });
+  } catch (err) {
+    req.log?.error?.({ err }, "Error getting AI status");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // EXPORT — full data export for recovery (JSON)
 router.get("/system/export", async (req, res) => {
   try {

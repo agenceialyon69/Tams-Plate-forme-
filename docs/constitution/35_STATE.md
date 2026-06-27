@@ -30,6 +30,12 @@ _Dernière mise à jour : 2026-06-27._
   `decisionId`→`id`, `memoryId`→`id`, `.question`→`.title`, `accueil.tsx`
   `generate.mutate()`), shapes d'options des hooks Orval surtypés neutralisés.
   `tams` + `api-server` typecheck **propres**, builds **OK**, boot **OK** (healthz 200).
+- **P8 AI Router (free-first)** : `lib/ai.ts` réécrit en routeur multi-fournisseurs
+  avec **fallback en chaîne** et sélection du modèle gratuit **par tâche**
+  (`chat`/`fast`/`reasoning`/`json`). Fournisseurs : `AI_BASE_URL` → Ollama →
+  Groq → Gemini → OpenRouter (`:free`). Diagnostic `GET /api/system/ai`
+  (`{configured, providers, primary, hint}`). decisions/conversations/briefing/
+  studio migrés (plus de `model` codé en dur imposé). Voir `36_FREE_STACK.md`.
 
 ## 🔧 En cours / à corriger en priorité
 1. **Deux frontends** (`tams` déployé vs `kore` non déployé) : clarifier/consolider

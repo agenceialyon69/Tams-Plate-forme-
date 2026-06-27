@@ -160,23 +160,20 @@ router.post("/decisions/:id/analyze", async (req, res) => {
 
       const [aiResp, redTeamResp, scoreResp] = await Promise.all([
         aiChat({
-          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: "Tu es un conseiller stratégique expert. Analyse cette décision et donne un avis structuré et actionnable en français. Sois direct, précis, sans jargon inutile." },
             { role: "user", content: context },
           ],
           max_tokens: 500,
-        }),
+        }, "reasoning"),
         aiChat({
-          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: "Tu es un Red Team critique et sans complaisance. Identifie les failles, biais, risques cachés et erreurs de raisonnement dans cette décision. Sois direct, sceptique, utile. Réponds en français." },
             { role: "user", content: context },
           ],
           max_tokens: 500,
-        }),
+        }, "reasoning"),
         aiChat({
-          model: "google/gemini-2.5-flash",
           messages: [
             {
               role: "system",
