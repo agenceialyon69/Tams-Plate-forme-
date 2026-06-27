@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startObservability, stopObservability } from "./lib/observability";
 
 const rawPort = process.env["PORT"];
 
@@ -21,5 +22,16 @@ app.listen(port, (err) => {
     process.exit(1);
   }
 
+  startObservability();
   logger.info({ port }, "Server listening");
+});
+
+process.on("SIGTERM", () => {
+  stopObservability();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  stopObservability();
+  process.exit(0);
 });
