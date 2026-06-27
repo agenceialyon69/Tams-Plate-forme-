@@ -17,7 +17,7 @@ watchPatterns = ["**"]
 
 [deploy]
 # Démarrage explicite (surpasse `sh scripts/railway-start.sh` périmé du dashboard).
-startCommand = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
+startCommand = "NODE_ENV=production node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

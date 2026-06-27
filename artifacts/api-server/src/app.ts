@@ -96,26 +96,26 @@ app.use("/api", defaultRateLimit);
 
 app.use("/api", router);
 
+// Sert le frontend (SPA) dès que le build existe — INDÉPENDANT de NODE_ENV.
+// (Avant, c'était gardé par `NODE_ENV === "production"` ; au runtime cette
+// variable n'est pas définie → aucune route pour "/" → "Cannot GET /".)
+// Bundle : <root>/artifacts/api-server/dist/index.mjs
+// Frontend : <root>/artifacts/tams/dist/public  (dist/ → ../.. → artifacts/)
+const __serverDir = dirname(fileURLToPath(import.meta.url));
+const staticDir = path.resolve(__serverDir, "..", "..", "tams", "dist", "public");
+
+if (existsSync(staticDir)) {
+  app.use(express.static(staticDir));
+  // Express 5 : /{*splat} pour le wildcard (pas *). Fallback SPA.
+  app.get("/{*splat}", (_req, res) => {
+    res.sendFile(path.join(staticDir, "index.html"));
+  });
+  logger.info({ staticDir }, "Serving frontend static files");
+} else {
+  logger.warn({ staticDir }, "Frontend build not found — only API routes will respond");
+}
+
 // Centralized error handler — must be last
 app.use(errorHandler);
-
-if (process.env.NODE_ENV === "production") {
-  // Bundle est à : <root>/artifacts/api-server/dist/index.mjs
-  // Frontend est à : <root>/artifacts/tams/dist/public
-  // Depuis dist/ → ../.. → artifacts/ → tams/dist/public
-  const __serverDir = dirname(fileURLToPath(import.meta.url));
-  const staticDir = path.resolve(__serverDir, "..", "..", "tams", "dist", "public");
-
-  if (existsSync(staticDir)) {
-    app.use(express.static(staticDir));
-    // Express 5 : /{*splat} pour le wildcard (pas *)
-    app.get("/{*splat}", (_req, res) => {
-      res.sendFile(path.join(staticDir, "index.html"));
-    });
-    logger.info({ staticDir }, "Serving frontend static files");
-  } else {
-    logger.warn({ staticDir }, "Frontend build not found — only API routes will respond");
-  }
-}
 
 export default app;
