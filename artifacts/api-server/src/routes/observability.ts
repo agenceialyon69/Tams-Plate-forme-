@@ -9,8 +9,8 @@ import {
   getToolMetricsSummary,
   getRecentActivity,
   getSystemHealth,
-  getSystemMetrics,
 } from "../lib/observability";
+import { analyzeSystem, getSystemActivitySummary } from "../lib/self-improvement";
 import { listTools } from "../lib/tools";
 
 const router = Router();
@@ -67,14 +67,24 @@ router.get("/activity", async (req, res) => {
   }
 });
 
-// ─── System Metrics (comprehensive) ───────────────────────────────────────────
+// ─── Self-Improvement Analysis ─────────────────────────────────────────────────
 
-router.get("/system/metrics", async (_req, res) => {
+router.get("/analysis", async (_req, res) => {
   try {
-    const metrics = await getSystemMetrics();
-    res.json(metrics);
+    const analysis = await analyzeSystem();
+    res.json(analysis);
   } catch (err) {
-    res.status(500).json({ error: "Failed to get system metrics" });
+    res.status(500).json({ error: "Failed to analyze system" });
+  }
+});
+
+router.get("/activity/summary", async (req, res) => {
+  try {
+    const days = Number(req.query.days) || 7;
+    const summary = await getSystemActivitySummary(days);
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to get activity summary" });
   }
 });
 
