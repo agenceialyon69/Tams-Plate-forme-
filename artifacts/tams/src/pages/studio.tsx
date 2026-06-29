@@ -1879,14 +1879,14 @@ export default function Studio() {
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in pb-28 md:pb-6">
       {/* Header */}
       <div className="px-4 pt-5 pb-3 shrink-0 border-b border-white/5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center border border-blue-500/20">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center border border-blue-500/20 shrink-0">
               <Palette className="w-4 h-4 text-blue-400" />
             </div>
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">Studio Créatif</h1>
+            <h1 className="text-lg font-semibold text-foreground tracking-tight truncate">Studio Créatif</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <UploadZone onUploaded={handleUploadedFile} />
             <button
               onClick={() => {
@@ -1904,7 +1904,7 @@ export default function Studio() {
               <MessageSquare className="w-3.5 h-3.5" />
               {showChat ? "Masquer l'IA" : "Studio AI"}
             </button>
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               <button onClick={() => openForm("image")} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-xs font-medium hover:bg-blue-500/20 transition-all active:scale-[0.98] backdrop-blur-sm">
                 <Image className="w-3.5 h-3.5" /> Image
               </button>
