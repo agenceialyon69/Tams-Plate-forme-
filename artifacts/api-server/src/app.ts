@@ -9,21 +9,32 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { aiRateLimit, defaultRateLimit } from "./middlewares/rate-limit";
 import { errorHandler } from "./middlewares/error-handler";
+import { requireAuth, optionalAuth } from "./middlewares/auth";
 
 const app: Express = express();
 
-// Security headers
+// Security headers with stricter CSP
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      mediaSrc: ["'self'", "https:"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      mediaSrc: ["'self'", "https:", "blob:"],
       fontSrc: ["'self'", "data:"],
-      connectSrc: ["'self'"],
-      // Embeds Studio (lecteurs gratuits) : YouTube, Vimeo, SoundCloud, Spotify.
+      connectSrc: [
+        "'self'",
+        "https://*.supabase.co",
+        "https://api.groq.com",
+        "https://generativelanguage.googleapis.com",
+        "https://openrouter.ai",
+        "https://api.deepseek.com",
+        "https://dashscope-intl.aliyuncs.com",
+        "https://api.mistral.ai",
+        "https://router.huggingface.co",
+        "https://image.pollinations.ai",
+      ],
       frameSrc: [
         "'self'",
         "https://www.youtube.com",
@@ -33,9 +44,15 @@ app.use(helmet({
         "https://open.spotify.com",
       ],
       frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
     },
   },
   crossOriginEmbedderPolicy: false,
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
 
 app.use(
@@ -59,25 +76,47 @@ app.use(
 );
 
 /**
- * CORS — stratégie :
- *   1. ALLOWED_ORIGINS défini   → liste restrictive (séparée par des virgules)
- *   2. FRONTEND_URL défini      → autoriser cette origine spécifique
- *   3. Aucun des deux           → origine réfléchie (reflect-origin, compatible credentials)
- *      En production Railway, le frontend est servi par le même process :
- *      les requêtes sont same-origin et les headers CORS ne s'appliquent pas.
- *      Cette config n'affecte que les requêtes cross-origin (dev, Postman, etc.).
+ * CORS - secure strategy:
+ *   1. ALLOWED_ORIGINS defined -> restrictive list
+ *   2. FRONTEND_URL defined -> allow that specific origin
+ *   3. In production without config -> REFUSE (secure default)
+ *   4. In development -> localhost allowed
  */
 function resolveOrigin(): cors.CorsOptions["origin"] {
-  if (process.env.NODE_ENV !== "production") return true;
-  if (process.env.ALLOWED_ORIGINS) return process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
-  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
-  // reflect-origin : compatible avec credentials et toutes origines
-  return true;
+  const env = process.env.NODE_ENV;
+
+  if (env === "production") {
+    if (process.env.ALLOWED_ORIGINS) {
+      return process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
+    }
+    if (process.env.FRONTEND_URL) {
+      return process.env.FRONTEND_URL;
+    }
+    return false;
+  }
+
+  const devOrigins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+  ];
+
+  if (process.env.ALLOWED_ORIGINS) {
+    return [...process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()), ...devOrigins];
+  }
+
+  return devOrigins;
 }
 
 app.use(cors({
   origin: resolveOrigin(),
   credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Client-Info", "Apikey", "X-Request-ID"],
+  exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"],
+  maxAge: 86400,
 }));
 
 app.use(express.json());
@@ -92,18 +131,26 @@ app.use("/api/conversations", aiRateLimit);
 app.use("/api/agents", aiRateLimit);
 app.use("/api", defaultRateLimit);
 
+// Auth middleware - apply to all API routes except public health endpoints
+app.use("/api/healthz", optionalAuth);
+app.use("/api/health", optionalAuth);
+app.use("/api/auth", optionalAuth);
+
+// All other API routes require authentication
+app.use("/api", (req, res, next) => {
+  if (req.path.startsWith("/healthz") || req.path.startsWith("/health") || req.path.startsWith("/auth")) {
+    return next();
+  }
+  return requireAuth(req, res, next);
+});
+
 app.use("/api", router);
 
-// Sert le frontend (SPA) dès que le build existe — INDÉPENDANT de NODE_ENV
-// (sinon "/" n'a aucune route au runtime → "Cannot GET /"). NE PAS RÉVERTER.
+// Serve frontend (SPA)
 const __serverDir = dirname(fileURLToPath(import.meta.url));
 const staticDir = path.resolve(__serverDir, "..", "..", "tams", "dist", "public");
 
 if (existsSync(staticDir)) {
-  // INVARIANT (/AGENTS.md) : index.html en no-cache, sinon le navigateur (Safari
-  // iOS surtout) sert un ANCIEN index.html en cache → il charge d'anciens bundles
-  // → "rien ne change" malgré les déploiements. Les assets sont hashés (nom
-  // unique par build) donc immuables et cachables un an.
   app.use(express.static(staticDir, {
     etag: true,
     setHeaders: (res, filePath) => {
@@ -120,10 +167,9 @@ if (existsSync(staticDir)) {
   });
   logger.info({ staticDir }, "Serving frontend static files");
 } else {
-  logger.warn({ staticDir }, "Frontend build not found — only API routes will respond");
+  logger.warn({ staticDir }, "Frontend build not found - only API routes will respond");
 }
 
-// Centralized error handler — must be last
 app.use(errorHandler);
 
 export default app;
