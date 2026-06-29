@@ -7,7 +7,7 @@ import {
 import type { Conversation, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap, Square,
+  Plus, Send, Trash2, MessageSquare, ChevronLeft, Zap, Square, Paperclip,
   CheckCircle2, FolderOpen, UserPlus, Palette, Lightbulb, Shield,
   ArrowRight, Command, X, Wand2, Image, Film, Music, FileText,
   Bot, User, Search, Wifi, WifiOff, AlertCircle, RotateCcw, Sparkles,
@@ -1117,6 +1117,27 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pièces jointes image (vision) : data URLs base64 envoyées à Gemini (gratuit).
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+
+  function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/")).slice(0, 4);
+    files.forEach((file) => {
+      if (file.size > 6_000_000) {
+        toast({ title: "Image trop lourde", description: "Maximum ~6 Mo par image.", variant: "destructive" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = reader.result as string;
+        setAttachedImages((prev) => (prev.length < 4 ? [...prev, url] : prev));
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  }
 
   const { data: conversations = [], isLoading: convLoading } = useListConversations();
   const { data: messages = [], isLoading: msgsLoading } = useListMessages(selectedId!, {
@@ -1241,7 +1262,7 @@ export default function Chat() {
     return () => window.removeEventListener("keydown", handleGlobalKey);
   }, []);
 
-  const streamMessage = useCallback(async (content: string) => {
+  const streamMessage = useCallback(async (content: string, imgs: string[] = []) => {
     if (!selectedId || !content.trim() || isStreaming) return;
 
     setIsStreaming(true);
@@ -1259,7 +1280,7 @@ export default function Chat() {
       const res = await fetch(`${API_BASE}/api/conversations/${selectedId}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, ...(imgs.length ? { images: imgs } : {}) }),
         signal: abortRef.current.signal,
       });
 
@@ -1321,11 +1342,13 @@ export default function Chat() {
   }, [selectedId, isStreaming, qc, toast]);
 
   function handleSend() {
-    if (!message.trim() || !selectedId || isStreaming) return;
-    const content = message.trim();
+    if ((!message.trim() && attachedImages.length === 0) || !selectedId || isStreaming) return;
+    const content = message.trim() || "Analyse cette image et décris ce que tu vois.";
+    const imgs = attachedImages;
     setMessage("");
+    setAttachedImages([]);
     if (inputRef.current) inputRef.current.style.height = "auto";
-    streamMessage(content);
+    streamMessage(content, imgs);
   }
 
   function handleStop() {
@@ -1732,7 +1755,41 @@ export default function Chat() {
                     onClose={() => setShowSlashPicker(false)}
                   />
                 )}
+                {/* Aperçu des images jointes */}
+                {attachedImages.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mb-2">
+                    {attachedImages.map((url, i) => (
+                      <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
+                        <img src={url} alt={`pièce jointe ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setAttachedImages((prev) => prev.filter((_, j) => j !== i))}
+                          className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 text-white"
+                          aria-label="Retirer l'image"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFilesSelected}
+                />
                 <div className="flex gap-2 items-end">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isStreaming || attachedImages.length >= 4}
+                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-secondary text-muted-foreground border border-border/50 transition-all hover:text-foreground hover:bg-accent active:scale-[0.98] disabled:opacity-40"
+                    title="Joindre une image"
+                    aria-label="Joindre une image"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
                   <div className="flex-1 relative">
                     <textarea
                       ref={inputRef}
@@ -1766,10 +1823,10 @@ export default function Chat() {
                   ) : (
                     <button
                       onClick={handleSend}
-                      disabled={!message.trim()}
+                      disabled={!message.trim() && attachedImages.length === 0}
                       className={cn(
                         "shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-[0.98] shadow-lg shadow-primary/20 ripple-btn",
-                        message.trim() && "animate-glow-pulse"
+                        (message.trim() || attachedImages.length > 0) && "animate-glow-pulse"
                       )}
                       aria-label="Envoyer"
                     >

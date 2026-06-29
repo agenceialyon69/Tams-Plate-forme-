@@ -223,12 +223,18 @@ router.post("/conversations/:id/messages", async (req, res) => {
 router.post("/conversations/:id/stream", async (req, res) => {
   const startedAt = Date.now();
   const conversationId = Number(req.params.id);
-  const { content } = req.body;
+  const { content, images } = req.body as { content?: string; images?: string[] };
 
   if (!content) {
     res.status(400).json({ error: "content is required" });
     return;
   }
+
+  // Pièces jointes IMAGE (vision) : data URLs base64. Analysées par un modèle
+  // multimodal GRATUIT (Gemini). Limité à 4 images raisonnables.
+  const attachedImages = (Array.isArray(images) ? images : [])
+    .filter((u) => typeof u === "string" && u.startsWith("data:image/") && u.length < 8_000_000)
+    .slice(0, 4);
 
   const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, conversationId));
   if (!conv) {
@@ -280,17 +286,28 @@ router.post("/conversations/:id/stream", async (req, res) => {
     // Streaming via le routeur IA GRATUIT lib/ai.ts (Ollama/Groq/Gemini/
     // OpenRouter) — fetch pur, fallback en chaîne entre fournisseurs, ZÉRO SDK
     // propriétaire et ZÉRO API payante. Les chunks sont OpenAI-compatibles.
-    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    // Contenu utilisateur : texte seul, ou multimodal (texte + images) si des
+    // pièces jointes sont présentes (format OpenAI-compatible, lu par Gemini).
+    const userContent: unknown = attachedImages.length > 0
+      ? [
+          { type: "text", text: content },
+          ...attachedImages.map((url) => ({ type: "image_url", image_url: { url } })),
+        ]
+      : content;
+
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: unknown }> = [
       { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
       ...historyForAgent,
-      { role: "user", content },
+      { role: "user", content: userContent },
     ];
 
     const stream = aiChatStream({
       messages,
       max_tokens: 1500,
-      tools: getAllTools(),
-    }, "fast");
+      // Vision et function-calling cohabitent mal : avec des images, on privilégie
+      // l'analyse visuelle (pas d'outils). Tâche "chat" → modèle multimodal (Gemini).
+      tools: attachedImages.length > 0 ? undefined : getAllTools(),
+    }, attachedImages.length > 0 ? "chat" : "fast");
 
     let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 
@@ -325,7 +342,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
 
       // Follow-up to summarize
-      const followUpMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      const followUpMessages: Array<{ role: "system" | "user" | "assistant"; content: unknown }> = [
         ...messages,
         { role: "assistant", content: fullContent || "" },
         { role: "system", content: `Actions effectuées:\n${toolResults.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume naturellement.` },
