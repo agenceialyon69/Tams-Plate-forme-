@@ -14,7 +14,7 @@ const __serverDir = dirname(fileURLToPath(import.meta.url));
 const FONT_PATH = path.resolve(__serverDir, "..", "assets", "font.ttf");
 const VIDEO_DIR = path.join(os.tmpdir(), "tams-videos");
 
-function ffmpegFilter(n: number, withText: boolean): { filter: string; lastLabel: string } {
+function ffmpegFilter(n: number, textFile: string | null): { filter: string; lastLabel: string } {
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     parts.push(
@@ -23,10 +23,11 @@ function ffmpegFilter(n: number, withText: boolean): { filter: string; lastLabel
   }
   parts.push(`${Array.from({ length: n }, (_, i) => `[v${i}]`).join("")}concat=n=${n}:v=1:a=0[cat]`);
   let lastLabel = "cat";
-  if (withText) {
-    // textfile : aucune gestion d'échappement → robuste avec n'importe quel texte.
+  if (textFile) {
+    // textfile PROPRE À CETTE REQUÊTE (pas de fichier partagé → pas de course
+    // entre générations concurrentes). textfile = aucun échappement à gérer.
     parts.push(
-      `[cat]drawtext=fontfile=${FONT_PATH}:textfile=${path.join(VIDEO_DIR, "__text.txt")}:` +
+      `[cat]drawtext=fontfile=${FONT_PATH}:textfile=${textFile}:` +
         `fontcolor=white:fontsize=64:line_spacing=10:box=1:boxcolor=black@0.55:boxborderw=24:` +
         `x=(w-text_w)/2:y=h-340[outv]`,
     );
@@ -76,9 +77,12 @@ router.post("/studio/generate-video", async (req, res) => {
       imgPaths.push(p);
     }
 
-    // Texte optionnel (via textfile, pas d'échappement)
-    const withText = !!(text && text.trim() && existsSync(FONT_PATH));
-    if (withText) await writeFile(path.join(VIDEO_DIR, "__text.txt"), text!.trim().slice(0, 200));
+    // Texte optionnel (via textfile propre à la requête, pas d'échappement)
+    let textFile: string | null = null;
+    if (text && text.trim() && existsSync(FONT_PATH)) {
+      textFile = path.join(work, "text.txt");
+      await writeFile(textFile, text.trim().slice(0, 200));
+    }
 
     // Musique optionnelle
     let musicPath: string | null = null;
@@ -99,7 +103,7 @@ router.post("/studio/generate-video", async (req, res) => {
     for (const p of imgPaths) args.push("-loop", "1", "-t", String(spi), "-i", p);
     if (musicPath) args.push("-i", musicPath);
 
-    const { filter, lastLabel } = ffmpegFilter(imgPaths.length, withText);
+    const { filter, lastLabel } = ffmpegFilter(imgPaths.length, textFile);
     args.push("-filter_complex", filter, "-map", `[${lastLabel}]`);
     if (musicPath) args.push("-map", `${imgPaths.length}:a`, "-c:a", "aac", "-shortest");
     args.push(
@@ -114,7 +118,7 @@ router.post("/studio/generate-video", async (req, res) => {
       url: `/api/studio/video/${id}.mp4`,
       durationSec: Math.round(imgPaths.length * spi),
       images: imgPaths.length,
-      withText,
+      withText: !!textFile,
       withMusic: !!musicPath,
     });
   } catch (err) {
