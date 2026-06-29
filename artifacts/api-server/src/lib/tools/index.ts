@@ -12,6 +12,7 @@
 import { db } from "@workspace/db";
 import { logActivity } from "../activity";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ export async function executeTool(
       clearTimeout(timeoutId);
 
       // ─── Logging ────────────────────────────────────────────────────────────
-      await logActivity("agent", name, `Tool ${name} executed successfully`, context?.conversationId || 0);
+      await logActivity("tool", name, `Tool ${name} executed successfully`, context?.conversationId || 0);
 
       return {
         success: true,
@@ -148,7 +149,7 @@ export async function executeTool(
   }
 
   // ─── Error result ────────────────────────────────────────────────────────────
-  await logActivity("agent", name, `Tool ${name} failed: ${lastError?.message}`, context?.conversationId || 0);
+  await logActivity("tool", name, `Tool ${name} failed: ${lastError?.message}`, context?.conversationId || 0);
 
   return {
     success: false,
@@ -378,11 +379,11 @@ registerTool({
   rateLimit: 60,
   execute: async (params) => {
     const { memoriesTable } = await import("@workspace/db");
-    const { or, ilike } = await import("drizzle-orm");
+    const { or, like } = await import("drizzle-orm");
     const results = await db.select().from(memoriesTable)
       .where(or(
-        ilike(memoriesTable.title, `%${params.query}%`),
-        ilike(memoriesTable.content, `%${params.query}%`)
+        like(memoriesTable.title, `%${params.query}%`),
+        like(memoriesTable.content, `%${params.query}%`)
       ))
       .limit(params.limit || 5);
     return results;
@@ -461,6 +462,84 @@ registerTool({
       tags: params.tags || [],
     }).returning();
     return { id: created.id, name: created.name, type: created.type };
+  },
+});
+
+// Memory Edge Management
+registerTool({
+  name: "create_memory_edge",
+  description: "Create a relation between two memories",
+  permission: "write",
+  parameters: z.object({
+    sourceId: z.number(),
+    targetId: z.number(),
+    type: z.enum(["works_on", "knows", "related_to", "decided_about", "part_of", "leads_to", "references", "collaborates_with"]),
+    note: z.string().optional(),
+  }),
+  timeout: 5000,
+  maxRetries: 2,
+  rateLimit: 60,
+  execute: async (params) => {
+    const { memoryEdgesTable } = await import("@workspace/db");
+    const [created] = await db.insert(memoryEdgesTable).values({
+      sourceId: params.sourceId,
+      targetId: params.targetId,
+      type: params.type,
+      note: params.note || null,
+    }).returning();
+    return { id: created.id, sourceId: created.sourceId, targetId: created.targetId, type: created.type };
+  },
+});
+
+registerTool({
+  name: "list_memory_edges",
+  description: "List all memory relations",
+  permission: "read",
+  parameters: z.object({
+    sourceId: z.number().optional(),
+    targetId: z.number().optional(),
+    limit: z.number().max(50).optional(),
+  }),
+  timeout: 3000,
+  maxRetries: 1,
+  rateLimit: 120,
+  execute: async (params) => {
+    const { memoryEdgesTable } = await import("@workspace/db");
+    const { eq } = await import("drizzle-orm");
+    const limit = params.limit || 20;
+
+    if (params.sourceId) {
+      return db.select().from(memoryEdgesTable)
+        .where(eq(memoryEdgesTable.sourceId, params.sourceId))
+        .limit(limit);
+    }
+    if (params.targetId) {
+      return db.select().from(memoryEdgesTable)
+        .where(eq(memoryEdgesTable.targetId, params.targetId))
+        .limit(limit);
+    }
+    return db.select().from(memoryEdgesTable).limit(limit);
+  },
+});
+
+// Briefing
+registerTool({
+  name: "get_briefing",
+  description: "Get the current daily briefing",
+  permission: "read",
+  parameters: z.object({}),
+  timeout: 5000,
+  maxRetries: 1,
+  rateLimit: 30,
+  execute: async () => {
+    const { briefingsTable } = await import("@workspace/db");
+    const { desc } = await import("drizzle-orm");
+    const today = new Date().toISOString().split("T")[0];
+    const results = await db.select().from(briefingsTable)
+      .where(sql`date(${briefingsTable.date}) = ${today}`)
+      .orderBy(desc(briefingsTable.createdAt))
+      .limit(1);
+    return results[0] || null;
   },
 });
 
