@@ -20,6 +20,8 @@ import observabilityRouter from "./observability";
 import agentsRouter from "./agents";
 import integrationsRouter from "./integrations";
 import selfDevRouter from "./self-dev";
+import workflowsRouter from "./workflows";
+import exportRouter from "./export";
 
 const router: IRouter = Router();
 
@@ -49,6 +51,10 @@ router.use(studioMusicRouter);
 router.use(systemRouter);
 router.use(observabilityRouter);
 router.use(integrationsRouter);
+// FIX VIS : ces routes existaient mais n'étaient PAS montées → la page Workflows
+// (frontend) appelait /api/workflows en 404. Maintenant branchées.
+router.use(workflowsRouter);
+router.use(exportRouter);
 router.use(defaultRateLimit);
 
 export default router;

@@ -2278,6 +2278,61 @@ interface HealthCheck {
   checks: Record<string, { status: "ok" | "error"; message?: string }>;
 }
 
+// VIS — Validation & Integration System : teste chaque sous-système et affiche
+// un rapport PASS/WARN/FAIL (preuve de l'état runtime, Railway inclus).
+interface VisCheck { category: string; name: string; status: "PASS" | "WARN" | "FAIL"; detail: string; }
+interface VisReport { overall: "PASS" | "WARN" | "FAIL"; summary: { pass: number; warn: number; fail: number }; checks: VisCheck[]; }
+function ValidationCard() {
+  const [report, setReport] = useState<VisReport | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/system/validate");
+      if (res.ok) setReport(await res.json());
+    } catch { /* ignore */ } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { run(); }, [run]);
+
+  const color = (s: string) => s === "PASS" ? "text-emerald-400" : s === "WARN" ? "text-amber-400" : "text-red-400";
+  const dot = (s: string) => s === "PASS" ? "bg-emerald-400" : s === "WARN" ? "bg-amber-400" : "bg-red-400";
+
+  return (
+    <div className="bg-gradient-to-br from-sky-500/[0.07] to-cyan-500/[0.07] border border-sky-500/20 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🩺</span>
+          <span className="text-sm font-semibold text-foreground">Diagnostic plateforme (VIS)</span>
+        </div>
+        <button onClick={run} disabled={loading} className="text-xs px-2.5 py-1 rounded-lg bg-secondary border border-border text-muted-foreground disabled:opacity-50">
+          {loading ? "…" : "Relancer"}
+        </button>
+      </div>
+      {report && (
+        <div className="flex items-center gap-3 text-xs">
+          <span className={cn("font-bold", color(report.overall))}>{report.overall}</span>
+          <span className="text-emerald-400">{report.summary.pass} PASS</span>
+          <span className="text-amber-400">{report.summary.warn} WARN</span>
+          <span className="text-red-400">{report.summary.fail} FAIL</span>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        {report?.checks.map((c, i) => (
+          <div key={i} className="flex items-start gap-2 text-xs">
+            <span className={cn("w-2 h-2 rounded-full mt-1 shrink-0", dot(c.status))} />
+            <div className="min-w-0">
+              <span className="text-foreground">{c.name}</span>
+              <span className="text-muted-foreground"> — {c.detail}</span>
+            </div>
+          </div>
+        ))}
+        {!report && !loading && <p className="text-xs text-muted-foreground">Diagnostic indisponible.</p>}
+      </div>
+    </div>
+  );
+}
+
 // Cerveau autonome — déclenche un cycle de l'organisation d'agents (Chief of
 // Staff + Council + Red Team + Planner + Reflection) sur le projet.
 interface ContinueResult {
@@ -2619,6 +2674,8 @@ function SystemeTab() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+      {/* VIS — Diagnostic plateforme */}
+      <ValidationCard />
       {/* Cerveau autonome */}
       <ContinueTamsCard />
       {/* Connecteur Shopify */}

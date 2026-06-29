@@ -8,6 +8,19 @@ import { desc, eq, sql } from "drizzle-orm";
 
 const router = Router();
 
+// VIS — Validation & Integration System. Teste chaque sous-système (IA, DB,
+// FFmpeg, agents, mémoire…) → rapport PASS/WARN/FAIL. Preuve de l'état runtime
+// (Railway inclus). Ouvrable au navigateur.
+router.get("/system/validate", async (_req, res) => {
+  try {
+    const { runValidation } = await import("../lib/validation");
+    const report = await runValidation();
+    return res.json(report);
+  } catch (err) {
+    return res.status(500).json({ error: "Validation échouée", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // DIAGNOSTIC DB — n'échoue JAMAIS (attrape tout) : dit pourquoi les endpoints
 // liste plantent (connexion/SSL/auth ou schéma manquant). Ouvrable au navigateur.
 router.get("/system/db", async (_req, res) => {
