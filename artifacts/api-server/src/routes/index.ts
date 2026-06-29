@@ -22,6 +22,7 @@ import integrationsRouter from "./integrations";
 import selfDevRouter from "./self-dev";
 import workflowsRouter from "./workflows";
 import exportRouter from "./export";
+import missionsRouter from "./missions";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,7 @@ router.use(integrationsRouter);
 // (frontend) appelait /api/workflows en 404. Maintenant branchées.
 router.use(workflowsRouter);
 router.use(exportRouter);
+router.use(missionsRouter);
 router.use(defaultRateLimit);
 
 export default router;

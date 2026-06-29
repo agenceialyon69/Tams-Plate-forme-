@@ -277,6 +277,10 @@ export function selectAgentForQuery(query: string, _context: AgentContext): Agen
     devops: { keywords: ["déploie", "railway", "supabase", "server", "base de données", "migration", "infrastructure"], weight: 1.2 },
     red_team: { keywords: ["critique", "problème", "risque", "faille", "attack", "challenge", "contre-argument"], weight: 1.1 },
     planning: { keywords: ["plan", "objectif", "tâches", "étapes", "décomposer", "organiser", "planning", "roadmap"], weight: 1.2 },
+    architect: { keywords: ["architecture", "constitution", "contrainte", "doublon", "dette", "validation"], weight: 1.3 },
+    qa: { keywords: ["test", "qualité", "régression", "bug", "vérifie", "checklist", "smoke"], weight: 1.2 },
+    security: { keywords: ["sécurité", "permission", "audit", "vulnérabilité", "rls", "cors", "porte humaine"], weight: 1.3 },
+    reflection: { keywords: ["réflexion", "apprentissage", "amélioration", "cause racine", "pattern", "post-mortem"], weight: 1.1 },
   };
 
   let bestMatch: AgentSelection = {
@@ -350,6 +354,10 @@ function getTaskTypeForAgent(role: AgentRole): AICapability {
     devops: "code",
     red_team: "analysis",
     planning: "reasoning",
+    architect: "reasoning",
+    qa: "analysis",
+    security: "analysis",
+    reflection: "analysis",
   };
   return mapping[role] || "fast_chat";
 }

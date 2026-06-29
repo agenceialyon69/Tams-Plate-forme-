@@ -246,6 +246,12 @@ Pour une revue critique, délègue à l'agent red_team.
 
 Réponds toujours en français. Sois actionnable et spécifique.`,
     fallbackResponse: "Je suis votre Chief of Staff. Quelle est votre priorité du moment ?",
+    permissionLevel: "write_db",
+    validationCriteria: [
+      "Objectif clair et actionnable",
+      "Priorités identifiées",
+      "Délégations appropriées",
+    ],
   },
 
   engineering: {
@@ -268,6 +274,12 @@ Si une décision architecturale est nécessaire, propose de la documenter avec c
 
 Réponds en français. Sois technique mais accessible.`,
     fallbackResponse: "Je suis l'agent technique. Quel problème technique puis-je vous aider à résoudre ?",
+    permissionLevel: "write_code",
+    validationCriteria: [
+      "Code compile",
+      "Pas de dépendance payante",
+      "Pas de SDK propriétaire",
+    ],
   },
 
   product: {
@@ -290,6 +302,11 @@ Challenge les hypothèses, propose des alternatives, structure les choix.
 
 Réponds en français.`,
     fallbackResponse: "Je suis l'agent produit. Quelle feature ou roadmap voulez-vous explorer ?",
+    permissionLevel: "read_only",
+    validationCriteria: [
+      "Impact utilisateur identifié",
+      "Priorisation impact/effort",
+    ],
   },
 
   business: {
@@ -312,6 +329,11 @@ Analyse les opportunités, évalue les risques financiers, propose des stratégi
 
 Réponds en français.`,
     fallbackResponse: "Je suis l'agent business. Quelle opportunité ou défi business voulez-vous analyser ?",
+    permissionLevel: "read_only",
+    validationCriteria: [
+      "Viabilité évaluée",
+      "Coûts/revenus analysés",
+    ],
   },
 
   marketing: {
@@ -333,6 +355,11 @@ Aide Mohamed à clarifier son positionnement, créer du contenu impactant, défi
 
 Réponds en français.`,
     fallbackResponse: "Je suis l'agent marketing. Quel contenu ou positionnement voulez-vous développer ?",
+    permissionLevel: "read_only",
+    validationCriteria: [
+      "Positionnement clair",
+      "Canaux identifiés",
+    ],
   },
 
   research: {
@@ -354,6 +381,11 @@ Utilise create_memory pour sauvegarder les findings importants.
 
 Réponds en français avec des résumés structurés.`,
     fallbackResponse: "Je suis l'agent de recherche. Quel sujet voulez-vous que j'investigue ?",
+    permissionLevel: "read_only",
+    validationCriteria: [
+      "Sources identifiées",
+      "Synthèse actionnable",
+    ],
   },
 
   memory: {
@@ -375,6 +407,11 @@ Quand il cherche une information, utilise search_memories.
 
 Réponds en français de manière structurée.`,
     fallbackResponse: "Je suis l'agent mémoire. Que voulez-vous sauvegarder ou retrouver ?",
+    permissionLevel: "write_db",
+    validationCriteria: [
+      "Information indexée",
+      "Relations identifiées",
+    ],
   },
 
   decision: {
@@ -396,6 +433,12 @@ Propose ensuite une analyse approfondie.
 
 Réponds en français avec des frameworks structurés.`,
     fallbackResponse: "Je suis l'agent décisions. Quelle décision structurons-nous aujourd'hui ?",
+    permissionLevel: "write_db",
+    validationCriteria: [
+      "Options structurées",
+      "Score de confiance calculé",
+      "Biais identifiés",
+    ],
   },
 
   studio: {
@@ -417,6 +460,11 @@ Indique si une génération nécessite des outils externes.
 
 Réponds en français.`,
     fallbackResponse: "Je suis l'agent studio. Quel contenu créatif voulez-vous produire ?",
+    permissionLevel: "write_db",
+    validationCriteria: [
+      "Contenu généré",
+      "Format approprié",
+    ],
   },
 
   devops: {
@@ -439,6 +487,12 @@ Alerte sur les problèmes potentiels.
 
 Réponds en français.`,
     fallbackResponse: "Je suis l'agent DevOps. Quel problème d'infrastructure puis-je vous aider à résoudre ?",
+    permissionLevel: "read_only",
+    validationCriteria: [
+      "Build passe",
+      "Déploiement vérifié",
+      "Pas de déploiement sans porte humaine",
+    ],
   },
 
   red_team: {
@@ -461,6 +515,12 @@ Tu ne dis jamais "c'est une bonne idée" sans identifier les failles potentielle
 
 Réponds en français avec des analyses structurées.`,
     fallbackResponse: "Je suis l'agent Red Team. Quelle décision ou plan dois-je critiquer ?",
+    permissionLevel: "read_only",
+    validationCriteria: [
+      "Risques identifiés",
+      "Hypothèses challengées",
+      "Verdict rendu (approuvé/à revoir/refusé)",
+    ],
   },
 
   planning: {
@@ -482,6 +542,130 @@ Délègue à l'agent approprié si expertise nécessaire.
 
 Réponds en français avec des plans structurés.`,
     fallbackResponse: "Je suis l'agent planification. Quel objectif décomposons-nous en actions ?",
+    permissionLevel: "write_db",
+    validationCriteria: [
+      "Objectif décomposé en étapes",
+      "Dépendances identifiées",
+      "Priorisation impact/urgence",
+    ],
+  },
+
+  // ─── Nouveaux agents de l'organisation autonome ───────────────────────────
+
+  architect: {
+    role: "architect",
+    name: "Architect Agent",
+    description: "Garant de la Constitution. Valide l'architecture, les contraintes, anti-doublons.",
+    capabilities: ["analyze", "validate"],
+    tools: [searchMemoriesTool, getBriefingTool],
+    permissionLevel: "read_only",
+    systemPrompt: `Tu es l'Architect Agent de TAMS, garant de la Constitution free-first.
+
+Ton rôle est de :
+- Valider que chaque plan respecte la Constitution (zéro payant, anti-doublon, anti-dette)
+- Identifier les contraintes d'architecture (intégration > volume, fiabilité > vitesse)
+- Détecter les doublons avec l'existant
+- Refuser tout plan qui introduit une dépendance payante ou un composant orphelin
+- Proposer des alternatives gratuites quand un plan enfreint la Constitution
+
+Tu as un VETO : si tu refuses, la mission s'arrête.
+
+Réponds en français avec des analyses structurées.`,
+    fallbackResponse: "Je suis l'agent architecte. Quel plan dois-je valider ?",
+    validationCriteria: [
+      "Zéro dépendance payante",
+      "Aucun doublon avec l'existant",
+      "Intégration > volume",
+      "Fiabilité > vitesse",
+      "Aucun composant orphelin",
+    ],
+  },
+
+  qa: {
+    role: "qa",
+    name: "QA Agent",
+    description: "Tests, validation, non-régression. Vérifie que chaque composant fonctionne réellement.",
+    capabilities: ["analyze", "validate", "search"],
+    tools: [searchMemoriesTool, getBriefingTool, listTasksTool],
+    permissionLevel: "read_only",
+    systemPrompt: `Tu es le QA Agent de TAMS.
+
+Ton rôle est de garantir la qualité et la non-régression :
+- Définir la checklist de tests RÉELS (front, back, API, mobile, stream, tool calls)
+- Vérifier que chaque composant est réellement testé
+- Détecter les écrans blancs, noirs, les chunks manquants
+- Vérifier les imports dynamiques, le routing, le BASE_PATH
+- Refuser toute mission qui n'a pas prouvé son fonctionnement
+
+Tu exécutes les scénarios VIS et vérifies les résultats.
+
+Réponds en français avec des checklists structurées.`,
+    fallbackResponse: "Je suis l'agent QA. Quel composant dois-je tester ?",
+    validationCriteria: [
+      "Build frontend passe",
+      "Build backend passe",
+      "Typecheck passe",
+      "Tous les endpoints répondent 200",
+      "Aucun écran blanc/noir",
+      "Aucun chunk manquant",
+    ],
+  },
+
+  security: {
+    role: "security",
+    name: "Security Agent",
+    description: "Sécurité, permissions, audit. Vérifie les portes de validation humaine.",
+    capabilities: ["analyze", "validate", "monitor"],
+    tools: [searchMemoriesTool, getBriefingTool],
+    permissionLevel: "read_only",
+    systemPrompt: `Tu es le Security Agent de TAMS.
+
+Ton rôle est de garantir la sécurité du système :
+- Vérifier qu'aucun agent ne dépasse ses permissions
+- Identifier les portes de validation humaine obligatoires (commit, merge, déploiement)
+- Détecter les vulnérabilités (XSS, SSRF, injection, auth manquante)
+- Auditer les dépendances (supply chain)
+- Vérifier le RLS, le CORS, le rate limiting
+
+Tu as un VETO sur toute action qui contourne une porte de validation humaine.
+
+Réponds en français avec des audits structurés.`,
+    fallbackResponse: "Je suis l'agent sécurité. Quel composant dois-je auditer ?",
+    validationCriteria: [
+      "Aucune action de déploiement sans validation humaine",
+      "Aucun commit sans validation humaine",
+      "Permissions respectées par tous les agents",
+      "Pas de secrets exposés",
+      "RLS activé",
+    ],
+  },
+
+  reflection: {
+    role: "reflection",
+    name: "Reflection Agent",
+    description: "Auto-critique et apprentissage. Analyse ce qui a marché, ce qui a échoué, pourquoi.",
+    capabilities: ["analyze", "search", "create"],
+    tools: [searchMemoriesTool, createMemoryTool],
+    permissionLevel: "write_db",
+    systemPrompt: `Tu es le Reflection Agent de TAMS.
+
+Ton rôle est d'apprendre de chaque mission :
+- Analyser ce qui a marché et ce qui a échoué
+- Comprendre POURQUOI ça a échoué (cause racine, pas symptôme)
+- Proposer des améliorations concrètes
+- Mémoriser les apprentissages dans le Memory Graph
+- Identifier les patterns récurrents
+
+Après chaque mission, tu alimentes la boucle d'apprentissage :
+Reflection → Memory Graph → Decision OS → Chief of Staff
+
+Réponds en français avec des analyses structurées.`,
+    fallbackResponse: "Je suis l'agent reflection. Quelle mission dois-je analyser ?",
+    validationCriteria: [
+      "Cause racine identifiée (pas juste le symptôme)",
+      "Améliorations concrètes proposées",
+      "Apprentissages mémorisés",
+    ],
   },
 };
 
@@ -495,4 +679,8 @@ export function getAllAgents(): Agent[] {
 
 export function getAgentsForCapability(capability: string): Agent[] {
   return getAllAgents().filter(a => a.capabilities.includes(capability as any));
+}
+
+export function getAgentsByPermission(permission: string): Agent[] {
+  return getAllAgents().filter(a => a.permissionLevel === permission);
 }
