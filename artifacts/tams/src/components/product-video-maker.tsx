@@ -25,6 +25,33 @@ export function ProductVideoMaker() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  // Musique de fond optionnelle (générée IA, gratuit avec HF_TOKEN).
+  const [musicPrompt, setMusicPrompt] = useState("");
+  const [musicUrl, setMusicUrl] = useState<string | null>(null);
+  const [musicLoading, setMusicLoading] = useState(false);
+
+  async function generateMusic() {
+    if (!musicPrompt.trim() || musicLoading) return;
+    setMusicLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/studio/generate-music`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: musicPrompt.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Musique indisponible", description: data.hint || data.error, variant: "destructive" });
+      } else {
+        setMusicUrl(`${API_BASE}${data.url}`);
+        toast({ title: "Musique prête 🎵", description: "Elle sera ajoutée à la vidéo." });
+      }
+    } catch {
+      toast({ title: "Musique échouée", variant: "destructive" });
+    } finally {
+      setMusicLoading(false);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -50,7 +77,7 @@ export function ProductVideoMaker() {
       const res = await fetch(`${API_BASE}/api/studio/generate-video`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: selected, text: text.trim() || undefined, secondsPerImage: spi }),
+        body: JSON.stringify({ images: selected, text: text.trim() || undefined, secondsPerImage: spi, musicUrl: musicUrl || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -116,6 +143,24 @@ export function ProductVideoMaker() {
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span>Durée / image : {spi.toFixed(1)}s</span>
         <input type="range" min={1} max={5} step={0.5} value={spi} onChange={(e) => setSpi(Number(e.target.value))} className="flex-1 accent-violet-500" />
+      </div>
+
+      {/* Musique de fond optionnelle (IA, gratuit avec HF_TOKEN) */}
+      <div className="flex gap-2 items-center">
+        <input
+          value={musicPrompt}
+          onChange={(e) => setMusicPrompt(e.target.value)}
+          placeholder="Musique de fond (ex: électro énergique) — optionnel"
+          className="flex-1 bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-violet-500/40"
+          style={{ fontSize: "16px" }}
+        />
+        <button
+          onClick={generateMusic}
+          disabled={musicLoading || !musicPrompt.trim()}
+          className="shrink-0 px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-xs font-medium disabled:opacity-40"
+        >
+          {musicLoading ? "…" : musicUrl ? "✓ Musique" : "Générer"}
+        </button>
       </div>
 
       <button
