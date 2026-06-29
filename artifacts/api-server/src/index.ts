@@ -1,4 +1,3 @@
-import { ensureSchema } from "@workspace/db";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startObservability, stopObservability } from "./lib/observability";
@@ -24,8 +23,7 @@ app.listen(port, (err) => {
   }
 
   startObservability();
-  logger.info({ port }, "Server listening (deploy OK)");
-  void ensureSchema().then((ok) => { if (ok) logger.info("Database schema ready"); });
+  logger.info({ port }, "Server listening");
 });
 
 process.on("SIGTERM", () => {
