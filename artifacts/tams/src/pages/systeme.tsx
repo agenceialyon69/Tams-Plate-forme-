@@ -2278,6 +2278,96 @@ interface HealthCheck {
   checks: Record<string, { status: "ok" | "error"; message?: string }>;
 }
 
+// Cerveau autonome — déclenche un cycle de l'organisation d'agents (Chief of
+// Staff + Council + Red Team + Planner + Reflection) sur le projet.
+interface ContinueResult {
+  classification?: string;
+  agentsConsulted?: number;
+  perspectives?: { agent: string; recommendations: string[] }[];
+  redTeam?: string;
+  synthesis?: string;
+  planMessage?: string | null;
+}
+function ContinueTamsCard() {
+  const { toast } = useToast();
+  const [goal, setGoal] = useState("");
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<ContinueResult | null>(null);
+
+  async function run() {
+    if (running) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/agents/continue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: goal.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Cycle échoué", description: data.detail || data.error || `HTTP ${res.status}`, variant: "destructive" });
+      } else {
+        setResult(data);
+        toast({ title: "Cycle autonome terminé 🧠", description: `${data.agentsConsulted ?? 0} agents consultés` });
+      }
+    } catch {
+      toast({ title: "Cycle échoué", description: "Vérifie ta connexion.", variant: "destructive" });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.08] border border-indigo-500/20 rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-base">🧠</span>
+        <span className="text-sm font-semibold text-foreground">Cerveau autonome — « Continue TAMS »</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        L'organisation d'agents (Chief of Staff · Council multi-agents · Red Team · Planner · Reflection)
+        analyse le projet, débat, critique et propose la prochaine étape. Le résultat est mémorisé (Décisions).
+      </p>
+      <input
+        value={goal}
+        onChange={(e) => setGoal(e.target.value)}
+        placeholder="Objectif précis (laisse vide = analyse autonome)"
+        className="w-full bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-indigo-500/40"
+        style={{ fontSize: "16px" }}
+      />
+      <button
+        onClick={run}
+        disabled={running}
+        className="w-full py-2.5 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-sm font-medium disabled:opacity-50 active:scale-[0.99] transition-all"
+      >
+        {running ? "Les agents réfléchissent (10-30s)…" : "Lancer un cycle autonome"}
+      </button>
+      {result && (
+        <div className="space-y-3 text-xs pt-1">
+          {result.synthesis && (
+            <div>
+              <div className="font-semibold text-foreground mb-1">🎯 Synthèse (Chief of Staff)</div>
+              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.synthesis}</p>
+            </div>
+          )}
+          {result.redTeam && (
+            <div>
+              <div className="font-semibold text-red-400 mb-1">🔴 Red Team</div>
+              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.redTeam}</p>
+            </div>
+          )}
+          {result.planMessage && (
+            <div>
+              <div className="font-semibold text-emerald-400 mb-1">📋 Plan</div>
+              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.planMessage}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Connecteur Shopify : import des produits dans les Assets (gratuit, jeton app privée).
 function ShopifyImportCard() {
   const { toast } = useToast();
@@ -2499,6 +2589,8 @@ function SystemeTab() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+      {/* Cerveau autonome */}
+      <ContinueTamsCard />
       {/* Connecteur Shopify */}
       <ShopifyImportCard />
       {/* Actions header */}

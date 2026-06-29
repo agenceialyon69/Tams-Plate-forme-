@@ -19,6 +19,7 @@ import systemRouter from "./system";
 import observabilityRouter from "./observability";
 import agentsRouter from "./agents";
 import integrationsRouter from "./integrations";
+import selfDevRouter from "./self-dev";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ router.use("/conversations", aiRateLimit);
 router.use(conversationsRouter);
 router.use("/agents", aiRateLimit);
 router.use(agentsRouter);
+router.use(selfDevRouter);
 router.use(tasksRouter);
 router.use(projectsRouter);
 router.use(contactsRouter);
