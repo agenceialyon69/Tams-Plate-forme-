@@ -3,6 +3,16 @@ import { logger } from "./lib/logger";
 import { startObservability, stopObservability } from "./lib/observability";
 import { ensureSchema } from "@workspace/db";
 
+// FILET DE SÉCURITÉ GLOBAL : une erreur non gérée (ex: spawn ENOENT d'un outil)
+// ne doit JAMAIS tuer tout le serveur. On journalise et on continue de servir.
+// NE PAS RETIRER — c'est ce qui empêche un seul bug de route de mettre l'app KO.
+process.on("uncaughtException", (err) => {
+  logger.error({ err }, "uncaughtException interceptée — le serveur continue");
+});
+process.on("unhandledRejection", (reason) => {
+  logger.error({ reason }, "unhandledRejection interceptée — le serveur continue");
+});
+
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {

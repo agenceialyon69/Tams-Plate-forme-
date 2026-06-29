@@ -50,6 +50,9 @@ function checkFfmpeg(): Promise<Check> {
       };
       p.stdout.on("data", onData);
       p.stderr.on("data", onData);
+      // CRITIQUE : sans ce handler, un spawn ENOENT (ffmpeg absent, ex: CI) émet
+      // un événement 'error' NON GÉRÉ → crash de TOUT le process. NE PAS RETIRER.
+      p.on("error", () => finish({ category: "Studio", name: NAME, status: "FAIL", detail: "ffmpeg introuvable dans le PATH (génération vidéo indisponible)" }));
       const t = setTimeout(() => { try { p.kill(); } catch { /* */ } finish({ category: "Studio", name: NAME, status: "WARN", detail: "réponse lente — à vérifier (la génération vidéo peut quand même marcher)" }); }, 8000);
       void t;
     } catch {
