@@ -1188,8 +1188,11 @@ export default function Chat() {
     let currentStep = 0;
     setThinkingSteps([]);
     const interval = setInterval(() => {
-      if (currentStep < THINKING_STEPS.length) {
-        setThinkingSteps(prev => [...prev, THINKING_STEPS[currentStep].text]);
+      // On garde l'ÉLÉMENT comme garde (et non l'index) : impossible d'accéder
+      // à .text sur undefined → plus de crash "undefined is not an object".
+      const step = THINKING_STEPS[currentStep];
+      if (step) {
+        setThinkingSteps(prev => [...prev, step.text]);
         currentStep++;
       } else {
         clearInterval(interval);
