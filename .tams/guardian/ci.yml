@@ -19,11 +19,13 @@ jobs:
       - name: Garde des invariants (voir /AGENTS.md — ne pas réverter)
         run: |
           fail=0
-          need() { grep -q "$2" "$1" 2>/dev/null && echo "✅ $3" || { echo "❌ $3 ($1)"; fail=1; }; }
+          # grep -F -- : motif littéral + fin des options, donc un motif qui
+          # commence par '-' (ex: --no-frozen-lockfile) est traité correctement.
+          need() { grep -qF -- "$2" "$1" 2>/dev/null && echo "✅ $3" || { echo "❌ $3 ($1)"; fail=1; }; }
           need railway.toml 'builder = "NIXPACKS"' "railway.toml force Nixpacks"
           need railway.toml 'watchPatterns' "railway.toml watchPatterns"
           need nixpacks.toml '"pnpm"' "nixpacks fournit pnpm via nixPkgs"
-          need nixpacks.toml -- '--no-frozen-lockfile' "install --no-frozen-lockfile"
+          need nixpacks.toml '--no-frozen-lockfile' "install --no-frozen-lockfile"
           need package.json '"packageManager"' "packageManager épinglé"
           [ ! -f postcss.config.js ] && echo "✅ pas de postcss.config.js v3" || { echo "❌ postcss.config.js v3 (page blanche)"; fail=1; }
           need artifacts/tams/src/index.css '@import "tailwindcss"' "Tailwind v4"
