@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProductVideoMaker } from "@/components/product-video-maker";
+import { MusicMaker } from "@/components/music-maker";
 import {
   Plus, Image, Film, Mic, FileText, Sparkles, Layout, Star, Trash2, Wand2,
   Link, ExternalLink, Copy, Check, Send, MessageSquare, Palette, Bot,
@@ -1992,7 +1993,10 @@ export default function Studio() {
                   <VideoForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} projects={projects} />
                 </>
               ) : selectedFormType === "audio" ? (
-                <AudioForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} projects={projects} />
+                <>
+                  <MusicMaker />
+                  <AudioForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} projects={projects} />
+                </>
               ) : selectedFormType === "image" ? (
                 <ImageGenerator onSave={handleSave} onHistoryAdd={handleHistoryAdd} initialPrompt={chatPrompt} projects={projects} />
               ) : (
