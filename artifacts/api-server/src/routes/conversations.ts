@@ -14,7 +14,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getAgent } from "../lib/agents/definitions";
 import {
   runAgent,
-  executeTool,
+  runTool,
   gatherUserContext,
   getAllTools,
 } from "../lib/agents/orchestrator";
@@ -345,7 +345,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
         let args: Record<string, unknown>;
         try { args = JSON.parse(tc.args); } catch { args = {}; }
         send({ type: "tool_start", name: tc.name, args });
-        const result = await executeTool(tc.name, args);
+        const result = await runTool(tc.name, args);
         toolResults.push({ name: tc.name, result });
         send({ type: "tool_done", name: tc.name, result });
       }

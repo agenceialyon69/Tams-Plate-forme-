@@ -148,6 +148,37 @@ async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<s
   return updated ? `Tâche #${id} → ${status}.` : `Tâche #${id} introuvable.`;
 }
 
+// ─── TOOL ORCHESTRATOR ───────────────────────────────────────────────────────
+// Constitution : aucun outil n'est appelé directement. Tout passe par runTool →
+// timeout + gestion d'erreur + observabilité (journalisation). NE PAS contourner.
+const TOOL_TIMEOUT_MS: Record<string, number> = {
+  create_video: 130_000,
+  generate_video: 130_000,
+  generate_music: 110_000,
+  generate_image: 20_000,
+};
+
+export async function runTool(name: string, args: Record<string, unknown>): Promise<string> {
+  const timeout = TOOL_TIMEOUT_MS[name] ?? 30_000;
+  const start = Date.now();
+  let result: string;
+  let ok = true;
+  try {
+    result = await Promise.race([
+      executeTool(name, args),
+      new Promise<string>((_, rej) => setTimeout(() => rej(new Error(`timeout ${timeout / 1000}s`)), timeout)),
+    ]);
+  } catch (err) {
+    ok = false;
+    result = `L'outil ${name} a échoué: ${err instanceof Error ? err.message : "erreur"}`;
+  }
+  // Observabilité : journalise chaque appel d'outil (jamais bloquant).
+  import("../activity")
+    .then(({ logActivity }) => logActivity("tool_call", name, `${ok ? "ok" : "échec"} (${Date.now() - start}ms)`, 0))
+    .catch(() => {});
+  return result;
+}
+
 // ─── Tool Dispatcher ────────────────────────────────────────────────────────
 
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
