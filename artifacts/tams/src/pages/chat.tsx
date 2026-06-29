@@ -530,7 +530,16 @@ function ContextPanel({
 
 /* ─── Structured Content Renderer ─── */
 function StructuredContent({ content }: { content: string }) {
-  const blocks = useMemo(() => parseContent(content), [content]);
+  // Le parseur markdown maison peut rencontrer du contenu partiel (streaming) ou
+  // malformé. On ne laisse JAMAIS une erreur de parsing casser le Chat : repli
+  // sur du texte brut. (Le rendu lui-même est protégé par l'ErrorBoundary global.)
+  const blocks = useMemo(() => {
+    try {
+      return parseContent(content);
+    } catch {
+      return [{ type: "text" as const, content }];
+    }
+  }, [content]);
 
   return (
     <div className="space-y-2">
