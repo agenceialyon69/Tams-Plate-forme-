@@ -253,6 +253,12 @@ router.post("/conversations/:id/stream", async (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
+  // Keepalive : un outil long (create_video : Pollinations + FFmpeg, 30-60s) laisse
+  // le flux SILENCIEUX → le proxy Railway peut couper une connexion inactive. On
+  // envoie un commentaire SSE toutes les 12s pour garder la connexion vivante.
+  const keepalive = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* socket fermé */ } }, 12_000);
+  res.on("close", () => clearInterval(keepalive));
+
   // Persist user message
   const [userMsg] = await db.insert(messagesTable).values({
     conversationId,
@@ -389,6 +395,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
   // Branche le Reflection Engine sur le pipeline de streaming (apprentissage continu).
   reflectAfterTurn(String(conv.mode || "chat"), content, fullContent, fullContent.length > 0, Date.now() - startedAt);
 
+  clearInterval(keepalive);
   send({ type: "done", id: assistantMsg.id, toolResults });
   res.end();
 });
