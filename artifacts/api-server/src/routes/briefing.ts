@@ -6,29 +6,13 @@ import {
   projectsTable,
   contactsTable,
   decisionsTable,
+  memoriesTable,
 } from "@workspace/db";
-import { eq, and, lte, sql, isNotNull } from "drizzle-orm";
-import { dbGet, dbSet, dbInvalidate } from "../lib/cache-db";
+import { eq, and, lte, sql, isNotNull, desc } from "drizzle-orm";
+import { smartCompletion } from "../lib/ai-router";
+import { recordAIMetric } from "../lib/observability";
 
 const router = Router();
-
-const BRIEFING_TTL_S = 60 * 60; // 1 hour in seconds
-
-function getBriefingCacheKey(): string {
-  return "briefing:" + new Date().toISOString().split("T")[0];
-}
-
-async function getCachedBriefing<T>(): Promise<T | null> {
-  return dbGet<T>(getBriefingCacheKey());
-}
-
-async function setCachedBriefing<T>(data: T): Promise<void> {
-  await dbSet(getBriefingCacheKey(), data, BRIEFING_TTL_S);
-}
-
-async function invalidateBriefingCache(): Promise<void> {
-  await dbInvalidate("briefing:%");
-}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -56,6 +40,7 @@ interface BriefingContext {
   activeProjects: { id: number; name: string; description: string | null }[];
   staleContacts: { id: number; name: string; company: string | null; status: string; lastContactedAt: string | null }[];
   pendingDecisions: { id: number; title: string; status: string }[];
+  recentMemories: { id: number; title: string; type: string }[];
   pendingTasksCount: number;
   activeProjectsCount: number;
 }
@@ -109,6 +94,12 @@ async function gatherContext(): Promise<BriefingContext> {
     .where(sql`${decisionsTable.status} IN ('pending','analyzing')`)
     .limit(10);
 
+  const recentMemories = await db
+    .select()
+    .from(memoriesTable)
+    .orderBy(desc(memoriesTable.createdAt))
+    .limit(5);
+
   const pendingCount = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(tasksTable)
@@ -123,8 +114,9 @@ async function gatherContext(): Promise<BriefingContext> {
     urgentTasks: urgentTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, dueDate: t.dueDate, projectId: t.projectId })),
     overdueTasks: overdueTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, dueDate: t.dueDate })),
     activeProjects: activeProjects.map(p => ({ id: p.id, name: p.name, description: p.description })),
-    staleContacts: staleContacts.map(c => ({ id: c.id, name: c.name, company: c.company, status: c.status, lastContactedAt: c.lastContactedAt ? c.lastContactedAt.toISOString() : null })),
+    staleContacts: staleContacts.map(c => ({ id: c.id, name: c.name, company: c.company, status: c.status as string, lastContactedAt: c.lastContactedAt?.toISOString() ?? null })),
     pendingDecisions: pendingDecisions.map(d => ({ id: d.id, title: d.title, status: d.status })),
+    recentMemories: recentMemories.map(m => ({ id: m.id, title: m.title, type: m.type })),
     pendingTasksCount: Number(pendingCount[0]?.count ?? 0),
     activeProjectsCount: Number(activeCount[0]?.count ?? 0),
   };
@@ -140,6 +132,7 @@ RÈGLES :
 - 2-4 priorités, 2-3 risques, 1-3 opportunités, 2-4 recommandations.
 - Les recommandations doivent être actionnables et spécifiques (pas génériques).
 - Base-toi sur les données réelles, pas sur des suppositions.
+- Utilise les mémoires récentes pour contextualiser les recommandations.
 
 DONNÉES DU JOUR :
 - Tâches urgentes/en cours : ${JSON.stringify(ctx.urgentTasks)}
@@ -147,6 +140,7 @@ DONNÉES DU JOUR :
 - Projets actifs : ${JSON.stringify(ctx.activeProjects)}
 - Contacts stale (pas contactés depuis 14+ jours) : ${JSON.stringify(ctx.staleContacts)}
 - Décisions en attente : ${JSON.stringify(ctx.pendingDecisions)}
+- Mémoires récentes : ${JSON.stringify(ctx.recentMemories)}
 - Total : ${ctx.pendingTasksCount} tâches en attente, ${ctx.activeProjectsCount} projets actifs
 
 Réponds en JSON strict avec ce format :
@@ -257,16 +251,26 @@ async function generateBriefing(
   ctx: BriefingContext,
   log: { warn: (obj: any, msg: string) => void },
 ): Promise<BriefingData> {
+  const startTime = Date.now();
+
   try {
-    const { aiChat } = await import("../lib/ai");
-    const completion = await aiChat({
-      model: "google/gemini-2.5-flash",
-      messages: [{ role: "system", content: buildContextPrompt(ctx) }],
-      max_tokens: 1500,
-      response_format: { type: "json_object" },
+    const result = await smartCompletion("analysis", [
+      { role: "system", content: buildContextPrompt(ctx) },
+    ], {
+      maxTokens: 1500,
+      needsJSON: true,
     });
 
-    const raw = completion.choices[0]?.message?.content;
+    recordAIMetric({
+      timestamp: new Date(),
+      model: result.model,
+      provider: "replit",
+      taskType: "briefing",
+      latencyMs: result.latencyMs,
+      success: true,
+    });
+
+    const raw = result.content;
     if (!raw) throw new Error("No AI response");
 
     const parsed = JSON.parse(raw);
@@ -278,18 +282,21 @@ async function generateBriefing(
     };
   } catch (err) {
     log.warn({ err }, "AI briefing generation failed, using rule-based fallback");
+    recordAIMetric({
+      timestamp: new Date(),
+      model: "unknown",
+      provider: "replit",
+      taskType: "briefing",
+      latencyMs: Date.now() - startTime,
+      success: false,
+      errorCode: err instanceof Error ? err.message : "Unknown error",
+    });
     return fallbackBriefing(ctx);
   }
 }
 
 router.get("/briefing/today", async (req, res) => {
   try {
-    // Check cache first
-    const cached = await getCachedBriefing<unknown>();
-    if (cached) {
-      return res.json(cached);
-    }
-
     const today = new Date().toISOString().split("T")[0];
     const existing = await db
       .select()
@@ -298,7 +305,6 @@ router.get("/briefing/today", async (req, res) => {
       .limit(1);
 
     if (existing.length > 0) {
-      await setCachedBriefing(existing[0]);
       return res.json(existing[0]);
     }
 
@@ -316,7 +322,6 @@ router.get("/briefing/today", async (req, res) => {
       pendingTasksCount: ctx.pendingTasksCount,
     }).returning();
 
-    await setCachedBriefing(created);
     return res.json(created);
   } catch (err) {
     req.log.error({ err }, "Error getting today briefing");
@@ -343,7 +348,6 @@ router.post("/briefing/generate", async (req, res) => {
       pendingTasksCount: ctx.pendingTasksCount,
     }).returning();
 
-    await invalidateBriefingCache();
     return res.json(created);
   } catch (err) {
     req.log.error({ err }, "Error generating briefing");
