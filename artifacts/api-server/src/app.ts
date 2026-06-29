@@ -131,17 +131,22 @@ app.use("/api/conversations", aiRateLimit);
 app.use("/api/agents", aiRateLimit);
 app.use("/api", defaultRateLimit);
 
-// Auth middleware - apply to all API routes except public health endpoints
+// Auth middleware - public health/auth endpoints always optional.
 app.use("/api/healthz", optionalAuth);
 app.use("/api/health", optionalAuth);
 app.use("/api/auth", optionalAuth);
 
-// All other API routes require authentication
+// INVARIANT (/AGENTS.md) : auth OPTIONNELLE par défaut. TAMS est une plateforme
+// PERSONNELLE et le frontend n'authentifie pas encore (aucun token envoyé) :
+// exiger requireAuth sur tout /api renvoie 401 partout → app ENTIÈREMENT cassée.
+// Mettre REQUIRE_AUTH=true (quand une UI de login Supabase existe) pour exiger le
+// JWT. Sinon, on attache l'utilisateur si un token est présent, sans bloquer.
+const AUTH_REQUIRED = process.env.REQUIRE_AUTH === "true";
 app.use("/api", (req, res, next) => {
   if (req.path.startsWith("/healthz") || req.path.startsWith("/health") || req.path.startsWith("/auth")) {
     return next();
   }
-  return requireAuth(req, res, next);
+  return AUTH_REQUIRED ? requireAuth(req, res, next) : optionalAuth(req, res, next);
 });
 
 app.use("/api", router);

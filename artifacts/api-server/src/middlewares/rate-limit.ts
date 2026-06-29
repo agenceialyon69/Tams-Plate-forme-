@@ -75,8 +75,15 @@ class RateLimiter {
   }
 }
 
+// INVARIANT (/AGENTS.md) : LIER la méthode à son instance. `new RateLimiter().middleware`
+// exporté tel quel est NON LIÉ → quand Express l'appelle, `this` est undefined →
+// "Cannot read properties of undefined (reading 'store')" → 500 sur CHAQUE requête
+// (même /api/healthz) → app entièrement morte + healthcheck Railway KO. NE PAS RÉVERTER.
+const aiLimiter = new RateLimiter(20, 60_000);
+const defaultLimiter = new RateLimiter(120, 60_000);
+
 /** Preset: AI routes - 20 req / minute */
-export const aiRateLimit = new RateLimiter(20, 60_000).middleware;
+export const aiRateLimit = aiLimiter.middleware.bind(aiLimiter);
 
 /** Preset: general API - 120 req / minute */
-export const defaultRateLimit = new RateLimiter(120, 60_000).middleware;
+export const defaultRateLimit = defaultLimiter.middleware.bind(defaultLimiter);
