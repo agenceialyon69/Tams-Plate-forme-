@@ -104,6 +104,66 @@ function providers(): Provider[] {
     });
   }
 
+  // 4b. DeepSeek — raisonnement/code excellents (deepseek-reasoner = R1).
+  if (process.env.DEEPSEEK_API_KEY) {
+    list.push({
+      name: "deepseek",
+      baseUrl: "https://api.deepseek.com/v1",
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      models: {
+        chat: "deepseek-chat",
+        fast: "deepseek-chat",
+        reasoning: "deepseek-reasoner",
+        json: "deepseek-chat",
+      },
+    });
+  }
+
+  // 4c. Qwen (DashScope, endpoint OpenAI-compatible) — généraliste + code.
+  if (process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY) {
+    list.push({
+      name: "qwen",
+      baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      apiKey: (process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY)!,
+      models: {
+        chat: "qwen-plus",
+        fast: "qwen-turbo",
+        reasoning: "qwen-plus",
+        json: "qwen-plus",
+      },
+    });
+  }
+
+  // 4d. Mistral — rédaction/raisonnement (offre gratuite "small").
+  if (process.env.MISTRAL_API_KEY) {
+    list.push({
+      name: "mistral",
+      baseUrl: "https://api.mistral.ai/v1",
+      apiKey: process.env.MISTRAL_API_KEY,
+      models: {
+        chat: "mistral-small-latest",
+        fast: "open-mistral-7b",
+        reasoning: "mistral-small-latest",
+        json: "mistral-small-latest",
+      },
+    });
+  }
+
+  // 4e. Hugging Face (router OpenAI-compatible) — accès Qwen/DeepSeek/… via HF_TOKEN.
+  if (process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY) {
+    list.push({
+      name: "huggingface",
+      baseUrl: "https://router.huggingface.co/v1",
+      apiKey: (process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY)!,
+      models: {
+        chat: "Qwen/Qwen2.5-72B-Instruct",
+        fast: "Qwen/Qwen2.5-7B-Instruct",
+        reasoning: "deepseek-ai/DeepSeek-R1",
+        json: "Qwen/Qwen2.5-72B-Instruct",
+      },
+    });
+  }
+
   // 5. OpenRouter — modèles `:free` uniquement (jamais de modèle payant).
   if (process.env.OPENROUTER_API_KEY) {
     list.push({
