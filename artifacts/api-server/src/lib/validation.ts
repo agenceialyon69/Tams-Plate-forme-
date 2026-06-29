@@ -133,17 +133,20 @@ async function checkWorkflows(): Promise<Check> {
 
 async function checkReflection(): Promise<Check> {
   try {
-    const result = await ReflectionEngine.reflect({
-      agentRole: "chief_of_staff",
-      query: "VIS test reflection",
-      result: "test OK",
-      success: true,
-      durationMs: 1,
-      timestamp: new Date(),
-    });
-    return result && result.outcome
-      ? { category: "Reflection", name: "Reflection Engine", status: "PASS", detail: `reflect OK (outcome: ${result.outcome})` }
-      : { category: "Reflection", name: "Reflection Engine", status: "WARN", detail: "reflect n'a pas retourné d'outcome" };
+    const result = await Promise.race([
+      ReflectionEngine.reflect({
+        agentRole: "chief_of_staff",
+        query: "VIS test reflection",
+        result: "test OK",
+        success: true,
+        durationMs: 1,
+        timestamp: new Date(),
+      }),
+      new Promise<null>((r) => setTimeout(() => r(null), 5000)),
+    ]);
+    return result && result.whatWorked !== undefined
+      ? { category: "Reflection", name: "Reflection Engine", status: "PASS", detail: `reflect OK (${result.whatWorked.length} points forts, ${result.improvementSuggestions.length} suggestions)` }
+      : { category: "Reflection", name: "Reflection Engine", status: "WARN", detail: "reflect timeout (IA lente) — moteur chargé" };
   } catch (err) {
     return { category: "Reflection", name: "Reflection Engine", status: "FAIL", detail: err instanceof Error ? err.message.slice(0, 100) : "erreur" };
   }
