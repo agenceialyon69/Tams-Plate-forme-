@@ -35,6 +35,11 @@ jobs:
           # Free-first : aucune réintroduction du SDK propriétaire `openai`. Tout
           # passe par lib/ai.ts (fetch, OpenAI-compatible, fournisseurs gratuits).
           if grep -rnE "from \"openai\"|from 'openai'|import\(['\"]openai['\"]\)|require\(['\"]openai['\"]\)" artifacts/api-server/src >/dev/null 2>&1; then echo "❌ SDK openai réintroduit (free-first only — voir lib/ai.ts)"; fail=1; else echo "✅ pas de SDK openai (free-first)"; fi
+          # VIS : routes critiques RÉELLEMENT montées (sinon page = 404, ex Workflows).
+          for r in workflowsRouter studioVideoRouter studioMusicRouter integrationsRouter selfDevRouter; do
+            grep -q "$r" artifacts/api-server/src/routes/index.ts || { echo "❌ route non montée: $r"; fail=1; }
+          done
+          grep -q '/system/validate' artifacts/api-server/src/routes/system.ts && echo "✅ VIS endpoint présent" || { echo "❌ VIS /system/validate manquant"; fail=1; }
           exit $fail
 
   build-and-smoke:
@@ -81,5 +86,7 @@ jobs:
           check http://127.0.0.1:4000/api/agents 200
           check http://127.0.0.1:4000/api/conversations 200
           check http://127.0.0.1:4000/api/tasks 200
+          check http://127.0.0.1:4000/api/workflows 200
+          check http://127.0.0.1:4000/api/system/validate 200
           [ "$(curl -s http://127.0.0.1:4000/api/tasks | head -c1)" = "[" ] && echo "✅ tasks tableau" || { echo "❌ tasks pas tableau"; fail=1; }
           exit $fail
