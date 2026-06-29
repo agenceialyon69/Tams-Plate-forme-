@@ -6,6 +6,7 @@ import {
   type Asset, type Project, type AssetInput, type AssetUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ProductVideoMaker } from "@/components/product-video-maker";
 import {
   Plus, Image, Film, Mic, FileText, Sparkles, Layout, Star, Trash2, Wand2,
   Link, ExternalLink, Copy, Check, Send, MessageSquare, Palette, Bot,
@@ -1984,9 +1985,12 @@ export default function Studio() {
 
           {/* Forms */}
           {showForm && (
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-2xl mx-auto space-y-4">
               {selectedFormType === "video" ? (
-                <VideoForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} projects={projects} />
+                <>
+                  <ProductVideoMaker />
+                  <VideoForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} projects={projects} />
+                </>
               ) : selectedFormType === "audio" ? (
                 <AudioForm onCancel={() => setShowForm(false)} onSave={handleSave} isLoading={create.isPending} projects={projects} />
               ) : selectedFormType === "image" ? (

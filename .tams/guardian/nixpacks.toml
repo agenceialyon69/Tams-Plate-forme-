@@ -1,6 +1,7 @@
 # NE PAS RÉVERTER (/AGENTS.md). Auto-réparé par guardian.yml.
 [phases.setup]
-nixPkgs = ["nodejs_22", "pnpm"]
+# ffmpeg : génération vidéo (Studio) — slideshow produits → mp4 9:16 TikTok. Gratuit.
+nixPkgs = ["nodejs_22", "pnpm", "ffmpeg"]
 
 [phases.install]
 cmds = ["pnpm install --no-frozen-lockfile"]
