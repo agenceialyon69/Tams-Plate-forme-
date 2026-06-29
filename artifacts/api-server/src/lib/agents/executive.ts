@@ -2,6 +2,7 @@ import { aiChat } from "../ai";
 import { generateMusic } from "../audio";
 import { generateSlideshowVideo } from "../video";
 import { db, assetsTable, memoriesTable } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { logActivity } from "../activity";
 
 /**
@@ -15,10 +16,12 @@ import { logActivity } from "../activity";
  * Chat, ou un message. La mission est tracée (memory + asset + activity).
  */
 
-type MissionKind = "music" | "video" | "image" | "generic";
+type MissionKind = "music" | "video" | "image" | "campaign" | "shopify" | "generic";
 
 function classify(goal: string): MissionKind {
   const g = goal.toLowerCase();
+  if (/(shopify|boutique|store)/.test(g) && /(analyse|audit|am[ée]li|probl|optimi)/.test(g)) return "shopify";
+  if (/(campagne|marketing|publicit|\bpub\b|promo|annonce|\bads?\b)/.test(g)) return "campaign";
   if (/\b(clip|vid[ée]o|video|tiktok|reel|short|montage|film)\b/.test(g)) return "video";
   if (/\b(musique|music|son|chanson|beat|drill|rap|instru|track|m[ée]lodie|prod)\b/.test(g)) return "music";
   if (/\b(image|visuel|photo|affiche|poster|logo|illustration|cover)\b/.test(g)) return "image";
@@ -98,6 +101,42 @@ export async function executeMission(goal: string): Promise<string> {
     return `IMAGE:${url}`;
   }
 
+  // ── Mission CAMPAGNE MARKETING : stratégie + posts + hashtags + visuel ──
+  if (kind === "campaign") {
+    const strategy = await llm(
+      "Tu es directeur marketing. Crée une mini-campagne PRÊTE À PUBLIER pour la demande : " +
+        "1) Angle/positionnement (2 lignes) ; 2) 3 légendes de posts complètes ; 3) 10 hashtags ; " +
+        "4) 1 idée de clip TikTok. Français, structuré, concret.",
+      goal, 750,
+    );
+    const heroUrl = pollImage(`marketing hero visual, ${goal}, professional, eye-catching, social media ad`, Math.floor(Math.random() * 1e6), 1024, 1024);
+    await memorize("campaign", goal, heroUrl, "image", strategy);
+    return `${strategy}\n\n🖼️ Visuel hero généré (disponible dans Studio → Assets).`;
+  }
+
+  // ── Mission AUDIT SHOPIFY : lit les produits importés et produit un audit CRO ──
+  if (kind === "shopify") {
+    let products: { name: string; content: string | null }[] = [];
+    try {
+      products = await db.select({ name: assetsTable.name, content: assetsTable.content })
+        .from(assetsTable)
+        .where(sql`${assetsTable.tags} @> '["shopify"]'::jsonb`)
+        .limit(40);
+    } catch {
+      /* lecture best-effort */
+    }
+    if (products.length === 0) {
+      return "Aucun produit Shopify importé. Va dans Système → « Connecter Shopify » pour importer ta boutique (jeton shpat_…), puis relance « analyse ma boutique Shopify ».";
+    }
+    const list = products.map((p) => `- ${p.name}: ${(p.content || "").slice(0, 80)}`).join("\n");
+    const audit = await llm(
+      "Tu es expert e-commerce/CRO. Audite ces produits : 1) problèmes détectés ; 2) améliorations CONCRÈTES (titres, descriptions, prix psychologiques) ; 3) 3 idées de pub/clip TikTok. Français, actionnable.",
+      `Boutique (${products.length} produits) :\n${list}`, 850,
+    );
+    await memorize("shopify", "Audit boutique Shopify", null, "image", audit);
+    return `📊 Audit de ta boutique Shopify (${products.length} produits analysés) :\n\n${audit}`;
+  }
+
   // ── Générique : guide vers une production concrète ──
-  return `Je suis l'AI Executive. Je peux produire automatiquement : 🎵 musique, 🎬 clip vidéo TikTok, 🖼️ image. Dis par exemple « crée une musique drill » ou « crée un clip TikTok de baskets sur fond blanc ».`;
+  return `Je suis l'AI Executive. Je produis automatiquement : 🎵 musique, 🎬 clip TikTok, 🖼️ image, 📣 campagne marketing, 📊 audit Shopify. Exemples : « crée une musique drill », « crée un clip TikTok de baskets », « crée une campagne marketing pour ma boutique », « analyse ma boutique Shopify ».`;
 }

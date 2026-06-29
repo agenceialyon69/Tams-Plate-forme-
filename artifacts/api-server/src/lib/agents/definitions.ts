@@ -169,7 +169,7 @@ const createVideoTool: AgentTool = {
 
 const executeMissionTool: AgentTool = {
   name: "execute_mission",
-  description: "Réalise une MISSION CRÉATIVE COMPLÈTE de bout en bout (l'AI Executive orchestre tout automatiquement). À utiliser quand l'utilisateur demande une production aboutie : « crée une musique drill », « crée un clip TikTok de … », « fais-moi une cover ». Renvoie le média final.",
+  description: "Réalise une MISSION COMPLÈTE de bout en bout (l'AI Executive orchestre tout automatiquement). À utiliser dès que l'utilisateur demande une production aboutie : musique (« crée une musique drill »), clip vidéo (« crée un clip TikTok de … »), image/cover, campagne marketing (« crée une campagne pour … »), ou audit Shopify (« analyse ma boutique Shopify »). Renvoie le résultat final.",
   parameters: {
     type: "object",
     properties: {
