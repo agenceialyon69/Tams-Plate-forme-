@@ -331,14 +331,16 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
     }
 
-    // Execute tool calls
+    // Execute tool calls — événements alignés sur le frontend (tool_start/tool_done)
+    // pour que l'utilisateur VOIE le Chat agir sur la plateforme.
     if (pendingToolCalls.length > 0) {
       for (const tc of pendingToolCalls) {
         let args: Record<string, unknown>;
         try { args = JSON.parse(tc.args); } catch { args = {}; }
+        send({ type: "tool_start", name: tc.name, args });
         const result = await executeTool(tc.name, args);
         toolResults.push({ name: tc.name, result });
-        send({ type: "tool", name: tc.name, result });
+        send({ type: "tool_done", name: tc.name, result });
       }
 
       // Follow-up to summarize

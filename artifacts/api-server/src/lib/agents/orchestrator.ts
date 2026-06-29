@@ -86,6 +86,29 @@ async function executeSearchMemories(args: Record<string, unknown>): Promise<str
   return `Mémoires trouvées (${results.length}):\n${results.map(m => `- ${m.title}: ${m.content?.slice(0, 100) || "pas de contenu"}`).join("\n")}`;
 }
 
+async function executeListTasks(args: Record<string, unknown>): Promise<string> {
+  const limit = Math.min(Number(args.limit) || 10, 25);
+  const rows = await db.select().from(tasksTable)
+    .where(sql`${tasksTable.status} NOT IN ('done','cancelled')`)
+    .orderBy(desc(tasksTable.createdAt))
+    .limit(limit);
+  if (rows.length === 0) return "Aucune tâche active.";
+  return `Tâches actives (${rows.length}):\n${rows.map(t => `- #${t.id} "${t.title}" (${t.priority}, ${t.status})`).join("\n")}`;
+}
+
+async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<string> {
+  const id = Number(args.task_id ?? args.id ?? args.taskId);
+  const status = String(args.status) as "todo" | "in_progress" | "done" | "cancelled";
+  if (!id || !["todo", "in_progress", "done", "cancelled"].includes(status)) {
+    return "Paramètres invalides (id + status: todo|in_progress|done|cancelled).";
+  }
+  const [updated] = await db.update(tasksTable)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(tasksTable.id, id))
+    .returning();
+  return updated ? `Tâche #${id} → ${status}.` : `Tâche #${id} introuvable.`;
+}
+
 // ─── Tool Dispatcher ────────────────────────────────────────────────────────
 
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -102,6 +125,13 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
       return executeCreateMemory(args);
     case "search_memories":
       return executeSearchMemories(args);
+    case "list_tasks":
+      return executeListTasks(args);
+    case "update_task_status":
+    case "complete_task":
+      return executeUpdateTaskStatus(
+        name === "complete_task" ? { ...args, status: "done" } : args,
+      );
     case "delegate_to_agent":
       // Delegation is handled at the orchestrator level
       return `Délégation demandée à: ${args.agent}`;

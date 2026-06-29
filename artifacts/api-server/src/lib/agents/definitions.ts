@@ -139,6 +139,18 @@ const updateTaskStatusTool: AgentTool = {
   execute: async (args) => `Statut mis à jour pour la tâche ${args.task_id}: ${args.status}`,
 };
 
+const listTasksTool: AgentTool = {
+  name: "list_tasks",
+  description: "Liste les tâches actives de l'utilisateur (pour faire le point / prioriser)",
+  parameters: {
+    type: "object",
+    properties: {
+      limit: { type: "number", description: "Nombre max de tâches (défaut 10)" },
+    },
+  },
+  execute: async () => "Tâches listées",
+};
+
 const createProjectContactTool: AgentTool = {
   name: "create_project_contact",
   description: "Lie un contact à un projet",
@@ -176,7 +188,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: "Chief of Staff",
     description: "Orchestrateur exécutif. Analyse la situation globale, priorise, coordonne les autres agents.",
     capabilities: ["analyze", "create", "delegate", "monitor"],
-    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, createProjectContactTool, scheduleReminderTool],
+    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, createProjectContactTool, scheduleReminderTool],
     systemPrompt: `Tu es le Chief of Staff IA de Mohamed, consultant indépendant.
 
 Ton rôle est d'être l'orchestrateur exécutif de son AI Operating System.
