@@ -139,6 +139,19 @@ const updateTaskStatusTool: AgentTool = {
   execute: async (args) => `Statut mis à jour pour la tâche ${args.task_id}: ${args.status}`,
 };
 
+const generateImageTool: AgentTool = {
+  name: "generate_image",
+  description: "Génère une image à partir d'une description (visuel produit, illustration, concept). Utilise-le quand l'utilisateur demande une image/visuel.",
+  parameters: {
+    type: "object",
+    properties: {
+      prompt: { type: "string", description: "Description détaillée de l'image (en anglais de préférence pour de meilleurs résultats)" },
+    },
+    required: ["prompt"],
+  },
+  execute: async () => "Image générée",
+};
+
 const listTasksTool: AgentTool = {
   name: "list_tasks",
   description: "Liste les tâches actives de l'utilisateur (pour faire le point / prioriser)",
@@ -188,7 +201,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: "Chief of Staff",
     description: "Orchestrateur exécutif. Analyse la situation globale, priorise, coordonne les autres agents.",
     capabilities: ["analyze", "create", "delegate", "monitor"],
-    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, createProjectContactTool, scheduleReminderTool],
+    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createProjectContactTool, scheduleReminderTool],
     systemPrompt: `Tu es le Chief of Staff IA de Mohamed, consultant indépendant.
 
 Ton rôle est d'être l'orchestrateur exécutif de son AI Operating System.

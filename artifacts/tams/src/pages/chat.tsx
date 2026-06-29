@@ -163,9 +163,20 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
               </span>
             )}
           </div>
-          <div className="text-[10px] opacity-80 truncate">
-            {isError ? tool.error : tool.result}
-          </div>
+          {!isError && typeof tool.result === "string" && tool.result.startsWith("IMAGE:") ? (
+            <a href={tool.result.slice(6)} target="_blank" rel="noreferrer">
+              <img
+                src={tool.result.slice(6)}
+                alt="Image générée"
+                className="mt-1.5 rounded-lg w-full max-w-[220px] aspect-square object-cover border border-border"
+                loading="lazy"
+              />
+            </a>
+          ) : (
+            <div className="text-[10px] opacity-80 truncate">
+              {isError ? tool.error : tool.result}
+            </div>
+          )}
         </div>
         {meta.link && !isError && (
           <div className={cn(

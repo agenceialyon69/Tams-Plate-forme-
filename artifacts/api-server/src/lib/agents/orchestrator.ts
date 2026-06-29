@@ -96,6 +96,16 @@ async function executeListTasks(args: Record<string, unknown>): Promise<string> 
   return `Tâches actives (${rows.length}):\n${rows.map(t => `- #${t.id} "${t.title}" (${t.priority}, ${t.status})`).join("\n")}`;
 }
 
+async function executeGenerateImage(args: Record<string, unknown>): Promise<string> {
+  const prompt = String(args.prompt ?? args.description ?? "").trim();
+  if (!prompt) return "Décris l'image à générer.";
+  // Pollinations : génération GRATUITE, sans clé, déterministe par URL.
+  const seed = Math.floor(Math.random() * 1_000_000);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
+  // Marqueur IMAGE: → le Chat affiche l'image (et non juste l'URL).
+  return `IMAGE:${url}`;
+}
+
 async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<string> {
   const id = Number(args.task_id ?? args.id ?? args.taskId);
   const status = String(args.status) as "todo" | "in_progress" | "done" | "cancelled";
@@ -125,6 +135,8 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
       return executeCreateMemory(args);
     case "search_memories":
       return executeSearchMemories(args);
+    case "generate_image":
+      return executeGenerateImage(args);
     case "list_tasks":
       return executeListTasks(args);
     case "update_task_status":
