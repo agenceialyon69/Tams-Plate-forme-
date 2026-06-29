@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { aiRateLimit, defaultRateLimit } from "../middlewares/rate-limit";
 import healthRouter from "./health";
+import authRouter from "./auth";
 import briefingRouter from "./briefing";
 import conversationsRouter from "./conversations";
 import tasksRouter from "./tasks";
@@ -26,12 +27,13 @@ import missionsRouter from "./missions";
 
 const router: IRouter = Router();
 
+// Auth routes - public (no auth required)
+router.use(authRouter);
+
+// Health routes - public
 router.use(healthRouter);
+
 router.use(briefingRouter);
-// INVARIANT (/AGENTS.md #8) : conversationsRouter et agentsRouter définissent
-// déjà leurs chemins complets (/conversations, /agents). Les monter SANS préfixe.
-// Avec un préfixe → double-préfixe → GET /api/conversations renvoie le HTML SPA
-// → "X.find is not a function" → page noire du Chat. NE PAS RÉVERTER.
 router.use("/conversations", aiRateLimit);
 router.use(conversationsRouter);
 router.use("/agents", aiRateLimit);
@@ -52,8 +54,6 @@ router.use(studioMusicRouter);
 router.use(systemRouter);
 router.use(observabilityRouter);
 router.use(integrationsRouter);
-// FIX VIS : ces routes existaient mais n'étaient PAS montées → la page Workflows
-// (frontend) appelait /api/workflows en 404. Maintenant branchées.
 router.use(workflowsRouter);
 router.use(exportRouter);
 router.use(missionsRouter);
