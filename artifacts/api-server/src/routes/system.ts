@@ -12,7 +12,11 @@ const router = Router();
  * Admin-only middleware for sensitive system endpoints
  */
 function requireAdminOrDev(_req: any, res: any, next: any) {
-  if (process.env.NODE_ENV === "production") {
+  // INVARIANT (/AGENTS.md) : cohérent avec l'auth GLOBALE opt-in (app.ts). Tant que
+  // REQUIRE_AUTH n'est pas activé (mode personnel par défaut), les diagnostics sont
+  // accessibles (sinon /api/system/validate → 401 → smoke CI KO + diagnostics
+  // inaccessibles au navigateur). Quand REQUIRE_AUTH=true, on exige le rôle admin.
+  if (process.env.REQUIRE_AUTH === "true") {
     const user = _req.user;
     if (!user) {
       return res.status(401).json({ error: "Authentification requise" });
