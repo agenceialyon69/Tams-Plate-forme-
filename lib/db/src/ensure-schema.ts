@@ -45,24 +45,79 @@ async function waitForDatabase(attempts = 30, delayMs = 2000): Promise<void> {
     }
   }
 }
+
+const PGVECTOR_SQL = [
+  `CREATE EXTENSION IF NOT EXISTS vector`,
+  `ALTER TABLE memories ADD COLUMN IF NOT EXISTS embedding vector(384)`,
+  `ALTER TABLE memories ADD COLUMN IF NOT EXISTS search_vector tsvector`,
+  `CREATE INDEX IF NOT EXISTS idx_memories_search_vector ON memories USING GIN(search_vector)`,
+  `CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING ivfflat (embedding vector_cosine_ops)`,
+];
+
+const TRIGGER_SQL = `
+  CREATE OR REPLACE FUNCTION update_search_vector()
+  RETURNS trigger AS $$
+  BEGIN
+    NEW.search_vector :=
+      setweight(to_tsvector('french', COALESCE(NEW.title, '')), 'A') ||
+      setweight(to_tsvector('french', COALESCE(NEW.content, '')), 'B') ||
+      setweight(to_tsvector('french', COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(NEW.tags)), ' '), '')), 'C');
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+`;
+
+const MATCH_MEMORIES_SQL = `
+  CREATE OR REPLACE FUNCTION match_memories(
+    query_embedding vector(384),
+    match_threshold float DEFAULT 0.5,
+    match_count int DEFAULT 10
+  )
+  RETURNS TABLE(
+    id int,
+    title text,
+    content text,
+    type text,
+    similarity float
+  )
+  LANGUAGE sql STABLE
+  AS $$
+    SELECT
+      m.id,
+      m.title,
+      m.content,
+      m.type,
+      1 - (m.embedding <=> query_embedding) AS similarity
+    FROM memories m
+    WHERE 1 - (m.embedding <=> query_embedding) > match_threshold
+    ORDER BY m.embedding <=> query_embedding
+    LIMIT match_count;
+  $$;
+`;
+
+const ATTACH_TRIGGER_SQL = `
+  DROP TRIGGER IF EXISTS memories_search_vector_update ON memories;
+  CREATE TRIGGER memories_search_vector_update
+    BEFORE INSERT OR UPDATE ON memories
+    FOR EACH ROW
+    EXECUTE FUNCTION update_search_vector();
+`;
+
 /** Garantit le schéma. Ne lève jamais (pas de crash-loop). */
 export async function ensureSchema(): Promise<boolean> {
   try {
     await waitForDatabase();
     for (const [n, v] of ENUMS) await pool.query(enumStmt(n, v));
     for (const sql of TABLES) await pool.query(sql);
-    await pool.query(`
-      CREATE OR REPLACE FUNCTION update_search_vector()
-      RETURNS trigger AS $
-      BEGIN
-        NEW.search_vector :=
-          setweight(to_tsvector('french', COALESCE(NEW.title, '')), 'A') ||
-          setweight(to_tsvector('french', COALESCE(NEW.content, '')), 'B') ||
-          setweight(to_tsvector('french', COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(NEW.tags)), ' '), '')), 'C');
-        RETURN NEW;
-      END;
-      $ LANGUAGE plpgsql;
-    `);
+    for (const sql of PGVECTOR_SQL) {
+      try { await pool.query(sql); }
+      catch (err) {
+        console.error(`[db] pgvector step échoué (non bloquant): ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    await pool.query(TRIGGER_SQL);
+    await pool.query(MATCH_MEMORIES_SQL);
+    await pool.query(ATTACH_TRIGGER_SQL);
     return true;
   } catch (err) {
     console.error(`[db] ensureSchema a échoué (le serveur continue): ${err instanceof Error ? err.message : err}`);
