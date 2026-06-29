@@ -16,7 +16,7 @@
  * 5. Google AI Studio - Gemini free tier
  */
 
-type ChatMessage = { role: "system" | "user" | "assistant" | "tool"; content: string };
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -365,11 +365,9 @@ export function createClient(model: ModelConfig): {
 
 // ─── Completion Helper ───────────────────────────────────────────────────────
 
-import { aiChat } from "./ai";
-
 export async function smartCompletion(
   task: AICapability,
-  messages: ChatMessage[],
+  messages: ChatCompletionMessageParam[],
   options: {
     maxTokens?: number;
     needsTools?: boolean;
@@ -390,17 +388,23 @@ export async function smartCompletion(
 
   const start = Date.now();
 
-  const body: Record<string, unknown> = {
-    model: client.model,
-    messages,
-    max_tokens: maxTokens,
-  };
-  if (tools && routing.model.supportsTools) body.tools = tools;
-  if (needsJSON && routing.model.supportsJSON) body.response_format = { type: "json_object" };
-
   try {
-    const completion = await aiChat(body);
-    const content = completion.choices?.[0]?.message?.content || "";
+    const { default: OpenAI } = await import("openai");
+    const openai = new OpenAI({
+      baseURL: client.baseURL,
+      apiKey: client.apiKey,
+      defaultHeaders: client.headers,
+    });
+
+    const completion = await openai.chat.completions.create({
+      model: client.model,
+      messages,
+      max_tokens: maxTokens,
+      tools: tools && routing.model.supportsTools ? tools : undefined,
+      response_format: needsJSON && routing.model.supportsJSON ? { type: "json_object" } : undefined,
+    });
+
+    const content = completion.choices[0]?.message?.content || "";
 
     return {
       content,
@@ -412,16 +416,21 @@ export async function smartCompletion(
     for (const fallback of routing.fallbackChain) {
       try {
         const fallbackClient = createClient(fallback);
-        const fallbackBody = {
+        const { default: OpenAI } = await import("openai");
+        const openai = new OpenAI({
+          baseURL: fallbackClient.baseURL,
+          apiKey: fallbackClient.apiKey,
+          defaultHeaders: fallbackClient.headers,
+        });
+
+        const completion = await openai.chat.completions.create({
           model: fallbackClient.model,
           messages,
           max_tokens: maxTokens,
-        };
-
-        const completion = await aiChat(fallbackBody);
+        });
 
         return {
-          content: completion.choices?.[0]?.message?.content || "",
+          content: completion.choices[0]?.message?.content || "",
           model: fallback.id,
           latencyMs: Date.now() - start,
         };
