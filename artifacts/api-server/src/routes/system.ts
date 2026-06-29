@@ -8,22 +8,33 @@ import { desc, eq, sql } from "drizzle-orm";
 
 const router = Router();
 
-// VIS — Validation & Integration System. Teste chaque sous-système (IA, DB,
-// FFmpeg, agents, mémoire…) → rapport PASS/WARN/FAIL. Preuve de l'état runtime
-// (Railway inclus). Ouvrable au navigateur.
-router.get("/system/validate", async (_req, res) => {
+/**
+ * Admin-only middleware for sensitive system endpoints
+ */
+function requireAdminOrDev(_req: any, res: any, next: any) {
+  if (process.env.NODE_ENV === "production") {
+    const user = _req.user;
+    if (!user) {
+      return res.status(401).json({ error: "Authentification requise" });
+    }
+    if (user.role !== "admin") {
+      return res.status(403).json({ error: "Acces refuse - droits administrateur requis" });
+    }
+  }
+  next();
+}
+
+router.get("/system/validate", requireAdminOrDev, async (_req, res) => {
   try {
     const { runValidation } = await import("../lib/validation");
     const report = await runValidation();
     return res.json(report);
   } catch (err) {
-    return res.status(500).json({ error: "Validation échouée", detail: err instanceof Error ? err.message : String(err) });
+    return res.status(500).json({ error: "Validation echouee", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 
-// VIS USAGE — observabilité MÉTIER : quels composants sont RÉELLEMENT utilisés
-// (nb d'appels + dernière utilisation), depuis le journal d'activité.
-router.get("/system/usage", async (_req, res) => {
+router.get("/system/usage", requireAdminOrDev, async (_req, res) => {
   try {
     const r = await pool.query(
       `SELECT type, title, COUNT(*)::int AS count, MAX(created_at) AS last_used
@@ -39,36 +50,29 @@ router.get("/system/usage", async (_req, res) => {
   }
 });
 
-// VIS END-TO-END SCENARIOS — exécute RÉELLEMENT chaque parcours utilisateur
-// complet (Chat→Tool→Council/Planner→FFmpeg/HF→DB→Reflection). LENT (~1-2 min :
-// appels IA + vidéo). Données de test nettoyées. Ouvrable au navigateur.
-router.get("/system/scenarios", async (_req, res) => {
+router.get("/system/scenarios", requireAdminOrDev, async (_req, res) => {
   try {
     const { runScenarios } = await import("../lib/scenarios");
     return res.json(await runScenarios());
   } catch (err) {
-    return res.status(500).json({ error: "Scénarios échoués", detail: err instanceof Error ? err.message : String(err) });
+    return res.status(500).json({ error: "Scenarios echoues", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 
-// VIS SELF-TEST FONCTIONNEL — exécute RÉELLEMENT l'IA + l'encodage vidéo (preuve
-// de production de bout en bout). Plus lent (~5-15s). Ouvrable au navigateur.
-router.get("/system/selftest", async (_req, res) => {
+router.get("/system/selftest", requireAdminOrDev, async (_req, res) => {
   try {
     const { runSelfTest } = await import("../lib/validation");
     return res.json(await runSelfTest());
   } catch (err) {
-    return res.status(500).json({ error: "Self-test échoué", detail: err instanceof Error ? err.message : String(err) });
+    return res.status(500).json({ error: "Self-test echoue", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 
-// DIAGNOSTIC DB — n'échoue JAMAIS (attrape tout) : dit pourquoi les endpoints
-// liste plantent (connexion/SSL/auth ou schéma manquant). Ouvrable au navigateur.
-router.get("/system/db", async (_req, res) => {
+router.get("/system/db", requireAdminOrDev, async (_req, res) => {
   const out: Record<string, unknown> = {};
   const url = process.env.DATABASE_URL || "";
   out.hasDatabaseUrl = !!url;
-  out.host = (url.match(/@([^/:]+)/)?.[1]) ?? null;          // hôte seul (pas de secret)
+  out.host = (url.match(/@([^/:]+)/)?.[1]) ?? null;
   out.sslmodeInUrl = url.match(/sslmode=\w+/)?.[0] ?? null;
 
   try {
@@ -91,9 +95,7 @@ router.get("/system/db", async (_req, res) => {
   return res.json(out);
 });
 
-// RÉPARE le schéma à la demande (idempotent) — utile si ensureSchema a échoué
-// au boot (DB pas encore prête). Ouvrable au navigateur ; renvoie le résultat.
-router.get("/system/ensure-schema", async (_req, res) => {
+router.get("/system/ensure-schema", requireAdminOrDev, async (_req, res) => {
   try {
     const ok = await ensureSchema();
     return res.json({ ok });
@@ -102,47 +104,53 @@ router.get("/system/ensure-schema", async (_req, res) => {
   }
 });
 
-// AUDIT — full activity history with optional type filter
 router.get("/system/audit", async (req, res) => {
   try {
     const { type, limit } = req.query;
     const max = Math.min(Number(limit) || 100, 500);
-
     let query = db.select().from(activityTable).orderBy(desc(activityTable.createdAt)).limit(max);
     const rows = await query;
-
-    const filtered = type ? rows.filter(r => r.type === type) : rows;
-    return res.json(filtered);
+    const userId = (req as any).user?.id;
+    const filtered = rows.filter(r => {
+      if (!userId) return false;
+      return (r as any).user_id === userId || (!type ? true : r.type === type);
+    });
+    return res.json(filtered.slice(0, max));
   } catch (err) {
     req.log.error({ err }, "Error getting audit log");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// STATS — system health and data counts
 router.get("/system/stats", async (req, res) => {
   try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.json({
+        tables: { tasks: 0, projects: 0, contacts: 0, memories: 0, decisions: 0, conversations: 0, assets: 0, activity: 0 },
+        totalRecords: 0,
+        status: "unauthenticated",
+      });
+    }
+
     const [tasks, projects, contacts, memories, decisions, conversations, assets, activity] = await Promise.all([
-      db.select({ count: sql<number>`COUNT(*)` }).from(tasksTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(projectsTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(contactsTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(memoriesTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(decisionsTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(conversationsTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(assetsTable),
-      db.select({ count: sql<number>`COUNT(*)` }).from(activityTable),
+      db.select({ count: sql<number>`COUNT(*)` }).from(tasksTable).where(eq((tasksTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(projectsTable).where(eq((projectsTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(contactsTable).where(eq((contactsTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(memoriesTable).where(eq((memoriesTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(decisionsTable).where(eq((decisionsTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(conversationsTable).where(eq((conversationsTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(assetsTable).where(eq((assetsTable as any).user_id, userId)),
+      db.select({ count: sql<number>`COUNT(*)` }).from(activityTable).where(eq((activityTable as any).user_id, userId)),
     ]);
 
     return res.json({
       tables: {
-        tasks: Number(tasks[0]?.count ?? 0),
-        projects: Number(projects[0]?.count ?? 0),
-        contacts: Number(contacts[0]?.count ?? 0),
-        memories: Number(memories[0]?.count ?? 0),
-        decisions: Number(decisions[0]?.count ?? 0),
-        conversations: Number(conversations[0]?.count ?? 0),
-        assets: Number(assets[0]?.count ?? 0),
-        activity: Number(activity[0]?.count ?? 0),
+        tasks: Number(tasks[0]?.count ?? 0), projects: Number(projects[0]?.count ?? 0),
+        contacts: Number(contacts[0]?.count ?? 0), memories: Number(memories[0]?.count ?? 0),
+        decisions: Number(decisions[0]?.count ?? 0), conversations: Number(conversations[0]?.count ?? 0),
+        assets: Number(assets[0]?.count ?? 0), activity: Number(activity[0]?.count ?? 0),
       },
       totalRecords: Number(tasks[0]?.count ?? 0) + Number(projects[0]?.count ?? 0) + Number(contacts[0]?.count ?? 0) + Number(memories[0]?.count ?? 0) + Number(decisions[0]?.count ?? 0) + Number(conversations[0]?.count ?? 0) + Number(assets[0]?.count ?? 0) + Number(activity[0]?.count ?? 0),
       status: "ok",
@@ -153,9 +161,7 @@ router.get("/system/stats", async (req, res) => {
   }
 });
 
-// AI — état du routeur IA (Pilier 8) : fournisseurs gratuits actifs.
-// Diagnostic pour Chat/Studio (jamais d'échec silencieux — voir 36_FREE_STACK).
-router.get("/system/ai", async (req, res) => {
+router.get("/system/ai", async (_req, res) => {
   try {
     const { aiConfigured, aiProviders } = await import("../lib/ai");
     const provs = aiProviders();
@@ -163,28 +169,31 @@ router.get("/system/ai", async (req, res) => {
       configured: aiConfigured(),
       providers: provs,
       primary: provs[0] ?? null,
-      hint: provs.length === 0
-        ? "Aucun fournisseur IA gratuit configuré. Définir l'un de : OLLAMA_BASE_URL, GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY (ou AI_BASE_URL)."
-        : null,
+      hint: provs.length === 0 ? "Aucun fournisseur IA gratuit configure." : null,
     });
   } catch (err) {
-    req.log?.error?.({ err }, "Error getting AI status");
+    _req.log?.error?.({ err }, "Error getting AI status");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// EXPORT — full data export for recovery (JSON)
 router.get("/system/export", async (req, res) => {
   try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Authentification requise" });
+    }
+
     const [tasks, projects, contacts, memories, decisions, conversations, assets, activity] = await Promise.all([
-      db.select().from(tasksTable),
-      db.select().from(projectsTable),
-      db.select().from(contactsTable),
-      db.select().from(memoriesTable),
-      db.select().from(decisionsTable),
-      db.select().from(conversationsTable),
-      db.select().from(assetsTable),
-      db.select().from(activityTable).orderBy(desc(activityTable.createdAt)).limit(500),
+      db.select().from(tasksTable).where(eq((tasksTable as any).user_id, userId)),
+      db.select().from(projectsTable).where(eq((projectsTable as any).user_id, userId)),
+      db.select().from(contactsTable).where(eq((contactsTable as any).user_id, userId)),
+      db.select().from(memoriesTable).where(eq((memoriesTable as any).user_id, userId)),
+      db.select().from(decisionsTable).where(eq((decisionsTable as any).user_id, userId)),
+      db.select().from(conversationsTable).where(eq((conversationsTable as any).user_id, userId)),
+      db.select().from(assetsTable).where(eq((assetsTable as any).user_id, userId)),
+      db.select().from(activityTable).where(eq((activityTable as any).user_id, userId)).orderBy(desc(activityTable.createdAt)).limit(500),
     ]);
 
     return res.json({
