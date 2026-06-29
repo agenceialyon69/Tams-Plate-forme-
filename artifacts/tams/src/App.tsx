@@ -1,9 +1,10 @@
 import { Suspense, lazy } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BottomNav, Sidebar } from "@/components/navigation";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const Accueil = lazy(() => import("@/pages/accueil"));
 const Chat = lazy(() => import("@/pages/chat"));
@@ -32,18 +33,23 @@ const queryClient = new QueryClient({
 });
 
 function Router() {
+  // Clé = route courante : chaque navigation réinitialise l'ErrorBoundary,
+  // donc une page plantée n'enferme pas l'utilisateur (il peut changer d'onglet).
+  const [location] = useLocation();
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <Switch>
-        <Route path="/" component={Accueil} />
-        <Route path="/chat" component={Chat} />
-        <Route path="/agents" component={Agents} />
-        <Route path="/travail" component={Travail} />
-        <Route path="/vie" component={Vie} />
-        <Route path="/studio" component={Studio} />
-        <Route path="/systeme" component={Systeme} />
-        <Route component={NotFound} />
-      </Switch>
+      <ErrorBoundary key={location}>
+        <Switch>
+          <Route path="/" component={Accueil} />
+          <Route path="/chat" component={Chat} />
+          <Route path="/agents" component={Agents} />
+          <Route path="/travail" component={Travail} />
+          <Route path="/vie" component={Vie} />
+          <Route path="/studio" component={Studio} />
+          <Route path="/systeme" component={Systeme} />
+          <Route component={NotFound} />
+        </Switch>
+      </ErrorBoundary>
     </Suspense>
   );
 }
@@ -59,8 +65,13 @@ function App() {
             <main
               className="flex-1 flex flex-col overflow-hidden"
               style={{
+                // Safe-area iPhone (Dynamic Island / encoche / coins) : sans
+                // paddingTop, les en-têtes de page passent SOUS la status bar
+                // → contenu "débordé". On respecte les 4 insets.
+                paddingTop: "env(safe-area-inset-top)",
                 paddingRight: "env(safe-area-inset-right)",
                 paddingBottom: "env(safe-area-inset-bottom)",
+                paddingLeft: "env(safe-area-inset-left)",
               }}
             >
               <Router />
