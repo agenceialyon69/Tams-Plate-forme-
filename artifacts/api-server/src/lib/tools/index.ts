@@ -122,7 +122,7 @@ export async function executeTool(
       clearTimeout(timeoutId);
 
       // ─── Logging ────────────────────────────────────────────────────────────
-      await logActivity("tool", name, `Tool ${name} executed successfully`, context?.conversationId || 0);
+      await logActivity("tool_call", name, `Tool ${name} executed successfully`, context?.conversationId || 0);
 
       return {
         success: true,
@@ -149,7 +149,7 @@ export async function executeTool(
   }
 
   // ─── Error result ────────────────────────────────────────────────────────────
-  await logActivity("tool", name, `Tool ${name} failed: ${lastError?.message}`, context?.conversationId || 0);
+  await logActivity("tool_call", name, `Tool ${name} failed: ${lastError?.message}`, context?.conversationId || 0);
 
   return {
     success: false,

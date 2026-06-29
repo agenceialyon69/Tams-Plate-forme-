@@ -45,6 +45,8 @@ jobs:
             rm -f postcss.config.js tailwind.config.js artifacts/tams/tailwind.config.js; changed=1; echo "↻ supprimé config Tailwind v3 (page blanche)"
           fi
           grep -q 'NODE_ENV === "production"' artifacts/api-server/src/app.ts 2>/dev/null && restore app.ts artifacts/api-server/src/app.ts || true
+          # ensureSchema au boot : sans lui, DB vierge -> tables absentes -> écrans noirs.
+          grep -q 'ensureSchema' artifacts/api-server/src/index.ts 2>/dev/null || restore index.ts artifacts/api-server/src/index.ts
           if grep -q 'aiRateLimit, conversationsRouter' artifacts/api-server/src/routes/index.ts 2>/dev/null || ! grep -q 'agentsRouter' artifacts/api-server/src/routes/index.ts 2>/dev/null; then
             restore routes-index.ts artifacts/api-server/src/routes/index.ts
           fi

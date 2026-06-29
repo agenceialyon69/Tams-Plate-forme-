@@ -68,6 +68,9 @@ jobs:
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:4000/api/healthz >/dev/null && break; sleep 1; done
+          # ensureSchema tourne en arrière-plan (liveness != readiness) :
+          # attendre que les tables existent avant de tester les endpoints DB.
+          for i in $(seq 1 20); do [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4000/api/tasks)" = "200" ] && break; sleep 1; done
           fail=0
           check() { c=$(curl -s -o /dev/null -w '%{http_code}' "$1"); [ "$c" = "$2" ] && echo "✅ $1 $c" || { echo "❌ $1 $c≠$2"; fail=1; }; }
           check http://127.0.0.1:4000/api/healthz 200

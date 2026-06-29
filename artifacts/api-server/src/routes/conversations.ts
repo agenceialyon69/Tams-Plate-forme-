@@ -7,19 +7,21 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { conversationsTable, messagesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
+// INVARIANT (/AGENTS.md) : importer le SYSTÈME D'AGENTS depuis le dossier
+// `lib/agents/*` (Chief of Staff → Council → Planner → Runtime → Tools).
+// L'import nu "../lib/agents" résoudrait l'ANCIEN fichier lib/agents.ts (système
+// hérité utilisé par routes/agents.ts) → mauvaises signatures. NE PAS RÉVERTER.
+import { getAgent } from "../lib/agents/definitions";
 import {
-  getAgent,
-  getAllAgents,
-  selectAgentForQuery,
   runAgent,
   executeTool,
   gatherUserContext,
   getAllTools,
-  runAgentCouncil,
-  runChiefWithCouncil,
-  planAndExecute,
-} from "../lib/agents";
+} from "../lib/agents/orchestrator";
+import { runChiefWithCouncil } from "../lib/agents/council";
+import { planAndExecute } from "../lib/agents/planner";
 import type { AgentRole, AgentContext } from "../lib/agents/types";
+import { selectModel, createClient } from "../lib/ai-router";
 
 const router = Router();
 
@@ -248,10 +250,16 @@ router.post("/conversations/:id/stream", async (req, res) => {
   let toolResults: Array<{ name: string; result: string }> = [];
 
   try {
+    // Streaming via le routeur IA GRATUIT (Ollama/Groq/OpenRouter/Gemini) —
+    // client OpenAI-compatible, jamais l'API payante d'OpenAI. Le provider est
+    // choisi par ai-router (selectModel) selon les clés présentes.
+    const routing = selectModel("fast_chat", { needsTools: true, needsStreaming: true });
+    const client = createClient(routing.model);
     const { default: OpenAI } = await import("openai");
     const openai = new OpenAI({
-      baseURL: process.env.AI_GATEWAY_URL,
-      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
+      baseURL: client.baseURL,
+      apiKey: client.apiKey,
+      defaultHeaders: client.headers,
     });
 
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -261,7 +269,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
     ];
 
     const stream = await openai.chat.completions.create({
-      model: "google/gemini-2.5-flash",
+      model: client.model,
       messages,
       max_tokens: 1500,
       tools: getAllTools(),
@@ -308,7 +316,7 @@ router.post("/conversations/:id/stream", async (req, res) => {
       ];
 
       const followUp = await openai.chat.completions.create({
-        model: "google/gemini-2.5-flash",
+        model: client.model,
         messages: followUpMessages,
         max_tokens: 800,
         stream: true,
@@ -348,67 +356,10 @@ router.post("/conversations/:id/stream", async (req, res) => {
   res.end();
 });
 
-// ─── Agent info endpoint ───────────────────────────────────────────────────
-
-router.get("/agents", (_req, res) => {
-  const agents = getAllAgents().map(a => ({
-    role: a.role,
-    name: a.name,
-    description: a.description,
-    capabilities: a.capabilities,
-  }));
-  res.json(agents);
-});
-
-router.get("/agents/:role", (req, res) => {
-  const agent = getAgent(req.params.role as AgentRole);
-  if (!agent) {
-    res.status(404).json({ error: "Agent not found" });
-    return;
-  }
-  res.json({
-    role: agent.role,
-    name: agent.name,
-    description: agent.description,
-    capabilities: agent.capabilities,
-    tools: agent.tools.map(t => t.name),
-  });
-});
-
-// ─── Agent Council endpoint ─────────────────────────────────────────────────
-
-router.post("/council", async (req, res) => {
-  try {
-    const { query } = req.body;
-    if (!query) {
-      res.status(400).json({ error: "query is required" });
-      return;
-    }
-
-    const result = await runAgentCouncil(query);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "Error running agent council");
-    res.status(500).json({ error: "Failed to run agent council" });
-  }
-});
-
-// ─── Plan & Execute endpoint ────────────────────────────────────────────────
-
-router.post("/plan-execute", async (req, res) => {
-  try {
-    const { query, context } = req.body;
-    if (!query) {
-      res.status(400).json({ error: "query is required" });
-      return;
-    }
-
-    const result = await planAndExecute(query, context || "");
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "Error executing plan");
-    res.status(500).json({ error: "Failed to execute plan" });
-  }
-});
+// NOTE (/AGENTS.md) : les endpoints agents publics (/agents, /agents/:id/run,
+// /agents/council, /agents/orchestrate, /agents/pipeline, /agents/delegate)
+// sont servis par routes/agents.ts — c'est ce que la page Agents appelle.
+// Ce routeur-ci ne gère QUE les conversations + le chat (CRUD, messages,
+// streaming SSE) pour éviter toute collision de routes (double GET /agents).
 
 export default router;

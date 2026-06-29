@@ -128,7 +128,7 @@ class ToolOrchestratorClass {
         result = await this.executeWithTimeout(tool, parsed.data);
 
         // ─── Log Success ────────────────────────────────────────────────────────
-        await logActivity("tool", tool.name, `Tool ${toolName} executed`, context?.conversationId || 0);
+        await logActivity("tool_call", tool.name, `Tool ${toolName} executed`, context?.conversationId || 0);
 
         recordToolMetric({
           timestamp: new Date(),
@@ -163,7 +163,7 @@ class ToolOrchestratorClass {
     }
 
     // ─── Handle Failure ─────────────────────────────────────────────────────────
-    await logActivity("tool", tool.name, `Tool ${toolName} failed: ${lastError}`, context?.conversationId || 0);
+    await logActivity("tool_call", tool.name, `Tool ${toolName} failed: ${lastError}`, context?.conversationId || 0);
 
     recordToolMetric({
       timestamp: new Date(),
