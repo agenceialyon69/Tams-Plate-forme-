@@ -1,9 +1,12 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { pool } from "@workspace/db";
-import { aiProviders } from "./ai";
+import { aiProviders, aiChat } from "./ai";
 import { getAllAgents, getAllTools } from "./agents/orchestrator";
-import { FONT_PATH } from "./video";
+import { FONT_PATH, spawnFfmpeg } from "./video";
 
 /**
  * VALIDATION & INTEGRATION SYSTEM (VIS) — moteur de diagnostic runtime.
@@ -135,5 +138,54 @@ export async function runValidation(): Promise<{
   const fail = checks.filter((c) => c.status === "FAIL").length;
   const overall: CheckStatus = fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS";
 
+  return { overall, summary: { pass, warn, fail }, generatedAt: new Date().toISOString(), checks };
+}
+
+// ── SELF-TEST FONCTIONNEL : exécute RÉELLEMENT l'IA et l'encodage vidéo ──
+// (preuve de production de bout en bout, pas juste "disponible"). Effets de bord
+// minimes : 1 petit appel IA + 1 mini vidéo temporaire supprimée.
+
+async function selftestAI(): Promise<Check> {
+  try {
+    const c = await aiChat({ messages: [{ role: "user", content: "Réponds uniquement: OK" }], max_tokens: 5 }, "fast");
+    const content = c?.choices?.[0]?.message?.content ?? "";
+    return content.trim().length > 0
+      ? { category: "IA", name: "Appel IA réel (réponse)", status: "PASS", detail: `réponse: "${content.trim().slice(0, 30)}"` }
+      : { category: "IA", name: "Appel IA réel", status: "FAIL", detail: "réponse vide de tous les fournisseurs" };
+  } catch (err) {
+    return { category: "IA", name: "Appel IA réel", status: "FAIL", detail: err instanceof Error ? err.message.slice(0, 100) : "échec" };
+  }
+}
+
+async function selftestVideoEncode(): Promise<Check> {
+  const out = path.join(os.tmpdir(), `selftest-${Date.now()}-${Math.floor(Math.random() * 1e6)}.mp4`);
+  try {
+    // Encode 1s de couleur en 9:16 → prouve que libx264 encode réellement.
+    await spawnFfmpeg(
+      ["-y", "-f", "lavfi", "-i", "color=c=blue:s=360x640:d=1", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", out],
+      25_000,
+    );
+    const ok = existsSync(out);
+    await rm(out, { force: true }).catch(() => {});
+    return ok
+      ? { category: "Studio", name: "Encodage vidéo réel (FFmpeg)", status: "PASS", detail: "mp4 produit (libx264 OK)" }
+      : { category: "Studio", name: "Encodage vidéo réel (FFmpeg)", status: "FAIL", detail: "aucun fichier produit" };
+  } catch (err) {
+    await rm(out, { force: true }).catch(() => {});
+    return { category: "Studio", name: "Encodage vidéo réel (FFmpeg)", status: "FAIL", detail: err instanceof Error ? err.message.slice(0, 120) : "échec" };
+  }
+}
+
+export async function runSelfTest(): Promise<{
+  overall: CheckStatus;
+  summary: { pass: number; warn: number; fail: number };
+  generatedAt: string;
+  checks: Check[];
+}> {
+  const checks = await Promise.all([selftestAI(), selftestVideoEncode()]);
+  const pass = checks.filter((c) => c.status === "PASS").length;
+  const warn = checks.filter((c) => c.status === "WARN").length;
+  const fail = checks.filter((c) => c.status === "FAIL").length;
+  const overall: CheckStatus = fail > 0 ? "FAIL" : warn > 0 ? "WARN" : "PASS";
   return { overall, summary: { pass, warn, fail }, generatedAt: new Date().toISOString(), checks };
 }

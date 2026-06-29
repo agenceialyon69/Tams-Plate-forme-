@@ -2285,6 +2285,8 @@ interface VisReport { overall: "PASS" | "WARN" | "FAIL"; summary: { pass: number
 function ValidationCard() {
   const [report, setReport] = useState<VisReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selftest, setSelftest] = useState<VisReport | null>(null);
+  const [testing, setTesting] = useState(false);
 
   const run = useCallback(async () => {
     setLoading(true);
@@ -2294,6 +2296,15 @@ function ValidationCard() {
     } catch { /* ignore */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { run(); }, [run]);
+
+  const runSelftest = useCallback(async () => {
+    setTesting(true);
+    setSelftest(null);
+    try {
+      const res = await fetch("/api/system/selftest");
+      if (res.ok) setSelftest(await res.json());
+    } catch { /* ignore */ } finally { setTesting(false); }
+  }, []);
 
   const color = (s: string) => s === "PASS" ? "text-emerald-400" : s === "WARN" ? "text-amber-400" : "text-red-400";
   const dot = (s: string) => s === "PASS" ? "bg-emerald-400" : s === "WARN" ? "bg-amber-400" : "bg-red-400";
@@ -2328,6 +2339,19 @@ function ValidationCard() {
           </div>
         ))}
         {!report && !loading && <p className="text-xs text-muted-foreground">Diagnostic indisponible.</p>}
+      </div>
+
+      {/* Self-test fonctionnel : exécute réellement l'IA + l'encodage vidéo */}
+      <div className="pt-2 border-t border-border/50 space-y-2">
+        <button onClick={runSelftest} disabled={testing} className="text-xs px-3 py-1.5 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/25 disabled:opacity-50">
+          {testing ? "Test en cours (IA + vidéo)…" : "▶ Test fonctionnel réel (IA + encodage vidéo)"}
+        </button>
+        {selftest?.checks.map((c, i) => (
+          <div key={i} className="flex items-start gap-2 text-xs">
+            <span className={cn("w-2 h-2 rounded-full mt-1 shrink-0", dot(c.status))} />
+            <div className="min-w-0"><span className="text-foreground">{c.name}</span><span className="text-muted-foreground"> — {c.detail}</span></div>
+          </div>
+        ))}
       </div>
     </div>
   );

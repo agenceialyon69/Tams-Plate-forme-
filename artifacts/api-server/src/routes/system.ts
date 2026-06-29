@@ -21,6 +21,17 @@ router.get("/system/validate", async (_req, res) => {
   }
 });
 
+// VIS SELF-TEST FONCTIONNEL — exécute RÉELLEMENT l'IA + l'encodage vidéo (preuve
+// de production de bout en bout). Plus lent (~5-15s). Ouvrable au navigateur.
+router.get("/system/selftest", async (_req, res) => {
+  try {
+    const { runSelfTest } = await import("../lib/validation");
+    return res.json(await runSelfTest());
+  } catch (err) {
+    return res.status(500).json({ error: "Self-test échoué", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // DIAGNOSTIC DB — n'échoue JAMAIS (attrape tout) : dit pourquoi les endpoints
 // liste plantent (connexion/SSL/auth ou schéma manquant). Ouvrable au navigateur.
 router.get("/system/db", async (_req, res) => {
