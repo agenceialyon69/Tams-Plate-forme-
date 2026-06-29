@@ -94,8 +94,8 @@ router.get("/healthz/detailed", async (_req, res) => {
     // ── Event Bus ──
     try {
       let received = false;
-      const hid = EventBus.subscribe("system", async (e) => { if (e.action === "health") received = true; });
-      await EventBus.publish({ domain: "system", action: "health", payload: {} });
+      const hid = EventBus.subscribe("system", async (e) => { if (e.action === "started") received = true; });
+      await EventBus.publish({ domain: "system", action: "started", source: "health", payload: {} });
       await new Promise(r => setTimeout(r, 100));
       EventBus.unsubscribe(hid);
       checks.event_bus = received

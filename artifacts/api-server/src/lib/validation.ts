@@ -106,9 +106,9 @@ async function checkEventBus(): Promise<Check> {
   try {
     let received = false;
     const handlerId = EventBus.subscribe("system", async (event) => {
-      if (event.action === "test") received = true;
+      if (event.action === "started") received = true;
     });
-    await EventBus.publish({ domain: "system", action: "test", payload: { vis: true } });
+    await EventBus.publish({ domain: "system", action: "started", source: "vis", payload: { vis: true } });
     await new Promise(r => setTimeout(r, 100));
     EventBus.unsubscribe(handlerId);
     return received
