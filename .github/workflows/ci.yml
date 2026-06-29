@@ -32,6 +32,9 @@ jobs:
           need artifacts/api-server/src/index.ts 'ensureSchema' "ensureSchema au boot"
           if grep -q 'if (process.env.NODE_ENV === "production") {' artifacts/api-server/src/app.ts 2>/dev/null; then echo "❌ app.ts gate NODE_ENV (Cannot GET /)"; fail=1; else echo "✅ app.ts sert le frontend sans gate"; fi
           if grep -rl "total, limit, offset" artifacts/api-server/src/routes/ >/dev/null 2>&1; then echo "❌ endpoint liste {data,total} (écran noir .map)"; fail=1; else echo "✅ endpoints liste = tableaux"; fi
+          # Free-first : aucune réintroduction du SDK propriétaire `openai`. Tout
+          # passe par lib/ai.ts (fetch, OpenAI-compatible, fournisseurs gratuits).
+          if grep -rnE "from \"openai\"|from 'openai'|import\(['\"]openai['\"]\)|require\(['\"]openai['\"]\)" artifacts/api-server/src >/dev/null 2>&1; then echo "❌ SDK openai réintroduit (free-first only — voir lib/ai.ts)"; fail=1; else echo "✅ pas de SDK openai (free-first)"; fi
           exit $fail
 
   build-and-smoke:

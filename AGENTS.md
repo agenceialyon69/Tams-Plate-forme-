@@ -42,6 +42,7 @@ reste sur la dernière version verte). Si ta CI est **rouge → corrige**, ne co
 6. `artifacts/api-server/src/index.ts` + `lib/db` : `ensureSchema()` au boot ; `lib/db/src/index.ts` ne **throw jamais** à l'import (fallback `PG*`).
 7. **Endpoints liste** (`tasks/assets/decisions/memories/projects/contacts`) : renvoient un **TABLEAU brut** (`res.json(rows)`), jamais `{ data, total }` (→ "X.map is not a function" → **écran noir**).
 8. `routes/index.ts` : `conversationsRouter` et `agentsRouter` montés **SANS préfixe** (double-préfixe → `/api/conversations` renvoie le HTML → page noire du Chat).
+9. **Cerveau IA unique, free-first** : tout passe par `lib/ai.ts` (`aiChat`/`aiChatStream`, `fetch` pur, OpenAI-compatible, fallback Ollama→Groq→Gemini→OpenRouter). `lib/ai-router.ts` ne fait que la sélection de capacité et **délègue** à `lib/ai.ts`. **JAMAIS** le SDK `openai` (`from "openai"`/`import("openai")`) ni `api.openai.com` (→ dépendance payante + build cassé). Le Chat (`routes/conversations.ts`) branche le **Reflection Engine** (`lib/reflection.ts`) après chaque tour, en fire-and-forget. Pas de système d'agents/orchestration dupliqué : `lib/agents/` (Chat) + `lib/agents.ts` (page Agents) pensent tous deux via `lib/ai.ts`.
 
 ## 🛡️ Garde-fous automatiques
 - **CI** : vérifie ces 8 invariants + build + smoke test à chaque push.
