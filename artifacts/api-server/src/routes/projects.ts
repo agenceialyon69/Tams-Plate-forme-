@@ -47,7 +47,7 @@ router.get("/projects", async (req, res) => {
 
     const hasMore = offset + projects.length < total;
 
-    return res.json({ data: projects, total, limit, offset, page, hasMore });
+    return res.json(projects);
   } catch (err) {
     req.log.error({ err }, "Error listing projects");
     return res.status(500).json({ error: "Internal server error" });

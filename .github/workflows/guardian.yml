@@ -1,0 +1,65 @@
+name: Guardian — auto-réparation des invariants
+
+# TAMS Guardian (piloté par Claude, Chief Architect).
+# À CHAQUE push sur main, vérifie les invariants de déploiement. Si une IA
+# (Bolt/Replit/…) en a cassé/réverté un, le Guardian RESTAURE automatiquement la
+# version canonique (.tams/guardian/) et re-pousse un commit correctif.
+# → main se répare tout seul, même quand personne ne surveille.
+# NE PAS SUPPRIMER. (La vraie barrière serveur reste la branch protection GitHub.)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  heal:
+    # Ne pas boucler sur le propre commit du Guardian.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Réparer les invariants
+        run: |
+          set -e
+          G=.tams/guardian
+          changed=0
+          restore() { cp "$G/$1" "$2"; changed=1; echo "↻ restauré $2"; }
+
+          grep -q 'builder = "NIXPACKS"' railway.toml 2>/dev/null || restore railway.toml railway.toml
+          grep -q '"pnpm"' nixpacks.toml 2>/dev/null || restore nixpacks.toml nixpacks.toml
+          grep -q '@import "tailwindcss"' artifacts/tams/src/index.css 2>/dev/null || restore index.css artifacts/tams/src/index.css
+          grep -q '@tailwindcss/vite' artifacts/tams/vite.config.ts 2>/dev/null || restore vite.config.ts artifacts/tams/vite.config.ts
+          if [ -f postcss.config.js ] || [ -f tailwind.config.js ] || [ -f artifacts/tams/tailwind.config.js ]; then
+            rm -f postcss.config.js tailwind.config.js artifacts/tams/tailwind.config.js; changed=1; echo "↻ supprimé config Tailwind v3"
+          fi
+          if grep -q 'NODE_ENV === "production"' artifacts/api-server/src/app.ts 2>/dev/null; then restore app.ts artifacts/api-server/src/app.ts; fi
+          # Montage des routes : double-préfixe conversations/agents → page noire du Chat.
+          if grep -q 'aiRateLimit, conversationsRouter' artifacts/api-server/src/routes/index.ts 2>/dev/null || ! grep -q 'agentsRouter' artifacts/api-server/src/routes/index.ts 2>/dev/null; then
+            restore routes-index.ts artifacts/api-server/src/routes/index.ts
+          fi
+          [ -f .github/workflows/ci.yml ] || restore ci.yml .github/workflows/ci.yml
+          [ -f AGENTS.md ] || restore AGENTS.md AGENTS.md
+          if ! grep -q '"packageManager"' package.json 2>/dev/null; then
+            node -e 'const f="package.json";const p=require("./"+f);p.packageManager="pnpm@10.33.0";require("fs").writeFileSync(f,JSON.stringify(p,null,2)+"\n")'
+            changed=1; echo "↻ packageManager réinjecté"
+          fi
+          if grep -rl "total, limit, offset" artifacts/api-server/src/routes/ >/dev/null 2>&1; then
+            perl -i -pe 's/res\.json\(\{ data: (\w+), total, limit, offset \}\)/res.json($1)/g' artifacts/api-server/src/routes/*.ts
+            changed=1; echo "↻ endpoints liste remis en tableaux"
+          fi
+
+          if [ "$changed" = "1" ]; then
+            git config user.name "TAMS Guardian"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "guardian: auto-réparation des invariants (anti-clobbering)"
+            git push
+            echo "::warning::Guardian a réparé des invariants cassés par un push. Voir /AGENTS.md."
+          else
+            echo "✅ Tous les invariants sont intacts."
+          fi

@@ -58,7 +58,7 @@ router.get("/tasks", async (req, res) => {
 
     const hasMore = offset + tasks.length < total;
 
-    return res.json({ data: tasks, total, limit, offset, page, hasMore });
+    return res.json(tasks);
   } catch (err) {
     req.log.error({ err }, "Error listing tasks");
     return res.status(500).json({ error: "Internal server error" });

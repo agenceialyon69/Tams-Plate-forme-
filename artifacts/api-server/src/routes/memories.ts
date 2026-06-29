@@ -186,7 +186,7 @@ router.get("/memories", async (req, res) => {
 
     const hasMore = offset + filtered.length < total;
 
-    return res.json({ data: filtered, total, limit, offset, page, hasMore });
+    return res.json(filtered);
   } catch (err) {
     req.log.error({ err }, "Error listing memories");
     return res.status(500).json({ error: "Internal server error" });
