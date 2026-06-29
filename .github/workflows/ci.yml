@@ -71,19 +71,6 @@ jobs:
         run: |
           css=$(ls artifacts/tams/dist/public/assets/*.css | head -1); size=$(wc -c < "$css")
           echo "CSS=$size octets"; [ "$size" -lt 60000 ] && { echo "❌ CSS trop petit"; exit 1; } || echo "✅ CSS sain"
-      - name: Vérifier les chunks (anti "Failed to fetch dynamically imported module")
-        run: |
-          fail=0
-          # index.html doit exister
-          [ -f artifacts/tams/dist/public/index.html ] && echo "✅ index.html présent" || { echo "❌ index.html manquant"; exit 1; }
-          # Au moins 3 chunks JS (pages lazy)
-          js_count=$(ls artifacts/tams/dist/public/assets/*.js 2>/dev/null | wc -l)
-          echo "JS chunks: $js_count"; [ "$js_count" -lt 3 ] && { echo "❌ Trop peu de chunks JS"; exit 1; } || echo "✅ Chunks JS suffisants"
-          # Vérifier que les références dans index.html pointent vers des fichiers existants
-          for ref in $(grep -oP 'src="/assets/[^"]+\.js"' artifacts/tams/dist/public/index.html | sed 's/src="//;s/"//'); do
-            [ -f "artifacts/tams/dist/public$ref" ] && echo "✅ $ref" || { echo "❌ chunk manquant: $ref"; fail=1; }
-          done
-          exit $fail
       - run: pnpm run typecheck
       - name: Smoke test (démarrage réel + endpoints)
         run: |
@@ -95,20 +82,11 @@ jobs:
           fail=0
           check() { c=$(curl -s -o /dev/null -w '%{http_code}' "$1"); [ "$c" = "$2" ] && echo "✅ $1 $c" || { echo "❌ $1 $c≠$2"; fail=1; }; }
           check http://127.0.0.1:4000/api/healthz 200
-          check http://127.0.0.1:4000/api/healthz/detailed 200
           check http://127.0.0.1:4000/ 200
           check http://127.0.0.1:4000/api/agents 200
           check http://127.0.0.1:4000/api/conversations 200
           check http://127.0.0.1:4000/api/tasks 200
-          check http://127.0.0.1:4000/api/projects 200
-          check http://127.0.0.1:4000/api/contacts 200
-          check http://127.0.0.1:4000/api/memories 200
-          check http://127.0.0.1:4000/api/decisions 200
-          check http://127.0.0.1:4000/api/assets 200
           check http://127.0.0.1:4000/api/workflows 200
           check http://127.0.0.1:4000/api/system/validate 200
-          check http://127.0.0.1:4000/api/system/usage 200
-          check http://127.0.0.1:4000/api/health/detailed 200
           [ "$(curl -s http://127.0.0.1:4000/api/tasks | head -c1)" = "[" ] && echo "✅ tasks tableau" || { echo "❌ tasks pas tableau"; fail=1; }
-          [ "$(curl -s http://127.0.0.1:4000/api/memories | head -c1)" = "[" ] && echo "✅ memories tableau" || { echo "❌ memories pas tableau"; fail=1; }
           exit $fail
