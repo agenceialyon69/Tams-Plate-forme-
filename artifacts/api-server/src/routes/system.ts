@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, pool, ensureSchema } from "@workspace/db";
 import {
   tasksTable, projectsTable, contactsTable, memoriesTable,
   decisionsTable, conversationsTable, assetsTable, activityTable,
@@ -7,6 +7,46 @@ import {
 import { desc, eq, sql } from "drizzle-orm";
 
 const router = Router();
+
+// DIAGNOSTIC DB — n'échoue JAMAIS (attrape tout) : dit pourquoi les endpoints
+// liste plantent (connexion/SSL/auth ou schéma manquant). Ouvrable au navigateur.
+router.get("/system/db", async (_req, res) => {
+  const out: Record<string, unknown> = {};
+  const url = process.env.DATABASE_URL || "";
+  out.hasDatabaseUrl = !!url;
+  out.host = (url.match(/@([^/:]+)/)?.[1]) ?? null;          // hôte seul (pas de secret)
+  out.sslmodeInUrl = url.match(/sslmode=\w+/)?.[0] ?? null;
+
+  try {
+    await pool.query("SELECT 1");
+    out.canConnect = true;
+  } catch (err) {
+    out.canConnect = false;
+    out.connectError = err instanceof Error ? err.message : String(err);
+  }
+
+  if (out.canConnect) {
+    try {
+      const r = await pool.query("SELECT to_regclass('public.tasks') AS t");
+      out.tasksTableExists = r.rows[0]?.t != null;
+    } catch (err) {
+      out.tasksTableExists = "error";
+      out.schemaCheckError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  return res.json(out);
+});
+
+// RÉPARE le schéma à la demande (idempotent) — utile si ensureSchema a échoué
+// au boot (DB pas encore prête). Ouvrable au navigateur ; renvoie le résultat.
+router.get("/system/ensure-schema", async (_req, res) => {
+  try {
+    const ok = await ensureSchema();
+    return res.json({ ok });
+  } catch (err) {
+    return res.json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
 
 // AUDIT — full activity history with optional type filter
 router.get("/system/audit", async (req, res) => {
