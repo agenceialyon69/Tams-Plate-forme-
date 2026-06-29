@@ -51,6 +51,18 @@ export async function ensureSchema(): Promise<boolean> {
     await waitForDatabase();
     for (const [n, v] of ENUMS) await pool.query(enumStmt(n, v));
     for (const sql of TABLES) await pool.query(sql);
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION update_search_vector()
+      RETURNS trigger AS $
+      BEGIN
+        NEW.search_vector :=
+          setweight(to_tsvector('french', COALESCE(NEW.title, '')), 'A') ||
+          setweight(to_tsvector('french', COALESCE(NEW.content, '')), 'B') ||
+          setweight(to_tsvector('french', COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(NEW.tags)), ' '), '')), 'C');
+        RETURN NEW;
+      END;
+      $ LANGUAGE plpgsql;
+    `);
     return true;
   } catch (err) {
     console.error(`[db] ensureSchema a échoué (le serveur continue): ${err instanceof Error ? err.message : err}`);

@@ -59,7 +59,7 @@ BEGIN
   NEW.search_vector :=
     setweight(to_tsvector('french', COALESCE(NEW.title, '')), 'A') ||
     setweight(to_tsvector('french', COALESCE(NEW.content, '')), 'B') ||
-    setweight(to_tsvector('french', COALESCE(array_to_string(NEW.tags, ' '), '')), 'C');
+    setweight(to_tsvector('french', COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(NEW.tags)), ' '), '')), 'C');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
