@@ -16,7 +16,13 @@
  * 5. Google AI Studio - Gemini free tier
  */
 
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+// INVARIANT (/AGENTS.md) : une seule implémentation IA = lib/ai.ts (free-first,
+// fetch pur, ZÉRO SDK propriétaire). ai-router ne fait que la sélection de
+// modèle/capacité et délègue l'exécution à ai.ts. NE PAS réintroduire le SDK
+// `openai` ni api.openai.com.
+import { aiChat, type AiTask } from "./ai";
+
+type ChatMessage = { role: string; content: string };
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -365,9 +371,26 @@ export function createClient(model: ModelConfig): {
 
 // ─── Completion Helper ───────────────────────────────────────────────────────
 
+/** Capacité d'agent → tâche du routeur gratuit lib/ai.ts. */
+const TASK_MAP: Record<AICapability, AiTask> = {
+  fast_chat: "fast",
+  reasoning: "reasoning",
+  creative: "chat",
+  code: "reasoning",
+  analysis: "reasoning",
+  tools: "chat",
+  long_context: "chat",
+};
+
+/**
+ * Complétion unifiée : délègue au routeur GRATUIT free-first (lib/ai.ts), qui
+ * gère le fallback en chaîne entre fournisseurs (Ollama/Groq/Gemini/OpenRouter)
+ * via `fetch` — aucun SDK, aucune API payante. `selectModel` reste utilisé pour
+ * la traçabilité/diagnostic de la décision de routage.
+ */
 export async function smartCompletion(
   task: AICapability,
-  messages: ChatCompletionMessageParam[],
+  messages: ChatMessage[],
   options: {
     maxTokens?: number;
     needsTools?: boolean;
@@ -376,71 +399,21 @@ export async function smartCompletion(
     tools?: any[];
   } = {}
 ): Promise<{ content: string; model: string; latencyMs: number }> {
-  const { maxTokens = 2000, needsTools, needsJSON, needsStreaming, tools } = options;
-
-  const routing = selectModel(task, {
-    needsTools: needsTools || !!tools,
-    needsJSON,
-    needsStreaming,
-  });
-
-  const client = createClient(routing.model);
-
+  const { maxTokens = 2000, needsJSON, tools } = options;
   const start = Date.now();
 
-  try {
-    const { default: OpenAI } = await import("openai");
-    const openai = new OpenAI({
-      baseURL: client.baseURL,
-      apiKey: client.apiKey,
-      defaultHeaders: client.headers,
-    });
+  const body: Record<string, unknown> = { messages, max_tokens: maxTokens };
+  if (tools && tools.length > 0) body.tools = tools;
+  if (needsJSON) body.response_format = { type: "json_object" };
 
-    const completion = await openai.chat.completions.create({
-      model: client.model,
-      messages,
-      max_tokens: maxTokens,
-      tools: tools && routing.model.supportsTools ? tools : undefined,
-      response_format: needsJSON && routing.model.supportsJSON ? { type: "json_object" } : undefined,
-    });
+  const completion = await aiChat(body, TASK_MAP[task] ?? "chat");
+  const content = completion?.choices?.[0]?.message?.content ?? "";
 
-    const content = completion.choices[0]?.message?.content || "";
-
-    return {
-      content,
-      model: routing.model.id,
-      latencyMs: Date.now() - start,
-    };
-  } catch (err) {
-    // Try fallback models
-    for (const fallback of routing.fallbackChain) {
-      try {
-        const fallbackClient = createClient(fallback);
-        const { default: OpenAI } = await import("openai");
-        const openai = new OpenAI({
-          baseURL: fallbackClient.baseURL,
-          apiKey: fallbackClient.apiKey,
-          defaultHeaders: fallbackClient.headers,
-        });
-
-        const completion = await openai.chat.completions.create({
-          model: fallbackClient.model,
-          messages,
-          max_tokens: maxTokens,
-        });
-
-        return {
-          content: completion.choices[0]?.message?.content || "",
-          model: fallback.id,
-          latencyMs: Date.now() - start,
-        };
-      } catch {
-        // Continue to next fallback
-      }
-    }
-
-    throw err;
-  }
+  return {
+    content,
+    model: completion?.model ?? "free-router",
+    latencyMs: Date.now() - start,
+  };
 }
 
 // ─── Export ────────────────────────────────────────────────────────────────────

@@ -21,9 +21,31 @@ import {
 import { runChiefWithCouncil } from "../lib/agents/council";
 import { planAndExecute } from "../lib/agents/planner";
 import type { AgentRole, AgentContext } from "../lib/agents/types";
-import { selectModel, createClient } from "../lib/ai-router";
+import { aiChatStream } from "../lib/ai";
+import { ReflectionEngine } from "../lib/reflection";
 
 const router = Router();
+
+// Reflection Engine (pilier « Continuous Improvement ») : observe CHAQUE tour du
+// Chat pour apprendre (détection de patterns d'échec, auto-mémorisation). C'est
+// ce qui branche le moteur de réflexion sur le pipeline principal. Fire-and-forget :
+// l'apprentissage ne doit JAMAIS faire échouer une réponse de chat.
+function reflectAfterTurn(
+  agentRole: string,
+  query: string,
+  result: string,
+  success: boolean,
+  durationMs: number,
+): void {
+  void ReflectionEngine.reflect({
+    agentRole,
+    query,
+    result,
+    success,
+    durationMs,
+    timestamp: new Date(),
+  }).catch(() => { /* la réflexion ne bloque jamais le chat */ });
+}
 
 // ─── List conversations ─────────────────────────────────────────────────────
 
@@ -115,6 +137,7 @@ router.get("/conversations/:id/messages", async (req, res) => {
 
 router.post("/conversations/:id/messages", async (req, res) => {
   try {
+    const startedAt = Date.now();
     const conversationId = Number(req.params.id);
     const { content, useCouncil = true, usePlanner = false } = req.body;
 
@@ -181,6 +204,9 @@ router.post("/conversations/:id/messages", async (req, res) => {
       })
       .where(eq(conversationsTable.id, conversationId));
 
+    // Branche le Reflection Engine sur le pipeline (apprentissage continu).
+    reflectAfterTurn(String(conv.mode || "chat"), content, responseContent, true, Date.now() - startedAt);
+
     return res.json({
       userMessage: userMsg,
       assistantMessage: assistantMsg,
@@ -195,6 +221,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
 // ─── Streaming endpoint (SSE) ───────────────────────────────────────────────
 
 router.post("/conversations/:id/stream", async (req, res) => {
+  const startedAt = Date.now();
   const conversationId = Number(req.params.id);
   const { content } = req.body;
 
@@ -250,31 +277,20 @@ router.post("/conversations/:id/stream", async (req, res) => {
   let toolResults: Array<{ name: string; result: string }> = [];
 
   try {
-    // Streaming via le routeur IA GRATUIT (Ollama/Groq/OpenRouter/Gemini) —
-    // client OpenAI-compatible, jamais l'API payante d'OpenAI. Le provider est
-    // choisi par ai-router (selectModel) selon les clés présentes.
-    const routing = selectModel("fast_chat", { needsTools: true, needsStreaming: true });
-    const client = createClient(routing.model);
-    const { default: OpenAI } = await import("openai");
-    const openai = new OpenAI({
-      baseURL: client.baseURL,
-      apiKey: client.apiKey,
-      defaultHeaders: client.headers,
-    });
-
+    // Streaming via le routeur IA GRATUIT lib/ai.ts (Ollama/Groq/Gemini/
+    // OpenRouter) — fetch pur, fallback en chaîne entre fournisseurs, ZÉRO SDK
+    // propriétaire et ZÉRO API payante. Les chunks sont OpenAI-compatibles.
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
       ...historyForAgent,
       { role: "user", content },
     ];
 
-    const stream = await openai.chat.completions.create({
-      model: client.model,
+    const stream = aiChatStream({
       messages,
       max_tokens: 1500,
       tools: getAllTools(),
-      stream: true,
-    });
+    }, "fast");
 
     let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 
@@ -315,12 +331,10 @@ router.post("/conversations/:id/stream", async (req, res) => {
         { role: "system", content: `Actions effectuées:\n${toolResults.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume naturellement.` },
       ];
 
-      const followUp = await openai.chat.completions.create({
-        model: client.model,
+      const followUp = aiChatStream({
         messages: followUpMessages,
         max_tokens: 800,
-        stream: true,
-      });
+      }, "fast");
 
       for await (const chunk of followUp) {
         const delta = chunk.choices[0]?.delta;
@@ -351,6 +365,9 @@ router.post("/conversations/:id/stream", async (req, res) => {
       updatedAt: new Date(),
     })
     .where(eq(conversationsTable.id, conversationId));
+
+  // Branche le Reflection Engine sur le pipeline de streaming (apprentissage continu).
+  reflectAfterTurn(String(conv.mode || "chat"), content, fullContent, fullContent.length > 0, Date.now() - startedAt);
 
   send({ type: "done", id: assistantMsg.id, toolResults });
   res.end();
