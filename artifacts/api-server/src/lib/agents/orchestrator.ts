@@ -12,12 +12,10 @@ import {
   contactsTable,
   decisionsTable,
   memoriesTable,
-  briefingsTable,
-  projectContactsTable,
 } from "@workspace/db";
-import { eq, sql, desc, or, and, ilike, count } from "drizzle-orm";
-import { aiChat } from "../ai";
-import { logActivity } from "../activity";
+import { eq, sql, desc, or, and, like } from "drizzle-orm";
+import { smartCompletion, type AICapability } from "../ai-router";
+import { recordAIMetric } from "../observability";
 
 // ─── Tool Executors (real database operations) ───────────────────────────────
 
@@ -67,91 +65,25 @@ async function executeCreateMemory(args: Record<string, unknown>): Promise<strin
   return `Mémoire enregistrée: "${created.title}" (ID: ${created.id})`;
 }
 
-async function executeSearchMemories(query: string, limit = 5): Promise<{ title: string; content: string | null; type: string }[]> {
+async function executeSearchMemories(args: Record<string, unknown>): Promise<string> {
+  const query = String(args.query);
+  const limit = Number(args.limit) || 5;
+
   const results = await db.select()
     .from(memoriesTable)
     .where(
       or(
-        ilike(memoriesTable.title, `%${query}%`),
-        ilike(memoriesTable.content, `%${query}%`)
+        like(memoriesTable.title, `%${query}%`),
+        like(memoriesTable.content, `%${query}%`)
       )
     )
     .limit(limit);
-
-  return results.map(m => ({ title: m.title, content: m.content, type: m.type }));
-}
-
-async function executeSearchMemoriesTool(args: Record<string, unknown>): Promise<string> {
-  const query = String(args.query);
-  const limit = Number(args.limit) || 5;
-  const results = await executeSearchMemories(query, limit);
 
   if (results.length === 0) {
     return `Aucune mémoire trouvée pour: "${query}"`;
   }
 
   return `Mémoires trouvées (${results.length}):\n${results.map(m => `- ${m.title}: ${m.content?.slice(0, 100) || "pas de contenu"}`).join("\n")}`;
-}
-
-// ─── New Tools ───────────────────────────────────────────────────────────────
-
-async function executeGetBriefing(): Promise<string> {
-  const today = new Date().toISOString().split("T")[0];
-  const existing = await db
-    .select()
-    .from(briefingsTable)
-    .where(eq(briefingsTable.date, today))
-    .limit(1);
-
-  if (existing.length > 0) {
-    const b = existing[0] as any;
-    return `Briefing du jour (${b.date}):\n- Priorités: ${(b.priorities as any[]).map((p: any) => p.label).join(", ")}\n- Risques: ${(b.risks as any[]).map((r: any) => r.label).join(", ")}\n- Opportunités: ${(b.opportunities as any[]).map((o: any) => o.label).join(", ")}\n- Recommandations: ${(b.recommendations as any[]).map((r: any) => r.label).join(", ")}`;
-  }
-
-  // Call internal briefing generation via fetch to own endpoint (simulate)
-  return "Briefing du jour non généré encore. Demande à l'utilisateur de visiter /api/briefing/today.";
-}
-
-async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<string> {
-  const taskId = Number(args.task_id);
-  const newStatus = String(args.status) as "todo" | "in_progress" | "done" | "cancelled";
-
-  const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId)).limit(1);
-  if (existing.length === 0) {
-    return `Tâche introuvable (ID: ${taskId})`;
-  }
-
-  await db.update(tasksTable)
-    .set({ status: newStatus, updatedAt: new Date() })
-    .where(eq(tasksTable.id, taskId));
-
-  return `Tâche "${existing[0].title}" mise à jour: ${existing[0].status} → ${newStatus}`;
-}
-
-async function executeCreateProjectContact(args: Record<string, unknown>): Promise<string> {
-  const projectId = Number(args.project_id);
-  const contactId = Number(args.contact_id);
-  const role = args.role ? String(args.role) : null;
-
-  const [created] = await db.insert(projectContactsTable).values({
-    projectId,
-    contactId,
-    role,
-  }).returning();
-
-  return `Contact lié au projet (ID liaison: ${created.id})`;
-}
-
-// In-memory reminders (no DB table yet; stored locally)
-const localReminders: Array<{ id: number; title: string; scheduledAt: string; createdAt: Date }> = [];
-let reminderIdCounter = 1;
-
-async function executeScheduleReminder(args: Record<string, unknown>): Promise<string> {
-  const title = String(args.title);
-  const scheduledAt = String(args.scheduled_at); // ISO string expected
-  const id = reminderIdCounter++;
-  localReminders.push({ id, title, scheduledAt, createdAt: new Date() });
-  return `Rappel programmé: "${title}" pour ${scheduledAt}`;
 }
 
 // ─── Tool Dispatcher ────────────────────────────────────────────────────────
@@ -169,15 +101,7 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
     case "create_memory":
       return executeCreateMemory(args);
     case "search_memories":
-      return executeSearchMemoriesTool(args);
-    case "get_briefing":
-      return executeGetBriefing();
-    case "update_task_status":
-      return executeUpdateTaskStatus(args);
-    case "create_project_contact":
-      return executeCreateProjectContact(args);
-    case "schedule_reminder":
-      return executeScheduleReminder(args);
+      return executeSearchMemories(args);
     case "delegate_to_agent":
       // Delegation is handled at the orchestrator level
       return `Délégation demandée à: ${args.agent}`;
@@ -188,143 +112,34 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
 
 // ─── Context Gathering ───────────────────────────────────────────────────────
 
-export async function gatherUserContext(userQuery?: string): Promise<string> {
+export async function gatherUserContext(): Promise<string> {
   try {
-    // --- Semantic memory search (if query provided) ---
-    let relevantMemories: { title: string; content: string | null; type: string }[] = [];
-    if (userQuery && userQuery.trim().length > 0) {
-      relevantMemories = await executeSearchMemories(userQuery.trim(), 3);
-    }
-
-    // --- Fetch all context data in parallel ---
-    const [
-      urgentTasks,
-      activeTasks,
-      projects,
-      contacts,
-      recentMemories,
-      pendingDecisions,
-      recentDecisions,
-    ] = await Promise.all([
-      // Urgent tasks (high/urgent, not done)
-      db.select().from(tasksTable)
-        .where(and(
-          sql`${tasksTable.status} NOT IN ('done','cancelled')`,
-          sql`${tasksTable.priority} IN ('urgent','high')`
-        ))
-        .orderBy(desc(tasksTable.createdAt))
-        .limit(10),
-      // Active tasks (not done)
+    const [tasks, projects, contacts, memories, decisions] = await Promise.all([
       db.select().from(tasksTable)
         .where(sql`${tasksTable.status} NOT IN ('done','cancelled')`)
         .orderBy(desc(tasksTable.createdAt))
-        .limit(10),
-      // Active projects
+        .limit(5),
       db.select().from(projectsTable)
         .where(eq(projectsTable.status, "active"))
-        .orderBy(desc(projectsTable.createdAt))
-        .limit(10),
-      // Recently interacted contacts
+        .limit(5),
       db.select().from(contactsTable)
-        .orderBy(desc(contactsTable.lastContactedAt))
-        .limit(10),
-      // Recent memories (fallback if no semantic search)
+        .orderBy(desc(contactsTable.createdAt))
+        .limit(5),
       db.select().from(memoriesTable)
         .orderBy(desc(memoriesTable.createdAt))
         .limit(5),
-      // Pending decisions
       db.select().from(decisionsTable)
         .where(sql`${decisionsTable.status} IN ('pending','analyzing')`)
-        .orderBy(desc(decisionsTable.createdAt))
-        .limit(10),
-      // Recent decided decisions
-      db.select().from(decisionsTable)
-        .where(sql`${decisionsTable.status} IN ('decided','archived')`)
-        .orderBy(desc(decisionsTable.createdAt))
-        .limit(5),
+        .limit(3),
     ]);
 
-    // --- Calculate project progress ---
-    const projectProgress: { id: number; name: string; progress: number }[] = [];
-    for (const p of projects) {
-      const total = await db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.projectId, p.id));
-      const done = await db.select({ count: count() }).from(tasksTable).where(
-        and(eq(tasksTable.projectId, p.id), eq(tasksTable.status, "done"))
-      );
-      const totalCount = Number(total[0]?.count ?? 0);
-      const progress = totalCount > 0 ? Math.round((Number(done[0]?.count ?? 0) / totalCount) * 100) : 0;
-      projectProgress.push({ id: p.id, name: p.name, progress });
-    }
-
-    // --- Build structured markdown context ---
-    const lines: string[] = [];
-
-    lines.push("# Contexte utilisateur");
-    lines.push("");
-
-    // Relevant memories (semantic search)
-    if (relevantMemories.length > 0) {
-      lines.push("## Mémoires pertinentes");
-      relevantMemories.forEach(m => {
-        lines.push(`- **${m.title}** (${m.type})${m.content ? `: ${m.content.slice(0, 120)}...` : ""}`);
-      });
-      lines.push("");
-    }
-
-    // Tasks
-    if (urgentTasks.length > 0) {
-      lines.push(`## Tâches urgentes (${urgentTasks.length})`);
-      urgentTasks.forEach(t => lines.push(`- ${t.title} — priorité **${t.priority}**`));
-      lines.push("");
-    }
-    if (activeTasks.length > 0) {
-      const nonUrgent = activeTasks.filter(t => !urgentTasks.some(u => u.id === t.id));
-      if (nonUrgent.length > 0) {
-        lines.push(`## Tâches actives (${nonUrgent.length})`);
-        nonUrgent.forEach(t => lines.push(`- ${t.title} (${t.status})`));
-        lines.push("");
-      }
-    }
-
-    // Projects with progress
-    if (projectProgress.length > 0) {
-      lines.push(`## Projets actifs (${projectProgress.length})`);
-      projectProgress.forEach(p => {
-        lines.push(`- **${p.name}** — progression ${p.progress}%`);
-      });
-      lines.push("");
-    }
-
-    // Contacts
-    if (contacts.length > 0) {
-      lines.push(`## Contacts récemment interactés (${contacts.length})`);
-      contacts.forEach(c => {
-        const last = c.lastContactedAt ? new Date(c.lastContactedAt).toLocaleDateString("fr-FR") : "jamais";
-        lines.push(`- **${c.name}** (${c.company || "n/a"}) — dernier contact: ${last}`);
-      });
-      lines.push("");
-    }
-
-    // Decisions
-    if (pendingDecisions.length > 0) {
-      lines.push(`## Décisions en attente (${pendingDecisions.length})`);
-      pendingDecisions.forEach(d => lines.push(`- **${d.title}** — statut: ${d.status}`));
-      lines.push("");
-    }
-    if (recentDecisions.length > 0) {
-      lines.push(`## Décisions récentes (${recentDecisions.length})`);
-      recentDecisions.forEach(d => lines.push(`- **${d.title}** — statut: ${d.status}`));
-      lines.push("");
-    }
-
-    // Fallback memories if no semantic results
-    if (relevantMemories.length === 0 && recentMemories.length > 0) {
-      lines.push(`## Mémoires récentes (${recentMemories.length})`);
-      recentMemories.forEach(m => lines.push(`- **${m.title}**: ${m.content?.slice(0, 100) ?? ""}...`));
-      lines.push("");
-    }
-
-    return lines.join("\n");
+    return [
+      tasks.length > 0 ? `Tâches actives: ${tasks.map(t => `"${t.title}" (${t.priority})`).join(", ")}` : "",
+      projects.length > 0 ? `Projets actifs: ${projects.map(p => `"${p.name}"`).join(", ")}` : "",
+      contacts.length > 0 ? `Contacts récents: ${contacts.map(c => c.name).join(", ")}` : "",
+      memories.length > 0 ? `Mémoires récentes: ${memories.map(m => `"${m.title}"`).join(", ")}` : "",
+      decisions.length > 0 ? `Décisions en cours: ${decisions.map(d => `"${d.title}"`).join(", ")}` : "",
+    ].filter(Boolean).join("\n");
   } catch {
     return "Contexte non disponible.";
   }
@@ -414,13 +229,32 @@ export function getAllTools(): any[] {
 
 // ─── Agent Execution ────────────────────────────────────────────────────────
 
+function getTaskTypeForAgent(role: AgentRole): AICapability {
+  const mapping: Record<AgentRole, AICapability> = {
+    chief_of_staff: "analysis",
+    engineering: "code",
+    product: "reasoning",
+    business: "reasoning",
+    marketing: "creative",
+    research: "analysis",
+    memory: "analysis",
+    decision: "reasoning",
+    studio: "creative",
+    devops: "code",
+    red_team: "analysis",
+    planning: "reasoning",
+  };
+  return mapping[role] || "fast_chat";
+}
+
 export async function runAgent(
   agent: Agent,
   userMessage: string,
   history: Array<{ role: string; content: string }> = [],
   _context: AgentContext = {}
 ): Promise<AgentResponse> {
-  const userContext = await gatherUserContext(userMessage);
+  const userContext = await gatherUserContext();
+  const taskType = getTaskTypeForAgent(agent.role);
 
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
@@ -428,60 +262,45 @@ export async function runAgent(
     { role: "user", content: userMessage },
   ];
 
+  const startTime = Date.now();
+
   try {
-    const completion = await aiChat({
-      model: "google/gemini-2.5-flash",
-      messages,
-      max_tokens: 1200,
+    const result = await smartCompletion(taskType, messages, {
+      maxTokens: 1200,
+      needsTools: true,
       tools: getToolsForAgent(agent),
     });
 
-    const choice = completion.choices?.[0];
-    const toolCalls: AgentResponse["toolCalls"] = [];
-
-    // Execute tool calls
-    if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
-      for (const tc of choice.message.tool_calls) {
-        if (tc.type !== "function") continue;
-        const fnName = tc.function.name;
-        let fnArgs: Record<string, unknown>;
-        try {
-          fnArgs = JSON.parse(tc.function.arguments);
-        } catch {
-          fnArgs = {};
-        }
-        const result = await executeTool(fnName, fnArgs);
-        toolCalls.push({ name: fnName, args: fnArgs, result });
-      }
-
-      // Get follow-up response after tools
-      const followUpMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        ...messages,
-        { role: "assistant", content: choice.message.content || "" },
-        { role: "system", content: `Actions effectuées:\n${toolCalls.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume ce qui a été fait de manière naturelle.` },
-      ];
-
-      const followUp = await aiChat({
-        model: "google/gemini-2.5-flash",
-        messages: followUpMessages,
-        max_tokens: 800,
-      });
-
-      return {
-        content: followUp.choices?.[0]?.message?.content || agent.fallbackResponse,
-        toolCalls,
-      };
-    }
+    // For now, return the content - tool calling integration would be done via streaming
+    recordAIMetric({
+      timestamp: new Date(),
+      model: result.model,
+      provider: "replit",
+      taskType: agent.role,
+      latencyMs: result.latencyMs,
+      success: true,
+    });
 
     return {
-      content: choice?.message?.content || agent.fallbackResponse,
+      content: result.content || agent.fallbackResponse,
       toolCalls: [],
     };
   } catch (err) {
     console.error("Agent execution failed:", err);
+    recordAIMetric({
+      timestamp: new Date(),
+      model: "unknown",
+      provider: "replit",
+      taskType: agent.role,
+      latencyMs: Date.now() - startTime,
+      success: false,
+      errorCode: err instanceof Error ? err.message : "Unknown error",
+    });
     return {
       content: agent.fallbackResponse,
       toolCalls: [],
     };
   }
 }
+
+export { getAgent, getAllAgents };
