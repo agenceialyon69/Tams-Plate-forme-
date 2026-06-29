@@ -2306,6 +2306,17 @@ function ValidationCard() {
     } catch { /* ignore */ } finally { setTesting(false); }
   }, []);
 
+  const [scenarios, setScenarios] = useState<{ name: string; status: string; detail: string; durationMs: number }[] | null>(null);
+  const [running, setRunning] = useState(false);
+  const runScenarios = useCallback(async () => {
+    setRunning(true);
+    setScenarios(null);
+    try {
+      const res = await fetch("/api/system/scenarios");
+      if (res.ok) { const d = await res.json(); setScenarios(d.scenarios); }
+    } catch { /* ignore */ } finally { setRunning(false); }
+  }, []);
+
   const color = (s: string) => s === "PASS" ? "text-emerald-400" : s === "WARN" ? "text-amber-400" : "text-red-400";
   const dot = (s: string) => s === "PASS" ? "bg-emerald-400" : s === "WARN" ? "bg-amber-400" : "bg-red-400";
 
@@ -2352,6 +2363,26 @@ function ValidationCard() {
             <div className="min-w-0"><span className="text-foreground">{c.name}</span><span className="text-muted-foreground"> — {c.detail}</span></div>
           </div>
         ))}
+      </div>
+
+      {/* End-to-End Scenarios : exécute réellement chaque parcours utilisateur */}
+      <div className="pt-2 border-t border-border/50 space-y-2">
+        <button onClick={runScenarios} disabled={running} className="text-xs px-3 py-1.5 rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/25 disabled:opacity-50">
+          {running ? "Parcours en cours (1-2 min : IA + vidéo)…" : "▶ Scénarios bout-en-bout (parcours réels)"}
+        </button>
+        {scenarios && (
+          <div className="space-y-1">
+            {scenarios.map((s, i) => (
+              <div key={i} className="flex items-center justify-between text-xs gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn("w-2 h-2 rounded-full shrink-0", dot(s.status))} />
+                  <span className="text-foreground truncate">{s.name}</span>
+                </div>
+                <span className={cn("font-semibold shrink-0", color(s.status))}>{s.status} <span className="text-muted-foreground font-normal">{(s.durationMs / 1000).toFixed(1)}s</span></span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

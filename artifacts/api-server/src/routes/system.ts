@@ -21,6 +21,18 @@ router.get("/system/validate", async (_req, res) => {
   }
 });
 
+// VIS END-TO-END SCENARIOS — exécute RÉELLEMENT chaque parcours utilisateur
+// complet (Chat→Tool→Council/Planner→FFmpeg/HF→DB→Reflection). LENT (~1-2 min :
+// appels IA + vidéo). Données de test nettoyées. Ouvrable au navigateur.
+router.get("/system/scenarios", async (_req, res) => {
+  try {
+    const { runScenarios } = await import("../lib/scenarios");
+    return res.json(await runScenarios());
+  } catch (err) {
+    return res.status(500).json({ error: "Scénarios échoués", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // VIS SELF-TEST FONCTIONNEL — exécute RÉELLEMENT l'IA + l'encodage vidéo (preuve
 // de production de bout en bout). Plus lent (~5-15s). Ouvrable au navigateur.
 router.get("/system/selftest", async (_req, res) => {
