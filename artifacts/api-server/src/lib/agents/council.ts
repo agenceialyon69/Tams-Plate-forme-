@@ -348,16 +348,19 @@ export interface CouncilResult {
   redTeamCritique: string;
   synthesis: string;
   totalAgentsConsulted: number;
+  parallelExecution: boolean;
+  durationMs: number;
 }
 
 export async function runAgentCouncil(
   query: string,
-  conversationHistory: Array<{ role: string; content: string }> = []
+  _conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<CouncilResult> {
+  const startTime = Date.now();
   const classification = classifyRequest(query);
   const config = COUNCIL_PRESETS[classification];
 
-  // Gather context
+  // Gather context in parallel
   const [userContext, memoryContext, decisionContext] = await Promise.all([
     gatherUserContext(),
     getMemoryContext(query),
@@ -366,27 +369,31 @@ export async function runAgentCouncil(
 
   const fullContext = [userContext, memoryContext, decisionContext].filter(Boolean).join("\n\n");
 
-  // Collect perspectives from relevant agents
-  const perspectives: AgentPerspective[] = [];
+  // Collect perspectives from relevant agents IN PARALLEL
+  const agentsToConsult = config.agents
+    .filter(role => role !== "red_team" && role !== "chief_of_staff")
+    .map(role => getAgent(role))
+    .filter((agent): agent is Agent => agent !== undefined);
 
-  for (const role of config.agents) {
-    if (role === "red_team") continue; // Red Team runs separately
+  // Execute all agents in parallel
+  const perspectivesPromises = agentsToConsult.map(agent =>
+    getAgentPerspective(agent, query, fullContext, [])
+  );
 
-    const agent = getAgent(role);
-    if (!agent || role === "chief_of_staff") continue;
+  const perspectives = await Promise.all(perspectivesPromises);
 
-    const perspective = await getAgentPerspective(agent, query, fullContext, perspectives);
-    perspectives.push(perspective);
-  }
+  // Red Team challenge runs in parallel with any synthesis preparation
+  const redTeamPromise = config.redTeamRequired && perspectives.length > 0
+    ? redTeamChallenge(perspectives, fullContext)
+    : Promise.resolve("");
 
-  // Red Team challenge if required
-  let redTeamCritique = "";
-  if (config.redTeamRequired && perspectives.length > 0) {
-    redTeamCritique = await redTeamChallenge(perspectives, fullContext);
-  }
+  // Wait for Red Team
+  const redTeamCritique = await redTeamPromise;
 
   // Chief synthesis
   const synthesis = await chiefSynthesis(query, perspectives, redTeamCritique, fullContext);
+
+  const durationMs = Date.now() - startTime;
 
   return {
     classification,
@@ -394,6 +401,8 @@ export async function runAgentCouncil(
     redTeamCritique,
     synthesis,
     totalAgentsConsulted: perspectives.length + (redTeamCritique ? 1 : 0),
+    parallelExecution: true,
+    durationMs,
   };
 }
 
