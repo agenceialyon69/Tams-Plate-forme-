@@ -2278,6 +2278,81 @@ interface HealthCheck {
   checks: Record<string, { status: "ok" | "error"; message?: string }>;
 }
 
+// Connecteur Shopify : import des produits dans les Assets (gratuit, jeton app privée).
+function ShopifyImportCard() {
+  const { toast } = useToast();
+  const [shop, setShop] = useState("");
+  const [token, setToken] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ imported: number; total: number } | null>(null);
+
+  async function runImport() {
+    if (!shop.trim() || !token.trim() || importing) return;
+    setImporting(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/integrations/shopify/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shop: shop.trim(), token: token.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Import échoué", description: data.hint || data.error || `HTTP ${res.status}`, variant: "destructive" });
+      } else {
+        setResult({ imported: data.imported, total: data.total });
+        toast({ title: `${data.imported} produit(s) importé(s)`, description: "Disponibles dans tes Assets (Studio)." });
+      }
+    } catch {
+      toast({ title: "Import échoué", description: "Vérifie ta connexion.", variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <div className="bg-secondary rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-base">🛍️</span>
+        <span className="text-sm font-semibold text-foreground">Connecter Shopify</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Importe tes produits (image + description) dans tes Assets. Dans Shopify : crée une
+        <span className="font-medium"> app personnalisée</span> avec le scope <span className="font-mono">read_products</span>, puis colle le jeton <span className="font-mono">shpat_…</span>.
+      </p>
+      <input
+        value={shop}
+        onChange={(e) => setShop(e.target.value)}
+        placeholder="ma-boutique.myshopify.com"
+        autoCapitalize="off"
+        autoCorrect="off"
+        className="w-full bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-primary/40"
+        style={{ fontSize: "16px" }}
+      />
+      <input
+        value={token}
+        onChange={(e) => setToken(e.target.value)}
+        placeholder="shpat_..."
+        type="password"
+        className="w-full bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-primary/40"
+        style={{ fontSize: "16px" }}
+      />
+      <button
+        onClick={runImport}
+        disabled={importing || !shop.trim() || !token.trim()}
+        className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40 active:scale-[0.99] transition-transform"
+      >
+        {importing ? "Import en cours..." : "Importer mes produits"}
+      </button>
+      {result && (
+        <p className="text-xs text-emerald-400">
+          ✅ {result.imported}/{result.total} produit(s) importé(s) → Studio → Assets.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SystemeTab() {
   const { toast } = useToast();
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useGetSystemStats();
@@ -2424,6 +2499,8 @@ function SystemeTab() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+      {/* Connecteur Shopify */}
+      <ShopifyImportCard />
       {/* Actions header */}
       <div className="flex items-center justify-between shrink-0">
         <span className="text-xs font-medium text-muted-foreground">Observabilité</span>

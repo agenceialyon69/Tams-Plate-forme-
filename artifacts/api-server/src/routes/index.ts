@@ -16,6 +16,7 @@ import studioGenerateRouter from "./studio-generate";
 import systemRouter from "./system";
 import observabilityRouter from "./observability";
 import agentsRouter from "./agents";
+import integrationsRouter from "./integrations";
 
 const router: IRouter = Router();
 
@@ -41,6 +42,7 @@ router.use(studioRouter);
 router.use(studioGenerateRouter);
 router.use(systemRouter);
 router.use(observabilityRouter);
+router.use(integrationsRouter);
 router.use(defaultRateLimit);
 
 export default router;
