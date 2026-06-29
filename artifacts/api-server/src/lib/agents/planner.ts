@@ -296,6 +296,8 @@ export async function planAndExecute(
   verification: Awaited<ReturnType<typeof verifyPlanResult>>;
   message: string;
 }> {
+  // Observabilité métier : trace l'usage du Planner (voir /api/system/usage).
+  import("../activity").then(({ logActivity }) => logActivity("ai_call", "Planner", "Plan d'action généré", 0)).catch(() => {});
   const plan = await executePlan(query, context);
   const verification = await verifyPlanResult(plan);
 

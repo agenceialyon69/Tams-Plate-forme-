@@ -21,6 +21,24 @@ router.get("/system/validate", async (_req, res) => {
   }
 });
 
+// VIS USAGE — observabilité MÉTIER : quels composants sont RÉELLEMENT utilisés
+// (nb d'appels + dernière utilisation), depuis le journal d'activité.
+router.get("/system/usage", async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT type, title, COUNT(*)::int AS count, MAX(created_at) AS last_used
+       FROM activity
+       WHERE type IN ('tool_call','ai_call','decision')
+       GROUP BY type, title
+       ORDER BY MAX(created_at) DESC
+       LIMIT 60`,
+    );
+    return res.json({ components: r.rows, generatedAt: new Date().toISOString() });
+  } catch (err) {
+    return res.status(500).json({ error: "Usage indisponible", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // VIS END-TO-END SCENARIOS — exécute RÉELLEMENT chaque parcours utilisateur
 // complet (Chat→Tool→Council/Planner→FFmpeg/HF→DB→Reflection). LENT (~1-2 min :
 // appels IA + vidéo). Données de test nettoyées. Ouvrable au navigateur.

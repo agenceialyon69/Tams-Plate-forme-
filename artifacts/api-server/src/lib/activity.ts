@@ -2,7 +2,7 @@ import { db } from "@workspace/db";
 import { activityTable } from "@workspace/db";
 import { logger } from "./logger";
 
-type ActivityType = "task" | "project" | "contact" | "memory" | "decision" | "conversation" | "asset" | "agent" | "tool_call";
+type ActivityType = "task" | "project" | "contact" | "memory" | "decision" | "conversation" | "asset" | "agent" | "ai_call" | "tool_call";
 
 /**
  * Enregistre une action dans le journal d'activité.

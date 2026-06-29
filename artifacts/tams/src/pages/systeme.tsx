@@ -2317,6 +2317,15 @@ function ValidationCard() {
     } catch { /* ignore */ } finally { setRunning(false); }
   }, []);
 
+  const [usage, setUsage] = useState<{ type: string; title: string; count: number; last_used: string }[] | null>(null);
+  useEffect(() => {
+    fetch("/api/system/usage").then((r) => r.ok ? r.json() : null).then((d) => d && setUsage(d.components)).catch(() => {});
+  }, []);
+  const ago = (iso: string) => {
+    const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
+    return h < 1 ? "<1h" : h < 24 ? `${h}h` : `${Math.floor(h / 24)}j`;
+  };
+
   const color = (s: string) => s === "PASS" ? "text-emerald-400" : s === "WARN" ? "text-amber-400" : "text-red-400";
   const dot = (s: string) => s === "PASS" ? "bg-emerald-400" : s === "WARN" ? "bg-amber-400" : "bg-red-400";
 
@@ -2384,6 +2393,19 @@ function ValidationCard() {
           </div>
         )}
       </div>
+
+      {/* Observabilité métier : composants réellement utilisés */}
+      {usage && usage.length > 0 && (
+        <div className="pt-2 border-t border-border/50 space-y-1.5">
+          <div className="text-xs font-medium text-muted-foreground">Composants utilisés (réel)</div>
+          {usage.slice(0, 10).map((u, i) => (
+            <div key={i} className="flex items-center justify-between text-xs gap-2">
+              <span className="text-foreground truncate">{u.title}</span>
+              <span className="text-muted-foreground shrink-0">{u.count}× · il y a {ago(u.last_used)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

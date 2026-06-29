@@ -359,6 +359,8 @@ export async function runAgentCouncil(
   const startTime = Date.now();
   const classification = classifyRequest(query);
   const config = COUNCIL_PRESETS[classification];
+  // Observabilité métier : trace l'usage du Council (voir /api/system/usage).
+  import("../activity").then(({ logActivity }) => logActivity("ai_call", "Council", `Conseil multi-agents: ${classification}`, 0)).catch(() => {});
 
   // Gather context in parallel
   const [userContext, memoryContext, decisionContext] = await Promise.all([
