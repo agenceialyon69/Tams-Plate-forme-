@@ -1,0 +1,357 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 20% 10%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 217 91% 55%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 10%;
+    --card-border: 220 13% 90%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 10%;
+    --popover-border: 220 13% 88%;
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-border: 217 91% 60%;
+    --secondary: 220 13% 93%;
+    --secondary-foreground: 222 20% 15%;
+    --secondary-border: 220 13% 88%;
+    --muted: 220 13% 93%;
+    --muted-foreground: 215 16% 46%;
+    --muted-border: 220 13% 88%;
+    --accent: 220 13% 93%;
+    --accent-foreground: 222 20% 10%;
+    --accent-border: 220 13% 88%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --destructive-border: 0 72% 56%;
+    --chart-1: 217 91% 55%;
+    --chart-2: 160 60% 40%;
+    --chart-3: 30 80% 50%;
+    --chart-4: 280 65% 55%;
+    --chart-5: 340 75% 50%;
+    --sidebar: 0 0% 97%;
+    --sidebar-foreground: 222 20% 15%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 13% 93%;
+    --sidebar-accent-foreground: 222 20% 15%;
+    --sidebar-ring: 217 91% 55%;
+    --radius: 0.5rem;
+    --tracking-tight: -0.025em;
+    --tracking-normal: 0em;
+    --tracking-wide: 0.025em;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    /* Animation durations */
+    --anim-fast: 150ms;
+    --anim-normal: 250ms;
+    --anim-slow: 400ms;
+  }
+
+  .dark {
+    --background: 222 20% 5%;
+    --foreground: 0 0% 95%;
+    --border: 222 15% 18%;
+    --input: 222 15% 18%;
+    --ring: 217 91% 55%;
+    --card: 222 20% 8%;
+    --card-foreground: 0 0% 95%;
+    --card-border: 222 15% 18%;
+    --popover: 222 20% 8%;
+    --popover-foreground: 0 0% 95%;
+    --popover-border: 222 15% 18%;
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-border: 217 91% 60%;
+    --secondary: 222 15% 18%;
+    --secondary-foreground: 0 0% 95%;
+    --secondary-border: 222 15% 22%;
+    --muted: 222 15% 18%;
+    --muted-foreground: 215 16% 60%;
+    --muted-border: 222 15% 22%;
+    --accent: 222 15% 18%;
+    --accent-foreground: 0 0% 95%;
+    --accent-border: 222 15% 22%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --destructive-border: 0 72% 56%;
+    --chart-1: 217 91% 55%;
+    --chart-2: 160 60% 40%;
+    --chart-3: 30 80% 50%;
+    --chart-4: 280 65% 55%;
+    --chart-5: 340 75% 50%;
+    --sidebar: 222 20% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-border: 222 15% 18%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 15% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-ring: 217 91% 55%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 12px 3px hsl(var(--primary) / 0.2); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes wave {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes nav-indicator {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ANIMATION UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.animate-fade-in { animation: fade-in var(--anim-normal) ease both; }
+.animate-slide-in { animation: slide-in-right var(--anim-normal) ease both; }
+.animate-slide-up { animation: slide-up var(--anim-slow) ease both; }
+.animate-slide-down { animation: slide-down var(--anim-slow) ease both; }
+.animate-scale-in { animation: scale-in var(--anim-normal) cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-shake { animation: shake var(--anim-normal) ease both; }
+.animate-glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-shimmer { animation: shimmer 2.5s ease-in-out infinite; }
+.animate-wave { animation: wave 1s ease-in-out infinite; }
+.animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+.animate-ripple { animation: ripple 0.6s ease-out both; }
+.animate-nav-indicator { animation: nav-indicator var(--anim-normal) ease both; }
+
+/* Stagger children */
+.stagger > * { animation: fade-in var(--anim-normal) ease both; }
+.stagger > *:nth-child(1) { animation-delay: .04s; }
+.stagger > *:nth-child(2) { animation-delay: .08s; }
+.stagger > *:nth-child(3) { animation-delay: .12s; }
+.stagger > *:nth-child(4) { animation-delay: .16s; }
+.stagger > *:nth-child(5) { animation-delay: .20s; }
+.stagger > *:nth-child(6) { animation-delay: .24s; }
+.stagger > *:nth-child(7) { animation-delay: .28s; }
+.stagger > *:nth-child(8) { animation-delay: .32s; }
+
+/* Stagger slide-up */
+.stagger-up > * { animation: slide-up var(--anim-slow) ease both; }
+.stagger-up > *:nth-child(1) { animation-delay: .04s; }
+.stagger-up > *:nth-child(2) { animation-delay: .08s; }
+.stagger-up > *:nth-child(3) { animation-delay: .12s; }
+.stagger-up > *:nth-child(4) { animation-delay: .16s; }
+.stagger-up > *:nth-child(5) { animation-delay: .20s; }
+.stagger-up > *:nth-child(6) { animation-delay: .24s; }
+.stagger-up > *:nth-child(7) { animation-delay: .28s; }
+.stagger-up > *:nth-child(8) { animation-delay: .32s; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GLASS / GLOW / SHIMMER UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.glass {
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--card-border) / 0.6);
+}
+
+.glow {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.15), 0 0 40px hsl(var(--primary) / 0.05);
+}
+
+.glow-sm {
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.2);
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.03), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform var(--anim-fast) ease, box-shadow var(--anim-fast) ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.06);
+}
+
+/* Card hover glow */
+.hover-glow {
+  transition: border-color var(--anim-fast) ease, box-shadow var(--anim-fast) ease;
+}
+.hover-glow:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  box-shadow: 0 0 16px hsl(var(--primary) / 0.08);
+}
+
+/* Ripple button effect */
+.ripple-btn {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, hsl(var(--primary-foreground) / 0.2) 0%, transparent 70%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  border-radius: inherit;
+}
+.ripple-btn:active::after {
+  transform: scale(2);
+  opacity: 1;
+  transition: transform 0s, opacity 0s;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Bottom sheet drag handle */
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(var(--muted-foreground) / 0.3);
+  margin: 8px auto;
+}
+
+/* ─── Mobile Premium Fixes ─── */
+
+/* Prevent double-tap zoom on all interactive elements */
+button, a, input, textarea, select, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure minimum 16px font-size on inputs to prevent iOS zoom */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Overscroll behavior on common scrollable containers */
+.scroll-container,
+.overflow-y-auto,
+.overflow-x-auto {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Modal/dialog max height with internal scroll */
+[role="dialog"] {
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+/* Safe area insets helper */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

@@ -1,0 +1,495 @@
+# MISSION OFFICIELLE — TAMS AI OPERATING SYSTEM
+
+## PROJET CIBLE (OBLIGATOIRE)
+
+Tu travailles EXCLUSIVEMENT sur ce dépôt :
+
+agenceialyon69/Tams-Plate-forme-
+
+Interdictions :
+
+* Ne jamais créer un nouveau projet.
+* Ne jamais créer un nouveau dépôt.
+* Ne jamais migrer vers un autre repository.
+* Ne jamais repartir de zéro.
+* Ne jamais générer une nouvelle architecture parallèle.
+
+Tout le travail doit être effectué dans :
+
+agenceialyon69/Tams-Plate-forme-
+
+Ce dépôt est la seule source de vérité.
+
+---
+
+# RÈGLE GITHUB ABSOLUE
+
+Aucune phase n'est considérée terminée tant que :
+
+* le code est commité,
+* le code est poussé sur GitHub,
+* le hash du commit est affiché,
+* le commit est visible sur la branche main.
+
+Interdiction de considérer un travail terminé uniquement parce qu'il existe dans l'environnement temporaire.
+
+Si le push échoue :
+
+STOP.
+
+Résoudre le problème GitHub avant toute autre action.
+
+---
+
+# MISSION
+
+Transformer TAMS en véritable AI Operating System personnel premium.
+
+Pas un dashboard.
+
+Pas un CRM.
+
+Pas un SaaS classique.
+
+Un système d'exploitation personnel intelligent.
+
+---
+
+# PHILOSOPHIE
+
+FREE FIRST
+
+Priorité absolue :
+
+* gratuit
+* open source
+* auto-hébergeable
+* sans abonnement obligatoire
+* sans carte bancaire obligatoire
+
+Préférer :
+
+* Ollama
+* Qwen3
+* DeepSeek
+* PostgreSQL
+* SearXNG
+* Whisper local
+* FFmpeg
+* Supabase Free si nécessaire
+* outils open source
+
+Éviter toute dépendance payante obligatoire.
+
+---
+
+# RÔLES
+
+Agir simultanément comme :
+
+* Principal Product Designer
+* Principal UX Designer
+* Staff Software Engineer
+* Chief of Staff Architect
+* Red Team Reviewer
+* Mobile Product Lead
+
+---
+
+# OBJECTIF FINAL
+
+Créer une plateforme :
+
+* professionnelle
+* premium
+* mobile-first
+* cohérente
+* rapide
+* réellement utile
+
+et capable de devenir plus tard multi-tenant si nécessaire.
+
+Aujourd'hui :
+
+usage personnel prioritaire.
+
+---
+
+# PROBLÈME ACTUEL
+
+TAMS ressemble encore trop à :
+
+* un ensemble de modules
+* un dashboard
+* une collection d'écrans
+
+TAMS doit devenir :
+
+* un Chief of Staff
+* un copilote
+* une mémoire vivante
+* un système de décision
+* un cockpit personnel
+
+---
+
+# NOUVELLE ARCHITECTURE
+
+Navigation principale :
+
+1. Accueil
+2. Chat
+3. Travail
+4. Studio
+5. Système
+
+Maximum.
+
+Aucune prolifération de menus.
+
+---
+
+# ACCUEIL
+
+L'accueil n'est PAS un menu.
+
+L'accueil est un Chief of Staff.
+
+Afficher :
+
+* briefing du jour
+* priorités
+* risques
+* opportunités
+* recommandations IA
+* projets actifs
+* charge de travail
+* décisions importantes
+* alertes
+
+Exemple :
+
+Bonsoir Mohamed
+
+Priorité 1 :
+Claire
+
+Priorité 2 :
+Prospection
+
+Risque principal :
+Aucun nouveau cabinet contacté depuis 5 jours
+
+Action recommandée :
+Contacter 3 cabinets aujourd'hui
+
+---
+
+# CHAT (MODULE LE PLUS IMPORTANT)
+
+Le chat devient le centre absolu de TAMS.
+
+90% des actions doivent pouvoir commencer depuis le chat.
+
+Inspirations :
+
+* ChatGPT
+* Claude
+* Perplexity
+* Raycast
+
+Fonctions :
+
+* mémoire conversationnelle
+* historique
+* recherche mémoire
+* recherche web
+* mode Chief of Staff
+* mode Décision
+* mode Red Team
+* mode Exécution
+* pièces jointes
+* capture rapide
+* multimodal
+
+---
+
+# MOBILE PREMIUM
+
+Références :
+
+* ChatGPT iOS
+* Claude Mobile
+* Arc Search
+* Linear Mobile
+
+Objectif :
+
+donner l'impression d'une application native.
+
+Vérifier :
+
+* responsive
+* navigation
+* scrolling
+* clavier
+* input fixe
+* boutons visibles
+* safe areas
+* vitesse
+
+---
+
+# TRAVAIL
+
+Fusionner :
+
+* tâches
+* agenda
+* prospection
+* CRM
+* actions
+
+dans un espace unique.
+
+Objectif :
+
+une seule vue de travail.
+
+---
+
+# STUDIO
+
+Fusionner :
+
+* images
+* vidéos
+* audio
+* documents
+* prompts
+* templates
+
+dans un espace cohérent.
+
+Organisation :
+
+Photos
+Vidéos
+Audio
+Documents
+Prompts
+Templates
+Résultats
+
+---
+
+# MÉMOIRE
+
+Construire un véritable Memory Graph.
+
+Relier :
+
+* projets
+* personnes
+* entreprises
+* conversations
+* tâches
+* décisions
+* documents
+* objectifs
+
+Fonctions obligatoires :
+
+* timeline
+* relations
+* recherche
+* suggestions
+* navigation contextuelle
+
+Interdiction de créer un simple CRUD.
+
+---
+
+# DECISION OS
+
+Chaque décision contient :
+
+* contexte
+* options
+* avantages
+* risques
+* avis IA
+* avis Red Team
+* résultat
+* apprentissages
+
+Score de confiance obligatoire.
+
+---
+
+# RED TEAM
+
+Le Red Team doit produire des analyses utiles.
+
+Exemples :
+
+"Tu développes trop de projets."
+
+"Tu construis mais tu ne prospectes pas."
+
+"Cette décision augmente le risque financier."
+
+"Cette action ne contribue pas à tes objectifs."
+
+Pas de faux conseils génériques.
+
+---
+
+# INTERDICTION DES ÉCRANS VIDES
+
+Un module n'est pas terminé s'il contient seulement :
+
+* CRUD
+* formulaire
+* table
+* liste
+
+Chaque module doit produire une valeur réelle.
+
+---
+
+# DESIGN SYSTEM PREMIUM
+
+Inspirations :
+
+* Apple
+* Linear
+* Notion
+* Arc Browser
+
+Objectifs :
+
+* hiérarchie forte
+* typographie premium
+* cohérence
+* profondeur légère
+* micro-animations
+* ombres douces
+* excellente lisibilité
+
+Interdiction du style :
+
+* admin dashboard
+* template SaaS générique
+
+---
+
+# VALIDATION RUNTIME
+
+Une preuve valide exige :
+
+* build exécuté
+* application lancée
+* fonctionnalité testée
+* résultat observé
+
+Une simple documentation n'est pas une preuve.
+
+---
+
+# RED TEAM REPORTING
+
+Maintenir :
+
+REALITY_AUDIT.md
+
+REALITY_SCORE.md
+
+FINAL_RED_TEAM_REPORT.md
+
+Chaque module :
+
+* score réel
+* limites réelles
+* preuves réelles
+
+Objectif final :
+
+Chief of Staff ≥ 90
+
+Chat ≥ 90
+
+Memory ≥ 90
+
+Decision OS ≥ 90
+
+Mobile ≥ 90
+
+Recovery ≥ 90
+
+Red Team ≥ 90
+
+Aucun module sous 80.
+
+---
+
+# ORDRE DE TRAVAIL OBLIGATOIRE
+
+Phase 1 :
+Architecture + sécurité + GitHub
+
+Phase 2 :
+Chief of Staff Home
+
+Phase 3 :
+Chat Central
+
+Phase 4 :
+Memory Graph
+
+Phase 5 :
+Decision OS
+
+Phase 6 :
+Travail
+
+Phase 7 :
+Studio
+
+Phase 8 :
+Système
+
+Phase 9 :
+Mobile Premium
+
+Phase 10 :
+Audit Final
+
+Ne jamais passer à la phase suivante tant que :
+
+* build OK
+* runtime OK
+* commit OK
+* push GitHub OK
+
+ne sont pas validés.
+
+---
+
+# DÉFINITION DE TERMINÉ
+
+Une phase est terminée uniquement si :
+
+✓ Fonctionne réellement
+
+✓ Testée
+
+✓ Commit créée
+
+✓ Poussée sur la branche main
+
+✓ Hash affiché
+
+✓ Visible sur GitHub
+
+Sinon elle est considérée comme NON TERMINÉE.

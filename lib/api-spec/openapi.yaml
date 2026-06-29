@@ -1,0 +1,2023 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: TAMS AI Operating System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: briefing
+    description: Chief of Staff daily briefing
+  - name: conversations
+    description: Chat conversations
+  - name: messages
+    description: Chat messages
+  - name: tasks
+    description: Task management
+  - name: projects
+    description: Project management
+  - name: contacts
+    description: CRM contacts
+  - name: memories
+    description: Memory graph nodes
+  - name: decisions
+    description: Decision OS
+  - name: assets
+    description: Studio assets
+  - name: dashboard
+    description: Dashboard aggregates and summaries
+  - name: notifications
+    description: Smart proactive notifications
+  - name: studio
+    description: Studio media generation
+  - name: system
+    description: System audit, stats, and recovery
+
+paths:
+  # ── NOTIFICATIONS ────────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: getNotifications
+      tags: [notifications]
+      summary: Get smart proactive notifications
+      responses:
+        "200":
+          description: List of computed notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  # ── STUDIO GENERATION ────────────────────────────────────────────────────────
+  /studio/generate-script:
+    post:
+      operationId: generateMediaScript
+      tags: [studio]
+      summary: AI-generate a video script or music brief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateMediaScriptRequest"
+      responses:
+        "200":
+          description: Generated script and suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateMediaScriptResponse"
+
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── BRIEFING ──────────────────────────────────────────────────────────────
+  /briefing/today:
+    get:
+      operationId: getTodayBriefing
+      tags: [briefing]
+      summary: Get today's Chief of Staff briefing
+      responses:
+        "200":
+          description: Today's briefing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Briefing"
+
+  /briefing/generate:
+    post:
+      operationId: generateBriefing
+      tags: [briefing]
+      summary: Generate or regenerate today's briefing with AI
+      responses:
+        "200":
+          description: Newly generated briefing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Briefing"
+
+  # ── CONVERSATIONS ─────────────────────────────────────────────────────────
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      summary: List all conversations
+      parameters:
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [chat, chief_of_staff, decision, red_team, execution]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: Get a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+    delete:
+      operationId: deleteConversation
+      tags: [conversations]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /conversations/{id}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message and get AI response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "200":
+          description: AI response message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePair"
+
+  # ── TASKS ─────────────────────────────────────────────────────────────────
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [todo, in_progress, done, cancelled]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Tasks list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── PROJECTS ──────────────────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      responses:
+        "200":
+          description: Projects list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── CONTACTS ──────────────────────────────────────────────────────────────
+  /contacts:
+    get:
+      operationId: listContacts
+      tags: [contacts]
+      summary: List CRM contacts
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [prospect, active, inactive, client]
+      responses:
+        "200":
+          description: Contacts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contact"
+    post:
+      operationId: createContact
+      tags: [contacts]
+      summary: Create a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactInput"
+      responses:
+        "201":
+          description: Created contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+
+  /contacts/{id}:
+    patch:
+      operationId: updateContact
+      tags: [contacts]
+      summary: Update a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactUpdate"
+      responses:
+        "200":
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    delete:
+      operationId: deleteContact
+      tags: [contacts]
+      summary: Delete a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── MEMORIES ──────────────────────────────────────────────────────────────
+  /memories:
+    get:
+      operationId: listMemories
+      tags: [memories]
+      summary: List memory graph nodes
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [person, project, company, decision, note, goal, event]
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Memories list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Memory"
+    post:
+      operationId: createMemory
+      tags: [memories]
+      summary: Create a memory node
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryInput"
+      responses:
+        "201":
+          description: Created memory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Memory"
+
+  /memories/{id}:
+    patch:
+      operationId: updateMemory
+      tags: [memories]
+      summary: Update a memory node
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryUpdate"
+      responses:
+        "200":
+          description: Updated memory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Memory"
+    delete:
+      operationId: deleteMemory
+      tags: [memories]
+      summary: Delete a memory node
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /memories/graph:
+    get:
+      operationId: getMemoryGraph
+      tags: [memories]
+      summary: Get memory graph nodes and edges for visualization
+      responses:
+        "200":
+          description: Graph with nodes and edges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryGraph"
+
+  /memories/{id}/edges:
+    get:
+      operationId: listMemoryEdges
+      tags: [memories]
+      summary: List edges for a memory node
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of edges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryEdge"
+    post:
+      operationId: createMemoryEdge
+      tags: [memories]
+      summary: Create a typed edge between two memory nodes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryEdgeInput"
+      responses:
+        "201":
+          description: Created edge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryEdge"
+
+  /memories/edges/{edgeId}:
+    delete:
+      operationId: deleteMemoryEdge
+      tags: [memories]
+      summary: Delete a memory edge
+      parameters:
+        - name: edgeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── DECISIONS ─────────────────────────────────────────────────────────────
+  /decisions:
+    get:
+      operationId: listDecisions
+      tags: [decisions]
+      summary: List decisions
+      responses:
+        "200":
+          description: Decisions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Decision"
+    post:
+      operationId: createDecision
+      tags: [decisions]
+      summary: Create a decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionInput"
+      responses:
+        "201":
+          description: Created decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+
+  /decisions/{id}:
+    get:
+      operationId: getDecision
+      tags: [decisions]
+      summary: Get a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+    patch:
+      operationId: updateDecision
+      tags: [decisions]
+      summary: Update a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionUpdate"
+      responses:
+        "200":
+          description: Updated decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+    delete:
+      operationId: deleteDecision
+      tags: [decisions]
+      summary: Delete a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /decisions/{id}/analyze:
+    post:
+      operationId: analyzeDecision
+      tags: [decisions]
+      summary: Run AI + Red Team analysis on a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated decision with AI analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+
+  /decisions/{id}/tasks:
+    post:
+      operationId: createTasksFromDecision
+      tags: [decisions]
+      summary: Create tasks from a decision (turn decision into action items)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TasksFromDecisionInput"
+      responses:
+        "201":
+          description: Created tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  # ── ASSETS ────────────────────────────────────────────────────────────────
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List studio assets
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [image, video, audio, document, prompt, template, result]
+      responses:
+        "200":
+          description: Assets list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+    post:
+      operationId: createAsset
+      tags: [assets]
+      summary: Create an asset record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+      responses:
+        "201":
+          description: Created asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+  /assets/{id}:
+    patch:
+      operationId: updateAsset
+      tags: [assets]
+      summary: Update an asset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetUpdate"
+      responses:
+        "200":
+          description: Updated asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+    delete:
+      operationId: deleteAsset
+      tags: [assets]
+      summary: Delete an asset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── DASHBOARD (wow endpoints) ──────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get a global summary of all modules
+      responses:
+        "200":
+          description: Dashboard summary with counts and activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed across all modules
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/workload:
+    get:
+      operationId: getWorkload
+      tags: [dashboard]
+      summary: Get current workload analysis
+      responses:
+        "200":
+          description: Workload breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkloadSummary"
+
+  # ── RELATIONSHIPS / SUGGESTIONS ───────────────────────────────────────────
+  /tasks/{id}/suggestions:
+    get:
+      operationId: getTaskSuggestions
+      tags: [tasks]
+      summary: Get relationship suggestions for a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RelationshipSuggestion"
+
+  /tasks/{id}/auto-link:
+    post:
+      operationId: autoLinkTask
+      tags: [tasks]
+      summary: Auto-link a task based on suggestions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Linked suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RelationshipSuggestion"
+
+  /projects/{id}/related:
+    get:
+      operationId: getProjectRelated
+      tags: [projects]
+      summary: Get all entities related to a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Related entities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ProjectRelated"
+
+  /projects/{id}/suggestions:
+    get:
+      operationId: getProjectSuggestions
+      tags: [projects]
+      summary: Get relationship suggestions for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RelationshipSuggestion"
+
+  /projects/{id}/auto-link:
+    post:
+      operationId: autoLinkProject
+      tags: [projects]
+      summary: Auto-link a project based on suggestions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Linked suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RelationshipSuggestion"
+
+  /contacts/{id}/related:
+    get:
+      operationId: getContactRelated
+      tags: [contacts]
+      summary: Get all entities related to a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Related entities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContactRelated"
+
+  /contacts/{id}/suggestions:
+    get:
+      operationId: getContactSuggestions
+      tags: [contacts]
+      summary: Get relationship suggestions for a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RelationshipSuggestion"
+
+  /contacts/{id}/auto-link:
+    post:
+      operationId: autoLinkContact
+      tags: [contacts]
+      summary: Auto-link a contact based on suggestions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Linked suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RelationshipSuggestion"
+
+  # ── SYSTEM ────────────────────────────────────────────────────────────────
+  /system/audit:
+    get:
+      operationId: getSystemAudit
+      tags: [system]
+      summary: Get full audit log
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [task, project, contact, memory, decision, conversation, asset]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /system/stats:
+    get:
+      operationId: getSystemStats
+      tags: [system]
+      summary: Get system health and data counts
+      responses:
+        "200":
+          description: System statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStats"
+
+  /system/export:
+    get:
+      operationId: exportSystemData
+      tags: [system]
+      summary: Export all data as JSON for recovery
+      responses:
+        "200":
+          description: Full data export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemExport"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    # ── BRIEFING ────────────────────────────────────────────────────────────
+    Briefing:
+      type: object
+      required: [id, date, greeting, priorities, risks, opportunities, recommendations, activeProjectsCount, pendingTasksCount, createdAt]
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        greeting:
+          type: string
+        priorities:
+          type: array
+          items:
+            $ref: "#/components/schemas/BriefingItem"
+        risks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BriefingItem"
+        opportunities:
+          type: array
+          items:
+            $ref: "#/components/schemas/BriefingItem"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/BriefingItem"
+        activeProjectsCount:
+          type: integer
+        pendingTasksCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    BriefingItem:
+      type: object
+      required: [label, description]
+      properties:
+        label:
+          type: string
+        description:
+          type: string
+        urgency:
+          type: ["string", "null"]
+          enum: [low, medium, high, null]
+
+    # ── CONVERSATIONS ────────────────────────────────────────────────────────
+    Conversation:
+      type: object
+      required: [id, title, mode, messageCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        mode:
+          type: string
+          enum: [chat, chief_of_staff, decision, red_team, execution]
+        messageCount:
+          type: integer
+        lastMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ConversationInput:
+      type: object
+      required: [title, mode]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        mode:
+          type: string
+          enum: [chat, chief_of_staff, decision, red_team, execution]
+
+    Message:
+      type: object
+      required: [id, conversationId, role, content, createdAt]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+
+    MessagePair:
+      type: object
+      required: [userMessage, assistantMessage]
+      properties:
+        userMessage:
+          $ref: "#/components/schemas/Message"
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+
+    # ── TASKS ────────────────────────────────────────────────────────────────
+    Task:
+      type: object
+      required: [id, title, status, priority, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [todo, in_progress, done, cancelled]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        projectId:
+          type: ["integer", "null"]
+        projectName:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        status:
+          type: string
+          enum: [todo, in_progress, done, cancelled]
+          default: todo
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          default: medium
+        projectId:
+          type: ["integer", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [todo, in_progress, done, cancelled]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        projectId:
+          type: ["integer", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+
+    # ── PROJECTS ─────────────────────────────────────────────────────────────
+    Project:
+      type: object
+      required: [id, name, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, paused, completed, archived]
+        taskCount:
+          type: integer
+        completedTaskCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProjectInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, completed, archived]
+          default: active
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, paused, completed, archived]
+
+    # ── CONTACTS ─────────────────────────────────────────────────────────────
+    Contact:
+      type: object
+      required: [id, name, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        company:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [prospect, active, inactive, client]
+        notes:
+          type: ["string", "null"]
+        lastContactedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ContactInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        company:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+          enum: [prospect, active, inactive, client]
+          default: prospect
+        notes:
+          type: string
+        lastContactedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    ContactUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        company:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [prospect, active, inactive, client]
+        notes:
+          type: ["string", "null"]
+        lastContactedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    # ── MEMORIES ─────────────────────────────────────────────────────────────
+    Memory:
+      type: object
+      required: [id, title, type, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+          enum: [person, project, company, decision, note, goal, event]
+        content:
+          type: ["string", "null"]
+        tags:
+          type: array
+          items:
+            type: string
+        relatedIds:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MemoryInput:
+      type: object
+      required: [title, type]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [person, project, company, decision, note, goal, event]
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        relatedIds:
+          type: array
+          items:
+            type: integer
+
+    MemoryUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: ["string", "null"]
+        tags:
+          type: array
+          items:
+            type: string
+        relatedIds:
+          type: array
+          items:
+            type: integer
+
+    # ── DECISIONS ─────────────────────────────────────────────────────────────
+    Decision:
+      type: object
+      required: [id, title, status, confidenceScore, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        context:
+          type: ["string", "null"]
+        options:
+          type: array
+          items:
+            type: string
+        advantages:
+          type: array
+          items:
+            type: string
+        risks:
+          type: array
+          items:
+            type: string
+        aiAdvice:
+          type: ["string", "null"]
+        redTeamAdvice:
+          type: ["string", "null"]
+        result:
+          type: ["string", "null"]
+        learnings:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, analyzing, decided, archived]
+        confidenceScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DecisionInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        context:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        advantages:
+          type: array
+          items:
+            type: string
+        risks:
+          type: array
+          items:
+            type: string
+
+    DecisionUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        context:
+          type: ["string", "null"]
+        options:
+          type: array
+          items:
+            type: string
+        advantages:
+          type: array
+          items:
+            type: string
+        risks:
+          type: array
+          items:
+            type: string
+        result:
+          type: ["string", "null"]
+        learnings:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, analyzing, decided, archived]
+        confidenceScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    # ── ASSETS ────────────────────────────────────────────────────────────────
+    Asset:
+      type: object
+      required: [id, name, type, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [image, video, audio, document, prompt, template, result]
+        url:
+          type: ["string", "null"]
+        content:
+          type: ["string", "null"]
+        mimeType:
+          type: ["string", "null"]
+        size:
+          type: ["integer", "null"]
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AssetInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [image, video, audio, document, prompt, template, result]
+        url:
+          type: string
+        content:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+
+    AssetUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        url:
+          type: ["string", "null"]
+        content:
+          type: ["string", "null"]
+        tags:
+          type: array
+          items:
+            type: string
+
+    # ── DASHBOARD ─────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [taskStats, projectStats, contactStats, memoryCount, decisionCount, conversationCount, assetCount]
+      properties:
+        taskStats:
+          $ref: "#/components/schemas/TaskStats"
+        projectStats:
+          $ref: "#/components/schemas/ProjectStats"
+        contactStats:
+          $ref: "#/components/schemas/ContactStats"
+        memoryCount:
+          type: integer
+        decisionCount:
+          type: integer
+        conversationCount:
+          type: integer
+        assetCount:
+          type: integer
+
+    TaskStats:
+      type: object
+      required: [total, todo, inProgress, done, urgent]
+      properties:
+        total:
+          type: integer
+        todo:
+          type: integer
+        inProgress:
+          type: integer
+        done:
+          type: integer
+        urgent:
+          type: integer
+
+    ProjectStats:
+      type: object
+      required: [total, active, paused, completed]
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        paused:
+          type: integer
+        completed:
+          type: integer
+
+    ContactStats:
+      type: object
+      required: [total, prospects, clients, active]
+      properties:
+        total:
+          type: integer
+        prospects:
+          type: integer
+        clients:
+          type: integer
+        active:
+          type: integer
+
+    ActivityItem:
+      type: object
+      required: [id, type, title, description, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [task, project, contact, memory, decision, conversation, asset]
+        title:
+          type: string
+        description:
+          type: string
+        entityId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    WorkloadSummary:
+      type: object
+      required: [urgentTaskCount, dueTodayCount, overdueCount, activeProjectCount, weeklyCapacity]
+      properties:
+        urgentTaskCount:
+          type: integer
+        dueTodayCount:
+          type: integer
+        overdueCount:
+          type: integer
+        activeProjectCount:
+          type: integer
+        weeklyCapacity:
+          type: integer
+          description: Percentage 0-100
+        topPriorities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+
+    # ── NOTIFICATIONS ──────────────────────────────────────────────────────────
+    Notification:
+      type: object
+      required: [id, type, severity, title, description, actionLabel, actionHref]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [overdue_task, due_today, contact_followup, pending_decision, urgent_task, stale_project]
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        title:
+          type: string
+        description:
+          type: string
+        actionLabel:
+          type: string
+        actionHref:
+          type: string
+        entityId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── STUDIO GENERATION ──────────────────────────────────────────────────────
+    GenerateMediaScriptRequest:
+      type: object
+      required: [mediaType, prompt]
+      properties:
+        mediaType:
+          type: string
+          enum: [video, audio]
+        prompt:
+          type: string
+          minLength: 3
+
+    GenerateMediaScriptResponse:
+      type: object
+      required: [script, suggestions]
+      properties:
+        script:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+
+    MemoryGraph:
+      type: object
+      required: [nodes, edges]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemoryGraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemoryEdge"
+
+    MemoryGraphNode:
+      type: object
+      required: [id, title, type]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+          enum: [person, project, company, decision, note, goal, event]
+        content:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+
+    MemoryEdge:
+      type: object
+      required: [id, source, target, type]
+      properties:
+        id:
+          type: integer
+        source:
+          type: integer
+        target:
+          type: integer
+        type:
+          type: string
+          enum: [works_on, knows, related_to, decided_about, part_of, leads_to, references, collaborates_with]
+        note:
+          type: string
+          nullable: true
+
+    MemoryEdgeInput:
+      type: object
+      required: [targetId, type]
+      properties:
+        targetId:
+          type: integer
+        type:
+          type: string
+          enum: [works_on, knows, related_to, decided_about, part_of, leads_to, references, collaborates_with]
+        note:
+          type: string
+
+    TasksFromDecisionInput:
+      type: object
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+              priority:
+                type: string
+                enum: [low, medium, high, urgent]
+
+    SystemStats:
+      type: object
+      required: [tables, totalRecords, status]
+      properties:
+        tables:
+          type: object
+          properties:
+            tasks:
+              type: integer
+            projects:
+              type: integer
+            contacts:
+              type: integer
+            memories:
+              type: integer
+            decisions:
+              type: integer
+            conversations:
+              type: integer
+            assets:
+              type: integer
+            activity:
+              type: integer
+        totalRecords:
+          type: integer
+        status:
+          type: string
+
+    SystemExport:
+      type: object
+      required: [exportedAt, version, data]
+      properties:
+        exportedAt:
+          type: string
+          format: date-time
+        version:
+          type: string
+        data:
+          type: object
+
+    RelationshipSuggestion:
+      type: object
+      required: [entityType, entityId, entityName, score, reason]
+      properties:
+        entityType:
+          type: string
+          enum: [task, project, contact, memory, asset]
+        entityId:
+          type: integer
+        entityName:
+          type: string
+        score:
+          type: number
+          format: float
+        reason:
+          type: string
+
+    ProjectRelated:
+      type: object
+      required: [project, tasks, contacts, memories, assets]
+      properties:
+        project:
+          $ref: "#/components/schemas/Project"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        contacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Contact"
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Asset"
+
+    ContactRelated:
+      type: object
+      required: [contact, projects, tasks, memories]
+      properties:
+        contact:
+          $ref: "#/components/schemas/Contact"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"

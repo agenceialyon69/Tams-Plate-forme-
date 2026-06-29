@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm install -g pnpm@10 && pnpm install --no-frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "BASE_PATH=/ PORT=3000 NODE_ENV=production pnpm --filter @workspace/tams run build",
+  "pnpm --filter @workspace/api-server run build"
+]
+
+[start]
+cmd = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"

@@ -1,0 +1,43 @@
+{
+  "name": "TAMS — AI Operating System",
+  "short_name": "TAMS",
+  "description": "Votre Chief of Staff IA personnel — gestion, décisions, studio et agents.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0a",
+  "theme_color": "#6d28d9",
+  "lang": "fr",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Chat",
+      "short_name": "Chat",
+      "url": "/chat",
+      "description": "Ouvrir le Chat OS"
+    },
+    {
+      "name": "Agents",
+      "short_name": "Agents",
+      "url": "/agents",
+      "description": "Consulter un agent IA"
+    },
+    {
+      "name": "Studio",
+      "short_name": "Studio",
+      "url": "/studio",
+      "description": "Créer du contenu"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
