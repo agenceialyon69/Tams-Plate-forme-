@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db, decisionsTable } from "@workspace/db";
-import { runAgentCouncil } from "../lib/agents/council";
-import { planAndExecute } from "../lib/agents/planner";
+import { runMission } from "../lib/agents/mission";
 import { ReflectionEngine } from "../lib/reflection";
 import { logActivity } from "../lib/activity";
 
@@ -14,76 +13,55 @@ const DEFAULT_OBJECTIVE =
 
 /**
  * CERVEAU AUTONOME — « Continue TAMS ».
- * Compose l'organisation d'agents existante en un cycle de développement autonome :
- *   Chief of Staff + Council (perspectives multi-agents) → Red Team (critique) →
- *   Planner (plan d'action) → Reflection (apprentissage) → Mémoire (décision persistée).
+ * Lance une itération du pipeline de l'organisation d'ingénierie (mission.ts) :
+ *   Analyse → Plan → Architecture → Red Team → Validation → Synthèse,
+ *   puis Reflection (apprentissage) + persistance en Décision (mémoire).
  *
- * Produit une ANALYSE + un PLAN exploitables (par l'utilisateur ou un futur agent
- * disposant d'un accès au dépôt). N'exécute pas de code lui-même (sécurité) : il
- * raisonne, planifie, critique et mémorise — le socle du développement autonome.
+ * Produit un « dossier de mission » exploitable derrière des portes de validation
+ * humaine. N'exécute pas de code lui-même (sécurité). Voir AUTONOMOUS_ORG.md.
  *
  * Body: { goal?: string }
  */
 router.post("/agents/continue", async (req, res) => {
   const { goal } = req.body as { goal?: string };
   const objective = goal && String(goal).trim() ? String(goal).trim() : DEFAULT_OBJECTIVE;
-  const startedAt = Date.now();
 
   try {
-    // 1) Conseil multi-agents : perspectives spécialisées + critique Red Team +
-    //    synthèse du Chief of Staff (collaboration réelle, pas un seul agent).
-    const council = await runAgentCouncil(objective);
+    const report = await runMission(objective);
 
-    // 2) Planner : décompose en plan d'action vérifié.
-    let plan: Awaited<ReturnType<typeof planAndExecute>> | null = null;
-    try {
-      plan = await planAndExecute(objective, council.synthesis);
-    } catch {
-      plan = null; // le plan est best-effort ; la synthèse reste exploitable
-    }
-
-    // 3) Mémoire : persiste comme décision de développement (traçabilité + apprentissage).
+    // Mémoire : persiste le dossier comme décision de développement.
     let decisionId: number | null = null;
     try {
+      const redTeamText = report.redTeam
+        ? `Verdict: ${report.redTeam.verdict ?? "?"}\nAttaques: ${(report.redTeam.attacks ?? []).join(" · ")}\nÀ prouver: ${(report.redTeam.unproven ?? []).join(" · ")}`
+        : null;
       const [d] = await db.insert(decisionsTable).values({
         title: `Continue TAMS — ${objective.slice(0, 110)}`,
         context: objective,
-        aiAdvice: council.synthesis,
-        redTeamAdvice: council.redTeamCritique,
+        aiAdvice: report.synthesis,
+        redTeamAdvice: redTeamText,
         status: "analyzing",
       }).returning();
       decisionId = d?.id ?? null;
-      await logActivity("decision", "Continue TAMS", `Cycle autonome: ${council.classification}`, decisionId ?? 0);
+      await logActivity("decision", "Continue TAMS", `Mission autonome (${report.redTeam?.verdict ?? "analyse"})`, decisionId ?? 0);
     } catch {
       /* persistance best-effort */
     }
 
-    // 4) Reflection : apprend de ce cycle (auto-mémorisation).
+    // Reflection : apprend de ce cycle.
     ReflectionEngine.reflect({
       agentRole: "chief_of_staff",
       query: objective,
-      result: council.synthesis,
+      result: report.synthesis,
       success: true,
-      durationMs: Date.now() - startedAt,
+      durationMs: report.durationMs,
       timestamp: new Date(),
     }).catch(() => {});
 
-    return res.json({
-      ok: true,
-      objective,
-      classification: council.classification,
-      agentsConsulted: council.totalAgentsConsulted,
-      perspectives: council.perspectives.map((p) => ({ agent: p.agent, recommendations: p.recommendations })),
-      redTeam: council.redTeamCritique,
-      synthesis: council.synthesis,
-      plan: plan?.plan ?? null,
-      planMessage: plan?.message ?? null,
-      decisionId,
-      durationMs: Date.now() - startedAt,
-    });
+    return res.json({ ok: true, decisionId, ...report });
   } catch (err) {
-    req.log?.error?.({ err }, "Self-development cycle failed");
-    return res.status(500).json({ error: "Cycle autonome échoué", detail: err instanceof Error ? err.message : String(err) });
+    req.log?.error?.({ err }, "Self-development mission failed");
+    return res.status(500).json({ error: "Mission autonome échouée", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 

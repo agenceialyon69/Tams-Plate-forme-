@@ -2281,12 +2281,12 @@ interface HealthCheck {
 // Cerveau autonome — déclenche un cycle de l'organisation d'agents (Chief of
 // Staff + Council + Red Team + Planner + Reflection) sur le projet.
 interface ContinueResult {
-  classification?: string;
-  agentsConsulted?: number;
-  perspectives?: { agent: string; recommendations: string[] }[];
-  redTeam?: string;
   synthesis?: string;
-  planMessage?: string | null;
+  analysis?: { state?: string; priorities?: string[] } | null;
+  plan?: { steps?: { title?: string; role?: string; rationale?: string }[] } | null;
+  architecture?: { constraints?: string[]; objections?: string[]; approved?: boolean } | null;
+  redTeam?: { attacks?: string[]; unproven?: string[]; verdict?: string } | null;
+  validation?: { checklist?: string[]; humanGates?: string[]; readyToExecute?: boolean } | null;
 }
 function ContinueTamsCard() {
   const { toast } = useToast();
@@ -2350,16 +2350,46 @@ function ContinueTamsCard() {
               <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.synthesis}</p>
             </div>
           )}
-          {result.redTeam && (
+          {result.analysis?.priorities && result.analysis.priorities.length > 0 && (
             <div>
-              <div className="font-semibold text-red-400 mb-1">🔴 Red Team</div>
-              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.redTeam}</p>
+              <div className="font-semibold text-foreground mb-1">📊 Priorités</div>
+              <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                {result.analysis.priorities.slice(0, 6).map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
             </div>
           )}
-          {result.planMessage && (
+          {result.plan?.steps && result.plan.steps.length > 0 && (
             <div>
-              <div className="font-semibold text-emerald-400 mb-1">📋 Plan</div>
-              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.planMessage}</p>
+              <div className="font-semibold text-emerald-400 mb-1">📋 Plan (Mission Planner)</div>
+              <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
+                {result.plan.steps.slice(0, 8).map((s, i) => (
+                  <li key={i}><span className="text-foreground">{s.title}</span>{s.role ? <span className="text-violet-400"> · {s.role}</span> : null}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {result.architecture?.objections && result.architecture.objections.length > 0 && (
+            <div>
+              <div className="font-semibold text-amber-400 mb-1">🏛️ Architect {result.architecture.approved === false ? "(veto)" : ""}</div>
+              <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                {result.architecture.objections.slice(0, 5).map((o, i) => <li key={i}>{o}</li>)}
+              </ul>
+            </div>
+          )}
+          {result.redTeam && (
+            <div>
+              <div className="font-semibold text-red-400 mb-1">🔴 Red Team — {result.redTeam.verdict ?? "—"}</div>
+              <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                {(result.redTeam.attacks ?? []).slice(0, 5).map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            </div>
+          )}
+          {result.validation?.humanGates && result.validation.humanGates.length > 0 && (
+            <div>
+              <div className="font-semibold text-sky-400 mb-1">🔐 Portes de validation humaine</div>
+              <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                {result.validation.humanGates.slice(0, 5).map((g, i) => <li key={i}>{g}</li>)}
+              </ul>
             </div>
           )}
         </div>
