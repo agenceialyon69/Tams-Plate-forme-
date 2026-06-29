@@ -106,6 +106,26 @@ async function executeGenerateImage(args: Record<string, unknown>): Promise<stri
   return `IMAGE:${url}`;
 }
 
+async function executeCreateVideo(args: Record<string, unknown>): Promise<string> {
+  const prompt = String(args.prompt ?? args.description ?? "").trim();
+  if (!prompt) return "Décris la vidéo à générer.";
+  const scenes = Math.min(Math.max(Number(args.scenes) || 3, 1), 6);
+  const text = args.text ? String(args.text) : undefined;
+  // Génère N images verticales variées (Pollinations) puis les assemble en
+  // vidéo 9:16 (FFmpeg). 100% gratuit. Le chemin gratuit réel pour une "vidéo".
+  const images = Array.from({ length: scenes }, (_, i) => {
+    const seed = Math.floor(Math.random() * 1_000_000) + i;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=720&height=1280&nologo=true&model=flux&seed=${seed}`;
+  });
+  try {
+    const { generateSlideshowVideo } = await import("../video");
+    const result = await generateSlideshowVideo({ images, text, secondsPerImage: 2.5 });
+    return `VIDEO:${result.url}`;
+  } catch (err) {
+    return `Échec de la génération vidéo: ${err instanceof Error ? err.message : "erreur"}`;
+  }
+}
+
 async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<string> {
   const id = Number(args.task_id ?? args.id ?? args.taskId);
   const status = String(args.status) as "todo" | "in_progress" | "done" | "cancelled";
@@ -137,6 +157,9 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
       return executeSearchMemories(args);
     case "generate_image":
       return executeGenerateImage(args);
+    case "create_video":
+    case "generate_video":
+      return executeCreateVideo(args);
     case "list_tasks":
       return executeListTasks(args);
     case "update_task_status":

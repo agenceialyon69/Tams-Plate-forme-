@@ -304,10 +304,11 @@ router.post("/conversations/:id/stream", async (req, res) => {
     const stream = aiChatStream({
       messages,
       max_tokens: 1500,
-      // Vision et function-calling cohabitent mal : avec des images, on privilégie
-      // l'analyse visuelle (pas d'outils). Tâche "chat" → modèle multimodal (Gemini).
+      // Vision et function-calling cohabitent mal : avec des images, pas d'outils.
+      // Tâche "chat" = modèle CAPABLE (Groq 70B / Gemini) → appels d'outils fiables
+      // (generate_image, create_video, tâches…). Le 8B "fast" rate les tool calls.
       tools: attachedImages.length > 0 ? undefined : getAllTools(),
-    }, attachedImages.length > 0 ? "chat" : "fast");
+    }, "chat");
 
     let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 

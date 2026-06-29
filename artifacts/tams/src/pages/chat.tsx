@@ -172,6 +172,13 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
                 loading="lazy"
               />
             </a>
+          ) : !isError && typeof tool.result === "string" && tool.result.startsWith("VIDEO:") ? (
+            <video
+              src={tool.result.slice(6)}
+              controls
+              playsInline
+              className="mt-1.5 rounded-lg w-full max-w-[220px] aspect-[9/16] object-cover border border-border bg-black"
+            />
           ) : (
             <div className="text-[10px] opacity-80 truncate">
               {isError ? tool.error : tool.result}

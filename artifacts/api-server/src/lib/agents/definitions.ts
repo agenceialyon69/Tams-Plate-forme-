@@ -152,6 +152,21 @@ const generateImageTool: AgentTool = {
   execute: async () => "Image générée",
 };
 
+const createVideoTool: AgentTool = {
+  name: "create_video",
+  description: "Crée une vraie vidéo verticale 9:16 (TikTok/Reels) à partir d'une description : génère plusieurs images et les assemble en diaporama. Utilise-le quand l'utilisateur demande une vidéo.",
+  parameters: {
+    type: "object",
+    properties: {
+      prompt: { type: "string", description: "Description de la vidéo / des visuels (anglais de préférence)" },
+      scenes: { type: "number", description: "Nombre d'images/scènes (1-6, défaut 3)" },
+      text: { type: "string", description: "Texte à incruster à l'écran (optionnel)" },
+    },
+    required: ["prompt"],
+  },
+  execute: async () => "Vidéo générée",
+};
+
 const listTasksTool: AgentTool = {
   name: "list_tasks",
   description: "Liste les tâches actives de l'utilisateur (pour faire le point / prioriser)",
@@ -201,7 +216,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: "Chief of Staff",
     description: "Orchestrateur exécutif. Analyse la situation globale, priorise, coordonne les autres agents.",
     capabilities: ["analyze", "create", "delegate", "monitor"],
-    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createProjectContactTool, scheduleReminderTool],
+    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createVideoTool, createProjectContactTool, scheduleReminderTool],
     systemPrompt: `Tu es le Chief of Staff IA de Mohamed, consultant indépendant.
 
 Ton rôle est d'être l'orchestrateur exécutif de son AI Operating System.
