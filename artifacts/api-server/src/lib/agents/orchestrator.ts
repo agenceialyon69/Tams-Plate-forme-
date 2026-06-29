@@ -126,6 +126,15 @@ async function executeCreateVideo(args: Record<string, unknown>): Promise<string
   }
 }
 
+async function executeGenerateMusic(args: Record<string, unknown>): Promise<string> {
+  const prompt = String(args.prompt ?? args.description ?? "").trim();
+  if (!prompt) return "Décris la musique à générer.";
+  const { generateMusic } = await import("../audio");
+  const r = await generateMusic(prompt);
+  if (!r.ok) return `Musique indisponible: ${r.hint || r.error}`;
+  return `AUDIO:${r.url}`;
+}
+
 async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<string> {
   const id = Number(args.task_id ?? args.id ?? args.taskId);
   const status = String(args.status) as "todo" | "in_progress" | "done" | "cancelled";
@@ -160,6 +169,8 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
     case "create_video":
     case "generate_video":
       return executeCreateVideo(args);
+    case "generate_music":
+      return executeGenerateMusic(args);
     case "list_tasks":
       return executeListTasks(args);
     case "update_task_status":

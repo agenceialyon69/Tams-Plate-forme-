@@ -167,6 +167,19 @@ const createVideoTool: AgentTool = {
   execute: async () => "Vidéo générée",
 };
 
+const generateMusicTool: AgentTool = {
+  name: "generate_music",
+  description: "Génère une musique à partir d'une description d'ambiance (pour une vidéo, un fond sonore). Utilise-le quand l'utilisateur demande de la musique.",
+  parameters: {
+    type: "object",
+    properties: {
+      prompt: { type: "string", description: "Ambiance/style de la musique (ex: électro énergique 120 BPM)" },
+    },
+    required: ["prompt"],
+  },
+  execute: async () => "Musique générée",
+};
+
 const listTasksTool: AgentTool = {
   name: "list_tasks",
   description: "Liste les tâches actives de l'utilisateur (pour faire le point / prioriser)",
@@ -216,7 +229,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: "Chief of Staff",
     description: "Orchestrateur exécutif. Analyse la situation globale, priorise, coordonne les autres agents.",
     capabilities: ["analyze", "create", "delegate", "monitor"],
-    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createVideoTool, createProjectContactTool, scheduleReminderTool],
+    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createVideoTool, generateMusicTool, createProjectContactTool, scheduleReminderTool],
     systemPrompt: `Tu es le Chief of Staff IA de Mohamed, consultant indépendant.
 
 Ton rôle est d'être l'orchestrateur exécutif de son AI Operating System.
