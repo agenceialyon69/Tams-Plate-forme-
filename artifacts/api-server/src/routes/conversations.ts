@@ -10,14 +10,16 @@ import { eq, desc, sql } from "drizzle-orm";
 import {
   getAgent,
   getAllAgents,
+  selectAgentForQuery,
   runAgent,
   executeTool,
   gatherUserContext,
   getAllTools,
-} from "../lib/agents/index";
+  runAgentCouncil,
+  runChiefWithCouncil,
+  planAndExecute,
+} from "../lib/agents";
 import type { AgentRole, AgentContext } from "../lib/agents/types";
-import { aiChat, aiChatStream } from "../lib/ai";
-import { logActivity } from "../lib/activity";
 
 const router = Router();
 
@@ -112,7 +114,7 @@ router.get("/conversations/:id/messages", async (req, res) => {
 router.post("/conversations/:id/messages", async (req, res) => {
   try {
     const conversationId = Number(req.params.id);
-    const { content } = req.body;
+    const { content, useCouncil = true, usePlanner = false } = req.body;
 
     if (!content) return res.status(400).json({ error: "content is required" });
 
@@ -137,20 +139,35 @@ router.post("/conversations/:id/messages", async (req, res) => {
       content: m.content,
     }));
 
-    // Select agent based on conversation mode or query content
-    const agentRole = (conv.mode || "chat") as AgentRole;
-    const agent = getAgent(agentRole) || getAgent("chief_of_staff")!;
+    let responseContent: string;
+    let metadata: Record<string, unknown> = {};
 
-    const context: AgentContext = { conversationId };
-
-    // Run agent
-    const response = await runAgent(agent, content, historyForAgent, context);
+    // Use Planner for action-oriented requests
+    if (usePlanner) {
+      const plan = await planAndExecute(content, await gatherUserContext());
+      responseContent = plan.message;
+      metadata = { plan: plan.plan, verified: plan.success };
+    }
+    // Use Council for complex reasoning (Chief of Staff mode)
+    else if (useCouncil && (conv.mode === "chief_of_staff" || conv.mode === "decision")) {
+      const council = await runChiefWithCouncil(content, historyForAgent);
+      responseContent = council.content;
+      metadata = { usedCouncil: true };
+    }
+    // Standard agent
+    else {
+      const agentRole = (conv.mode || "chat") as AgentRole;
+      const agent = getAgent(agentRole) || getAgent("chief_of_staff")!;
+      const context: AgentContext = { conversationId };
+      const response = await runAgent(agent, content, historyForAgent, context);
+      responseContent = response.content;
+    }
 
     // Persist assistant message
     const [assistantMsg] = await db.insert(messagesTable).values({
       conversationId,
       role: "assistant",
-      content: response.content,
+      content: responseContent,
     }).returning();
 
     // Update conversation
@@ -165,7 +182,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
     return res.json({
       userMessage: userMsg,
       assistantMessage: assistantMsg,
-      toolCalls: response.toolCalls,
+      metadata,
     });
   } catch (err) {
     req.log.error({ err }, "Error sending message");
@@ -231,23 +248,30 @@ router.post("/conversations/:id/stream", async (req, res) => {
   let toolResults: Array<{ name: string; result: string }> = [];
 
   try {
+    const { default: OpenAI } = await import("openai");
+    const openai = new OpenAI({
+      baseURL: process.env.AI_GATEWAY_URL,
+      apiKey: process.env.REPLIT_AI_API_KEY || "placeholder",
+    });
+
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
       ...historyForAgent,
       { role: "user", content },
     ];
 
-    const stream = aiChatStream({
+    const stream = await openai.chat.completions.create({
       model: "google/gemini-2.5-flash",
       messages,
       max_tokens: 1500,
       tools: getAllTools(),
+      stream: true,
     });
 
     let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 
     for await (const chunk of stream) {
-      const delta = chunk.choices?.[0]?.delta;
+      const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
 
       if (delta.content) {
@@ -266,41 +290,14 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
     }
 
-    // Execute tool calls with enriched SSE events
+    // Execute tool calls
     if (pendingToolCalls.length > 0) {
       for (const tc of pendingToolCalls) {
         let args: Record<string, unknown>;
         try { args = JSON.parse(tc.args); } catch { args = {}; }
-
-        // tool_start
-        send({ type: "tool_start", name: tc.name, args });
-
-        // tool_progress
-        send({ type: "tool_progress", name: tc.name, step: "Exécution en cours..." });
-
-        let result: string;
-        let toolError: string | null = null;
-
-        try {
-          // Per-tool timeout (10s) instead of global
-          result = await Promise.race([
-            executeTool(tc.name, args),
-            new Promise<string>((_, reject) =>
-              setTimeout(() => reject(new Error("Timeout tool")), 10000)
-            ),
-          ]);
-
-          // Log activity
-          await logActivity("tool_call", `Tool: ${tc.name}`, `Args: ${JSON.stringify(args)}`, 0);
-
-          toolResults.push({ name: tc.name, result });
-
-          // tool_done
-          send({ type: "tool_done", name: tc.name, result });
-        } catch (err: any) {
-          toolError = err?.message || "Erreur inconnue";
-          send({ type: "tool_error", name: tc.name, error: toolError });
-        }
+        const result = await executeTool(tc.name, args);
+        toolResults.push({ name: tc.name, result });
+        send({ type: "tool", name: tc.name, result });
       }
 
       // Follow-up to summarize
@@ -310,14 +307,15 @@ router.post("/conversations/:id/stream", async (req, res) => {
         { role: "system", content: `Actions effectuées:\n${toolResults.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume naturellement.` },
       ];
 
-      const followUp = aiChatStream({
+      const followUp = await openai.chat.completions.create({
         model: "google/gemini-2.5-flash",
         messages: followUpMessages,
         max_tokens: 800,
+        stream: true,
       });
 
       for await (const chunk of followUp) {
-        const delta = chunk.choices?.[0]?.delta;
+        const delta = chunk.choices[0]?.delta;
         if (delta?.content) {
           fullContent += delta.content;
           send({ type: "token", content: delta.content });
@@ -375,6 +373,42 @@ router.get("/agents/:role", (req, res) => {
     capabilities: agent.capabilities,
     tools: agent.tools.map(t => t.name),
   });
+});
+
+// ─── Agent Council endpoint ─────────────────────────────────────────────────
+
+router.post("/council", async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) {
+      res.status(400).json({ error: "query is required" });
+      return;
+    }
+
+    const result = await runAgentCouncil(query);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Error running agent council");
+    res.status(500).json({ error: "Failed to run agent council" });
+  }
+});
+
+// ─── Plan & Execute endpoint ────────────────────────────────────────────────
+
+router.post("/plan-execute", async (req, res) => {
+  try {
+    const { query, context } = req.body;
+    if (!query) {
+      res.status(400).json({ error: "query is required" });
+      return;
+    }
+
+    const result = await planAndExecute(query, context || "");
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Error executing plan");
+    res.status(500).json({ error: "Failed to execute plan" });
+  }
 });
 
 export default router;
