@@ -7,7 +7,7 @@
  *
  * 100 % gratuit : toute inférence passe par le routeur IA free-first (lib/ai).
  */
-import { aiChat, type AiTask } from "./ai";
+import { aiChat, aiConfigured, type AiTask } from "./ai";
 import {
   SYSTEM_PROMPT,
   gatherUserContext,
@@ -205,12 +205,12 @@ export async function runAgent(
   try {
     completion = await aiChat(body, agent.task);
   } catch {
-    return {
-      agent: id,
-      name: agent.name,
-      output: `[${agent.name}] IA gratuite indisponible. Configure un fournisseur (Groq/Gemini/Ollama/OpenRouter) — voir GET /api/system/ai.`,
-      toolsUsed,
-    };
+    // Message honnête : si des fournisseurs SONT configurés, c'est un échec
+    // transitoire (quota gratuit saturé en parallèle), pas une absence de config.
+    const output = aiConfigured()
+      ? `[${agent.name}] Réponse temporairement indisponible (quota gratuit saturé par les appels simultanés). Réessaie dans un instant.`
+      : `[${agent.name}] Aucun fournisseur IA configuré (Groq/Gemini/Ollama/OpenRouter) — voir GET /api/system/ai.`;
+    return { agent: id, name: agent.name, output, toolsUsed };
   }
 
   const choice = completion.choices?.[0]?.message;

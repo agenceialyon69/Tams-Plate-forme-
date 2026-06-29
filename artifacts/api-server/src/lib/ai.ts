@@ -40,6 +40,8 @@ function strip(u: string): string {
   return u.replace(/\/+$/, "");
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 /** Construit la liste ordonnée des fournisseurs gratuits disponibles. */
 function providers(): Provider[] {
   const list: Provider[] = [];
@@ -169,22 +171,28 @@ export async function aiChat(
   const t = task ?? inferTask(body);
 
   let lastErr: unknown;
-  for (const p of ps) {
-    try {
-      const res = await fetch(`${p.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: headers(p),
-        body: JSON.stringify({ ...body, model: modelFor(p, body, t), stream: false }),
-        signal: AbortSignal.timeout(45_000),
-      });
-      if (!res.ok) {
-        lastErr = new Error(`AI[${p.name}] ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
-        continue; // fournisseur suivant
+  // 2 passes : sur quota gratuit saturé (429) quand plusieurs agents appellent
+  // en parallèle, une courte pause puis une nouvelle tentative de la chaîne
+  // suffit le plus souvent (les limites gratuites se réinitialisent vite).
+  for (let pass = 0; pass < 2; pass++) {
+    for (const p of ps) {
+      try {
+        const res = await fetch(`${p.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: headers(p),
+          body: JSON.stringify({ ...body, model: modelFor(p, body, t), stream: false }),
+          signal: AbortSignal.timeout(45_000),
+        });
+        if (!res.ok) {
+          lastErr = new Error(`AI[${p.name}] ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
+          continue; // fournisseur suivant
+        }
+        return await res.json();
+      } catch (err) {
+        lastErr = err; // timeout / réseau → fournisseur suivant
       }
-      return await res.json();
-    } catch (err) {
-      lastErr = err; // timeout / réseau → fournisseur suivant
     }
+    if (pass === 0) await sleep(700); // transitoire → petite pause avant 2e passe
   }
   throw lastErr instanceof Error ? lastErr : new Error("AI_ALL_PROVIDERS_FAILED");
 }
