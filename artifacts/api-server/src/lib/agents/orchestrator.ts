@@ -126,6 +126,13 @@ async function executeCreateVideo(args: Record<string, unknown>): Promise<string
   }
 }
 
+async function executeMissionTool(args: Record<string, unknown>): Promise<string> {
+  const goal = String(args.goal ?? args.mission ?? args.prompt ?? "").trim();
+  if (!goal) return "Décris la mission à réaliser (ex: crée une musique drill, crée un clip TikTok).";
+  const { executeMission } = await import("./executive");
+  return executeMission(goal);
+}
+
 async function executeGenerateMusic(args: Record<string, unknown>): Promise<string> {
   const prompt = String(args.prompt ?? args.description ?? "").trim();
   if (!prompt) return "Décris la musique à générer.";
@@ -152,6 +159,7 @@ async function executeUpdateTaskStatus(args: Record<string, unknown>): Promise<s
 // Constitution : aucun outil n'est appelé directement. Tout passe par runTool →
 // timeout + gestion d'erreur + observabilité (journalisation). NE PAS contourner.
 const TOOL_TIMEOUT_MS: Record<string, number> = {
+  execute_mission: 170_000,
   create_video: 130_000,
   generate_video: 130_000,
   generate_music: 110_000,
@@ -202,6 +210,8 @@ export async function executeTool(name: string, args: Record<string, unknown>): 
       return executeCreateVideo(args);
     case "generate_music":
       return executeGenerateMusic(args);
+    case "execute_mission":
+      return executeMissionTool(args);
     case "list_tasks":
       return executeListTasks(args);
     case "update_task_status":

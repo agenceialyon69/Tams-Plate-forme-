@@ -167,6 +167,19 @@ const createVideoTool: AgentTool = {
   execute: async () => "Vidéo générée",
 };
 
+const executeMissionTool: AgentTool = {
+  name: "execute_mission",
+  description: "Réalise une MISSION CRÉATIVE COMPLÈTE de bout en bout (l'AI Executive orchestre tout automatiquement). À utiliser quand l'utilisateur demande une production aboutie : « crée une musique drill », « crée un clip TikTok de … », « fais-moi une cover ». Renvoie le média final.",
+  parameters: {
+    type: "object",
+    properties: {
+      goal: { type: "string", description: "La mission/objectif de l'utilisateur, en langage naturel" },
+    },
+    required: ["goal"],
+  },
+  execute: async () => "Mission exécutée",
+};
+
 const generateMusicTool: AgentTool = {
   name: "generate_music",
   description: "Génère une musique à partir d'une description d'ambiance (pour une vidéo, un fond sonore). Utilise-le quand l'utilisateur demande de la musique.",
@@ -229,7 +242,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: "Chief of Staff",
     description: "Orchestrateur exécutif. Analyse la situation globale, priorise, coordonne les autres agents.",
     capabilities: ["analyze", "create", "delegate", "monitor"],
-    tools: [createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createVideoTool, generateMusicTool, createProjectContactTool, scheduleReminderTool],
+    tools: [executeMissionTool, createTaskTool, createProjectTool, createContactTool, createDecisionTool, delegateTool, getBriefingTool, updateTaskStatusTool, listTasksTool, generateImageTool, createVideoTool, generateMusicTool, createProjectContactTool, scheduleReminderTool],
     systemPrompt: `Tu es le Chief of Staff IA de Mohamed, consultant indépendant.
 
 Ton rôle est d'être l'orchestrateur exécutif de son AI Operating System.
