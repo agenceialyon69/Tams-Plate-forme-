@@ -100,8 +100,22 @@ const __serverDir = dirname(fileURLToPath(import.meta.url));
 const staticDir = path.resolve(__serverDir, "..", "..", "tams", "dist", "public");
 
 if (existsSync(staticDir)) {
-  app.use(express.static(staticDir));
+  // INVARIANT (/AGENTS.md) : index.html en no-cache, sinon le navigateur (Safari
+  // iOS surtout) sert un ANCIEN index.html en cache → il charge d'anciens bundles
+  // → "rien ne change" malgré les déploiements. Les assets sont hashés (nom
+  // unique par build) donc immuables et cachables un an.
+  app.use(express.static(staticDir, {
+    etag: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith("index.html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      } else {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  }));
   app.get("/{*splat}", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.join(staticDir, "index.html"));
   });
   logger.info({ staticDir }, "Serving frontend static files");
