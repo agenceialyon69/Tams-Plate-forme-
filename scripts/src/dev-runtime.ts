@@ -255,7 +255,22 @@ export class ValidationEngine {
 
   async validate(healthUrl?: string): Promise<ValidationReport> {
     const diff = await this.tools.gitDiff();
-    const build = await this.tools.runCommand("pnpm", ["run", "build:check"], 900_000);
+    const typecheck = await this.tools.runCommand("pnpm", ["run", "typecheck"], 900_000);
+    const frontendBuild = typecheck.exitCode === 0
+      ? await this.tools.runCommand("pnpm", ["--filter", "@workspace/tams", "build"], 900_000)
+      : null;
+    const apiBuild = frontendBuild?.exitCode === 0
+      ? await this.tools.runCommand("pnpm", ["--filter", "@workspace/api-server", "build"], 900_000)
+      : null;
+    const buildParts = [typecheck, frontendBuild, apiBuild].filter((item): item is CommandResult => item !== null);
+    const build: CommandResult = {
+      command: "pnpm",
+      args: ["typecheck", "build:tams", "build:api-server"],
+      exitCode: buildParts.every((item) => item.exitCode === 0) && buildParts.length === 3 ? 0 : 1,
+      stdout: buildParts.map((item) => item.stdout).join("\n"),
+      stderr: buildParts.map((item) => item.stderr).join("\n"),
+      durationMs: buildParts.reduce((total, item) => total + item.durationMs, 0),
+    };
     const rootPackage = JSON.parse(await this.tools.readFile("package.json")) as { scripts?: Record<string, string> };
     const tests = rootPackage.scripts?.test
       ? await this.tools.runCommand("pnpm", ["test"], 600_000)
