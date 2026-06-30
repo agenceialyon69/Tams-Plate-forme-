@@ -78,8 +78,9 @@ jobs:
         run: |
           pnpm --filter @workspace/scripts dev-runtime:scenario | tee runtime-report.json
           grep -q '"verdict": "PASS"' runtime-report.json
-          git diff -- .tams/runtime-check.md
-          git diff -- .tams/runtime-check.md | grep -q 'TAMS Development Runtime Check'
+          test -f .tams/runtime-check.md
+          grep -q 'TAMS Development Runtime Check' .tams/runtime-check.md
+          grep -q 'diff --git a/.tams/runtime-check.md' runtime-report.json
       - name: Smoke test (démarrage réel + endpoints)
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
