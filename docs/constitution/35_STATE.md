@@ -79,3 +79,16 @@ _Dernière mise à jour : 2026-06-27 — LOT 11._
 - **P11 Personal Life OS** : santé/famille/finances/admin/carrière/apprentissage.
 - **Tests** : vitest pour routes critiques (briefing, conversations, agents).
 - **Migration DB auto** : script Drizzle au démarrage pour éviter les mises à jour manuelles.
+
+---
+
+## 🧰 TAMS Development Runtime v1 (branche `tams-dev-runtime-v1`)
+
+- Repository Intelligence : index, recherche, packages, routes et dépendances simples.
+- Task Engine persistant : états contrôlés, logs, plan, résultat, rollback et retry max 3.
+- Tool Layer confinée au dépôt : fichiers, commandes allowlistées, statut/diff Git.
+- Validation : typecheck, builds Railway canoniques, tests et rapport PASS/FAIL.
+- Chat Control Plane programmatique : create/run/status/analyze/validate/logs/report.
+- Scénario `runtime-check` exécuté par la CI avec preuve de diff et smoke endpoints.
+- Aucun accès d’écriture/commande ajouté à l’API publique : sécurité fail-closed.
+
