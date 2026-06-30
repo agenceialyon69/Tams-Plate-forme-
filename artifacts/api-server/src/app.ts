@@ -159,7 +159,11 @@ if (existsSync(staticDir)) {
   app.use(express.static(staticDir, {
     etag: true,
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith("index.html")) {
+      const base = path.basename(filePath);
+      // index.html, le service worker et le manifest DOIVENT être en no-cache,
+      // sinon le navigateur ne récupère jamais le nouveau sw.js (autodestruction)
+      // → l'app reste figée. Les bundles hashés restent immuables 1 an.
+      if (base === "index.html" || base === "sw.js" || base === "manifest.webmanifest") {
         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       } else {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");

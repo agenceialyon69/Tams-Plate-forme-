@@ -178,7 +178,10 @@ export async function runTool(name: string, args: Record<string, unknown>): Prom
     ]);
   } catch (err) {
     ok = false;
-    result = `L'outil ${name} a échoué: ${err instanceof Error ? err.message : "erreur"}`;
+    // Surface la CAUSE racine (les erreurs Drizzle masquent l'erreur Postgres dans .cause).
+    const cause = (err as { cause?: unknown })?.cause;
+    const causeMsg = cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "";
+    result = `L'outil ${name} a échoué: ${err instanceof Error ? err.message : "erreur"}${causeMsg ? ` | cause: ${causeMsg}` : ""}`;
   }
   // Observabilité : journalise chaque appel d'outil (jamais bloquant).
   import("../activity")
