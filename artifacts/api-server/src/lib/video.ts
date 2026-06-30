@@ -90,10 +90,19 @@ export async function generateSlideshowVideo(opts: {
     for (let i = 0; i < urls.length; i++) {
       const raw = path.join(work, `raw${i}`);
       const small = path.join(work, `s${i}.jpg`);
-      await download(urls[i], raw);
-      await preScale(raw, small);
-      await rm(raw, { force: true }).catch(() => {});
-      scaled.push(small);
+      try {
+        // Tolérant : si UNE image (Pollinations, parfois lente) échoue, on
+        // continue avec les autres au lieu de faire échouer toute la vidéo.
+        await download(urls[i], raw);
+        await preScale(raw, small);
+        await rm(raw, { force: true }).catch(() => {});
+        scaled.push(small);
+      } catch {
+        /* image ignorée */
+      }
+    }
+    if (scaled.length === 0) {
+      throw new Error("aucune image n'a pu être préparée (génération d'images lente — réessaie)");
     }
 
     let textFile: string | null = null;

@@ -301,8 +301,19 @@ router.post("/conversations/:id/stream", async (req, res) => {
         ]
       : content;
 
+    // Directive OUTILS : pour toute demande de PRODUCTION, le Chat doit RÉELLEMENT
+    // appeler l'outil (il ne peut pas naviguer le web → jamais de lien/exemple).
+    const TOOLS_DIRECTIVE =
+      "RÈGLE OUTILS (impérative) : pour toute demande de CRÉATION ou GÉNÉRATION " +
+      "(vidéo, clip TikTok, musique, image, cover, campagne marketing, audit Shopify), " +
+      "tu DOIS appeler l'outil approprié — `execute_mission` de préférence (il orchestre " +
+      "tout), sinon `create_video` / `generate_music` / `generate_image`. Tu génères " +
+      "RÉELLEMENT le contenu via ces outils. Tu n'as AUCUN accès au web : ne réponds " +
+      "JAMAIS par un lien externe, un « voici des exemples », ou une description à la place " +
+      "de l'outil. Si l'utilisateur veut une vidéo/musique/image, APPELLE l'outil.";
+
     const messages: Array<{ role: "system" | "user" | "assistant"; content: unknown }> = [
-      { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
+      { role: "system", content: `${agent.systemPrompt}\n\n${TOOLS_DIRECTIVE}\n\nContexte actuel:\n${userContext}` },
       ...historyForAgent,
       { role: "user", content: userContent },
     ];
