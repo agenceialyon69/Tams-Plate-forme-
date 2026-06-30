@@ -163,4 +163,74 @@ router.get("/kernel/scenarios", async (req, res) => {
   }
 });
 
+// ─── POST /api/kernel/stream — streaming SSE temps réel ──────────────────────────
+
+router.post("/kernel/stream", async (req, res) => {
+  try {
+    ensureKernel();
+    const parsed = KernelBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+
+    // SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const send = (type: string, data: unknown) => {
+      res.write(`data: ${JSON.stringify({ type, ...((typeof data === "object" && data !== null) ? data as object : { data }) })}\n\n`);
+    };
+
+    const keepalive = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* */ } }, 12_000);
+    res.on("close", () => clearInterval(keepalive));
+
+    send("kernel_start", { message: "Kernel démarré" });
+
+    const kernelReq: KernelRequest = {
+      id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      raw: parsed.data.message,
+      userId: parsed.data.userId,
+      conversationId: parsed.data.conversationId,
+      timestamp: new Date(),
+    };
+
+    // Émet les événements du journal du Kernel pendant le traitement
+    const logBefore = getKernelLog(1).length;
+    const response = await kernelProcess(kernelReq);
+    const newLog = getKernelLog(500).slice(logBefore);
+
+    // Émet chaque événement du journal
+    for (const entry of newLog) {
+      send("kernel_event", { event: entry.event, detail: entry.detail, timestamp: entry.timestamp });
+    }
+
+    // Émet le résultat final
+    send("kernel_result", {
+      status: response.status,
+      intent: response.intent,
+      missionId: response.missionId,
+      steps: response.steps.map(s => ({ title: s.title, status: s.status, result: s.result?.slice(0, 100) })),
+      validation: response.validation?.overall,
+      reflection: response.reflection?.slice(0, 150),
+      synthesis: response.synthesis,
+      durationMs: response.durationMs,
+      decisionLog: response.decisionLog,
+    });
+
+    send("kernel_done", { status: response.status });
+    res.end();
+    return;
+  } catch (err) {
+    req.log.error({ err }, "Kernel stream error");
+    if (!res.headersSent) {
+      return res.status(500).json({ error: "Kernel stream failed" });
+    }
+    res.end();
+    return;
+  }
+});
+
 export default router;
