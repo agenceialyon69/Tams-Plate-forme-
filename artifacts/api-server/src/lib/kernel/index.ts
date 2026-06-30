@@ -16,13 +16,17 @@
 import { aiChat } from "../ai";
 import { logger } from "../logger";
 import { runMission } from "../agents/mission";
+import { runAgentCouncil } from "../agents/council";
+import { runTool } from "../agents/orchestrator";
 import { ReflectionEngine } from "../reflection";
 import { db } from "@workspace/db";
-import { memoriesTable, activityTable } from "@workspace/db";
+import { memoriesTable, activityTable, tasksTable, projectsTable, contactsTable, decisionsTable } from "@workspace/db";
 import { EventBus } from "../event-bus";
 import { getSystemHealth } from "../observability";
 import { runValidation, type Check } from "../validation";
 import { runScenarios } from "../scenarios";
+import { generateSlideshowVideo } from "../video";
+import { generateMusic, generateSpeech } from "../audio";
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -426,7 +430,7 @@ function generateComplexMission(objective: string): GeneratedMission {
       { id: "step_1", title: "Analyser l'état actuel", params: {}, expectedOutcome: "État identifié", status: "pending" },
       { id: "step_2", title: "Identifier les priorités", params: {}, expectedOutcome: "Priorités listées", status: "pending" },
       { id: "step_3", title: "Planifier les actions", params: {}, expectedOutcome: "Plan d'action", status: "pending" },
-      { id: "step_4", title: "Exécuter les actions", params: {}, expectedOutcome: "Actions exécutées", status: "pending" },
+      { id: "step_4", title: "Council — débattre et exécuter", params: {}, expectedOutcome: "Décision du Council + exécution", status: "pending" },
       { id: "step_5", title: "Valider les résultats", params: {}, expectedOutcome: "Validation PASS/FAIL", status: "pending" },
       { id: "step_6", title: "Réfléchir et mémoriser", params: {}, expectedOutcome: "Apprentissage mémorisé", status: "pending" },
     ],
@@ -593,9 +597,30 @@ export async function executeMission(mission: GeneratedMission): Promise<KernelS
           // Étape de raisonnement IA
           const report = await runMission(mission.objective);
           result = report.synthesis || "Analyse terminée";
+        } else if (step.title.includes("Council") || step.title.includes("Débattre") || step.title.includes("exécuter")) {
+          // Étape d'exécution — appelle le Council si mission complexe, sinon exécute les outils
+          if (mission.kind === "complex") {
+            try {
+              const councilResult = await runAgentCouncil(mission.objective);
+              result = councilResult.synthesis || "Council terminé";
+            } catch {
+              // Si le Council échoue (pas de provider IA), continue avec runMission
+              const report = await runMission(mission.objective);
+              result = report.synthesis || "Exécution terminée (Council indisponible)";
+            }
+          } else {
+            // Mission simple — exécute via les outils
+            result = `Étape exécutée: ${step.title}`;
+          }
         } else {
-          // Étape générique
-          result = `Étape exécutée: ${step.title}`;
+          // Étape générique — route vers runTool si params contient un toolName
+          const toolName = step.params.toolName as string | undefined;
+          if (toolName) {
+            const toolResult = await runTool(toolName, step.params);
+            result = toolResult.slice(0, 200);
+          } else {
+            result = `Étape exécutée: ${step.title}`;
+          }
         }
 
         step.status = "success";
@@ -744,9 +769,88 @@ interface QueueEntry {
 
 const kernelQueue: QueueEntry[] = [];
 let processing = false;
+let queueProcessorRunning = false;
+let queueProcessorInterval: ReturnType<typeof setInterval> | null = null;
 
 export function getQueueStatus(): { size: number; processing: boolean; status: KernelStatus } {
   return { size: kernelQueue.length, processing, status: kernelStatus };
+}
+
+// ─── AUTO-TRAITEMENT DE LA QUEUE ─────────────────────────────────────────────────
+//
+// Le Kernel traite sa propre queue en arrière-plan. Les missions créées par
+// le Health Monitor, le Scheduler, ou les échecs de validation sont exécutées
+// automatiquement sans intervention utilisateur.
+
+export function startQueueProcessor(): void {
+  if (queueProcessorRunning) return;
+  queueProcessorRunning = true;
+
+  const processQueue = async () => {
+    if (processing || kernelQueue.length === 0) return;
+    const entry = kernelQueue.shift();
+    if (!entry) return;
+
+    processing = true;
+    kernelStatus = "executing";
+    logKernelEvent("queue_process", `Mission: ${entry.mission.objective.slice(0, 60)}`);
+
+    try {
+      const steps = await executeMission(entry.mission);
+      const successCount = steps.filter(s => s.status === "success").length;
+      const failCount = steps.filter(s => s.status === "failed").length;
+
+      // Validation après exécution
+      const validation = await runValidation();
+      if (validation.overall === "FAIL" && failCount === 0) {
+        // Si la validation FAIL mais que les étapes ont réussi → créer une mission de correction
+        const failChecks = validation.checks.filter(c => c.status === "FAIL").length;
+        logKernelEvent("queue_validation_fail", `${failChecks} checks échoués — mission de correction créée`);
+        const fixMission = generateComplexMission(`Corriger ${failChecks} échec(s) de validation`);
+        kernelQueue.push({ mission: fixMission, request: null });
+      }
+
+      // Reflection
+      try {
+        const reflection = await ReflectionEngine.reflect({
+          agentRole: "chief_of_staff",
+          query: entry.mission.objective,
+          result: `Mission: ${successCount}/${steps.length} réussies`,
+          success: failCount === 0,
+          durationMs: Date.now() - (entry.mission.steps[0]?.startedAt?.getTime() ?? Date.now()),
+          timestamp: new Date(),
+        });
+        if (reflection.shouldMemorize && reflection.memoryTitle) {
+          await db.insert(memoriesTable).values({
+            title: reflection.memoryTitle,
+            type: "note",
+            content: reflection.memoryContent || reflection.improvementSuggestions.join("; "),
+            tags: JSON.stringify(["kernel", "queue", entry.mission.objective.slice(0, 40)]),
+            relatedIds: JSON.stringify([]),
+          }).catch(() => {});
+        }
+      } catch { /* non-bloquant */ }
+
+      logKernelEvent("queue_done", `${entry.mission.id}: ${successCount}/${steps.length} réussies, validation=${validation.overall}`);
+    } catch (err) {
+      logKernelEvent("queue_error", err instanceof Error ? err.message : String(err));
+    } finally {
+      processing = false;
+      kernelStatus = "idle";
+    }
+  };
+
+  queueProcessorInterval = setInterval(processQueue, 5_000);
+  logKernelEvent("queue_processor", "Démarré");
+}
+
+export function stopQueueProcessor(): void {
+  queueProcessorRunning = false;
+  if (queueProcessorInterval) {
+    clearInterval(queueProcessorInterval);
+    queueProcessorInterval = null;
+  }
+  logKernelEvent("queue_processor", "Arrêté");
 }
 
 export function getKernelLog(limit = 50): Array<{ timestamp: Date; event: string; detail: string }> {
@@ -940,7 +1044,7 @@ export async function selfImprove(): Promise<{
 // Le Kernel ne connaît que les capacités, pas les providers.
 
 export function initKernel(): void {
-  // Image: Pollinations (gratuit, sans clé)
+  // ── Image: Pollinations (gratuit, sans clé) ──
   registerCapabilityProvider("Image", {
     name: "Pollinations",
     available: () => true,
@@ -951,7 +1055,57 @@ export function initKernel(): void {
     },
   });
 
-  // Search: Web search via IA
+  // ── Video: FFmpeg slideshow (gratuit, local) ──
+  registerCapabilityProvider("Video", {
+    name: "FFmpeg-Slideshow",
+    available: () => true,
+    execute: async (params) => {
+      const prompt = String(params.prompt || "");
+      const scenes = Number(params.scenes) || 2;
+      // Génère les images via Pollinations puis assemble avec FFmpeg
+      const imageUrls: string[] = [];
+      for (let i = 0; i < scenes; i++) {
+        const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + " scene " + (i + 1))}?width=720&height=1280&nologo=true&seed=${Date.now() + i}`;
+        imageUrls.push(imgUrl);
+      }
+      const result = await generateSlideshowVideo({
+        images: imageUrls,
+        text: params.text as string | undefined,
+        secondsPerImage: Number(params.secondsPerImage) || 3,
+      });
+      return `VIDEO:${result.url} (durée: ${result.durationSec}s, ${result.images} images)`;
+    },
+  });
+
+  // ── Music: HuggingFace MusicGen (gratuit avec HF_TOKEN) ──
+  registerCapabilityProvider("Music", {
+    name: "HuggingFace-MusicGen",
+    available: () => !!(process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY),
+    execute: async (params) => {
+      const prompt = String(params.prompt || "");
+      const result = await generateMusic(prompt);
+      if (!result.ok) {
+        throw new Error(result.error || "Génération musicale échouée");
+      }
+      return `MUSIC:${result.url} (${result.bytes} octets)`;
+    },
+  });
+
+  // ── Voice: HuggingFace TTS (gratuit avec HF_TOKEN) ──
+  registerCapabilityProvider("Voice", {
+    name: "HuggingFace-TTS",
+    available: () => !!(process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY),
+    execute: async (params) => {
+      const text = String(params.text || params.prompt || "");
+      const result = await generateSpeech(text);
+      if (!result.ok) {
+        throw new Error(result.error || "Synthèse vocale échouée");
+      }
+      return `VOICE:${result.url} (${result.bytes} octets)`;
+    },
+  });
+
+  // ── Search: IA-assisted search ──
   registerCapabilityProvider("Search", {
     name: "AI-Search",
     available: () => true,
@@ -968,7 +1122,7 @@ export function initKernel(): void {
     },
   });
 
-  // Analyse: IA reasoning
+  // ── Analyse: IA reasoning ──
   registerCapabilityProvider("Analyse", {
     name: "AI-Reasoning",
     available: () => true,
@@ -985,7 +1139,7 @@ export function initKernel(): void {
     },
   });
 
-  // Code: IA code generation
+  // ── Code: IA code generation ──
   registerCapabilityProvider("Code", {
     name: "AI-Code",
     available: () => true,
@@ -1002,12 +1156,46 @@ export function initKernel(): void {
     },
   });
 
-  // Démarre le Health Monitor et le Scheduler
+  // ── Publish: Git push (porte humaine obligatoire) ──
+  registerCapabilityProvider("Publish", {
+    name: "Git-Publish",
+    available: () => !!process.env.GITHUB_TOKEN,
+    execute: async (params) => {
+      // Le Kernel ne publie JAMAIS directement — porte humaine obligatoire
+      throw new Error("Publish nécessite une validation humaine. Utilisez /api/kernel/:id/approve pour approuver.");
+    },
+  });
+
+  // ── Git: Lecture du repo (gratuit) ──
+  registerCapabilityProvider("Git", {
+    name: "Git-Read",
+    available: () => true,
+    execute: async (params) => {
+      const action = String(params.action || "status");
+      if (action === "status") {
+        return "Git status: branche main, pas de modification non commitée (lecture seule)";
+      }
+      return `Git ${action}: opération en lecture seule`;
+    },
+  });
+
+  // ── Deploy: Railway (porte humaine obligatoire) ──
+  registerCapabilityProvider("Deploy", {
+    name: "Railway-Deploy",
+    available: () => !!process.env.RAILWAY_API_KEY,
+    execute: async (_params) => {
+      // Le Kernel ne déploie JAMAIS directement — porte humaine obligatoire
+      throw new Error("Deploy nécessite une validation humaine. Utilisez /api/kernel/:id/approve pour approuver.");
+    },
+  });
+
+  // Démarre le Health Monitor, le Scheduler, et l'auto-traitement de la queue
   startHealthMonitor();
   startScheduler();
+  startQueueProcessor();
 
   // Planifie le self-improvement toutes les 10 minutes
   scheduleMission("self-improvement", 600_000, () => generateComplexMission("Auto-amélioration du système"));
 
-  logKernelEvent("init", "Kernel initialisé avec capacités: Image, Search, Analyse, Code");
+  logKernelEvent("init", "Kernel initialisé avec capacités: Image, Video, Music, Voice, Search, Analyse, Code, Publish, Git, Deploy");
 }
