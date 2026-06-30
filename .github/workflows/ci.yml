@@ -72,6 +72,14 @@ jobs:
           css=$(ls artifacts/tams/dist/public/assets/*.css | head -1); size=$(wc -c < "$css")
           echo "CSS=$size octets"; [ "$size" -lt 60000 ] && { echo "❌ CSS trop petit"; exit 1; } || echo "✅ CSS sain"
       - run: pnpm run typecheck
+      - name: Tests du Development Runtime
+        run: pnpm --filter @workspace/scripts test
+      - name: Scénario réel Development Runtime
+        run: |
+          pnpm --filter @workspace/scripts dev-runtime:scenario | tee runtime-report.json
+          grep -q '"verdict": "PASS"' runtime-report.json
+          git diff -- .tams/runtime-check.md
+          git diff -- .tams/runtime-check.md | grep -q 'TAMS Development Runtime Check'
       - name: Smoke test (démarrage réel + endpoints)
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
