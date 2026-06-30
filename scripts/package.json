@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "dev-runtime": "tsx ./src/dev-runtime.ts",
+    "dev-runtime:scenario": "tsx ./src/dev-runtime.ts scenario --root ..",
+    "test": "tsx --test ./src/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
