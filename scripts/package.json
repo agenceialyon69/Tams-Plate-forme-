@@ -13,5 +13,9 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:"
+  },
+  "exports": {
+    "./dev-runtime-chat": "./src/dev-runtime-chat.ts",
+    "./dev-runtime": "./src/dev-runtime.ts"
   }
 }
