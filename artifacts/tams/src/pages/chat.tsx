@@ -17,6 +17,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { getRuntimeAccessToken } from "@/lib/supabase-session";
+import {
+  matchRuntimeCommand,
+  requestRuntimeTask,
+  RuntimeBridgeError,
+} from "@/lib/runtime-chat-bridge";
 import { useLocation } from "wouter";
 import { format, isSameDay, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -1297,6 +1303,27 @@ export default function Chat() {
     let doneReceived = false;
 
     try {
+      const runtimeCommand = matchRuntimeCommand(content);
+      if (runtimeCommand) {
+        setThinkingSteps(["Authentification Supabase...", "Exécution sécurisée du runtime..."]);
+        const task = await requestRuntimeTask({
+          apiBase: API_BASE,
+          conversationId: selectedId,
+          content,
+          getAccessToken: getRuntimeAccessToken,
+          fetchImpl: fetch,
+        });
+        setStreamingContent(
+          [
+            `TAMS Development Runtime — ${task.report.verdict}`,
+            `Task: ${task.id}`,
+            task.report.summary,
+          ].join("\n\n"),
+        );
+        doneReceived = true;
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/api/conversations/${selectedId}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1344,7 +1371,10 @@ export default function Chat() {
       if (err instanceof Error && err.name !== "AbortError") {
         setIsError(true);
         setLastFailedMessage(content);
-        toast({ title: "Erreur de connexion", description: "Impossible d'envoyer le message", variant: "destructive" });
+        const description = err instanceof RuntimeBridgeError
+          ? err.message
+          : "Impossible d'envoyer le message";
+        toast({ title: "Erreur de connexion", description, variant: "destructive" });
       }
     } finally {
       if (doneReceived) {
