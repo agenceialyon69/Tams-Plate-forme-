@@ -8,6 +8,7 @@ const studioOrchestrator = new StudioOrchestrator();
 
 type CapabilityMode = "real" | "plan_only" | "planned" | "read_only" | "disabled";
 type CapabilityStatus = "success" | "error" | "planned" | "disabled" | "missing_config" | "read_only" | "plan_only";
+type SafeStudioFormat = "short_video" | "document";
 
 type CapabilityResponse = {
   capabilityId: string;
@@ -65,7 +66,7 @@ async function runAiInstruction(system: string, input: string): Promise<{ text: 
   return text ? { text, provider } : null;
 }
 
-function studioPlan(input: string, format = "short_video") {
+function studioPlan(input: string, format: SafeStudioFormat = "short_video") {
   return studioOrchestrator.orchestrate({
     objective: input,
     targetPlatform: input.toLowerCase().includes("instagram") ? "instagram" : "tiktok",
