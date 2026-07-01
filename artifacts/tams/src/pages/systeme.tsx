@@ -2620,6 +2620,29 @@ function SystemeTab() {
   const [errors, setErrors] = useState<Array<{ method: string; url: string; status: number; time: string }>>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [loadingHealth, setLoadingHealth] = useState(false);
+  const [platformReality, setPlatformReality] = useState<{
+    health: Record<string, any> | null;
+    readiness: Record<string, any> | null;
+    registry: Record<string, any> | null;
+    error: string | null;
+  }>({ health: null, readiness: null, registry: null, error: null });
+
+  const fetchPlatformReality = async () => {
+    try {
+      const responses = await Promise.all([
+        fetch("/api/healthz"),
+        fetch("/api/system/readiness"),
+        fetch("/api/registry/status"),
+      ]);
+      if (responses.some(response => !response.ok)) {
+        throw new Error(responses.map(response => `HTTP ${response.status}`).join(", "));
+      }
+      const [healthData, readinessData, registryData] = await Promise.all(responses.map(response => response.json()));
+      setPlatformReality({ health: healthData, readiness: readinessData, registry: registryData, error: null });
+    } catch (error) {
+      setPlatformReality(current => ({ ...current, error: error instanceof Error ? error.message : "Statut indisponible" }));
+    }
+  };
 
   const fetchMetrics = async () => {
     setLoadingMetrics(true);
@@ -2685,10 +2708,12 @@ function SystemeTab() {
     fetchMetrics();
     fetchHealth();
     fetchErrors();
+    fetchPlatformReality();
     const interval = setInterval(() => {
       fetchMetrics();
       fetchHealth();
       fetchErrors();
+      fetchPlatformReality();
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -2751,6 +2776,29 @@ function SystemeTab() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+      <div className="bg-secondary rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold">Réalité plateforme</span>
+          <button onClick={fetchPlatformReality} className="text-xs text-primary hover:underline">Actualiser</button>
+        </div>
+        {platformReality.error ? (
+          <div className="text-sm text-rose-400">API offline ou inaccessible : {platformReality.error}</div>
+        ) : platformReality.readiness ? (
+          <div className="grid gap-2 text-xs sm:grid-cols-2">
+            <div>API : <strong className="text-emerald-400">online</strong></div>
+            <div>Base de données : <strong>{platformReality.readiness.checks?.database?.status ?? "non communiqué"}</strong></div>
+            <div>Runtime : <strong>{platformReality.readiness.checks?.dev_runtime?.status ?? "non communiqué"}</strong></div>
+            <div>Railway détecté : <strong>{platformReality.readiness.checks?.railway?.status === "detected" ? "oui" : "non"}</strong></div>
+            <div className="sm:col-span-2">Providers : <strong>{platformReality.readiness.checks?.providers_configured?.status ?? "non communiqué"}</strong></div>
+            <div className="sm:col-span-2">Registry : <strong>{platformReality.registry?.status ?? "disponible"}</strong></div>
+            {(platformReality.readiness.limitations ?? []).length > 0 && (
+              <div className="sm:col-span-2 text-muted-foreground">Limites : {(platformReality.readiness.limitations as string[]).join(" · ")}</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">Chargement des statuts réels…</div>
+        )}
+      </div>
       {/* VIS — Diagnostic plateforme */}
       <ValidationCard />
       {/* Cerveau autonome */}
