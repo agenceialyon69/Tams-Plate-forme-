@@ -1,25 +1,34 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        storage: localStorage,
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : null;
+function getSupabaseStorageKey(): string | null {
+  const rawUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  if (!rawUrl) return null;
+  try {
+    const projectRef = new URL(rawUrl).hostname.split(".")[0];
+    return projectRef ? `sb-${projectRef}-auth-token` : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Reuses the existing Supabase browser session. No token or secret is stored
- * by the runtime bridge itself.
+ * Reuses the session persisted by the existing Supabase frontend client.
+ * The runtime bridge neither creates nor refreshes credentials; the backend
+ * remains the authority that validates the Bearer JWT.
  */
 export async function getRuntimeAccessToken(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getSession();
-  if (error) return null;
-  return data.session?.access_token ?? null;
+  const key = getSupabaseStorageKey();
+  if (!key) return null;
+
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+
+  try {
+    const session = JSON.parse(raw) as {
+      access_token?: unknown;
+      currentSession?: { access_token?: unknown };
+    };
+    const token = session.access_token ?? session.currentSession?.access_token;
+    return typeof token === "string" && token.length > 0 ? token : null;
+  } catch {
+    return null;
+  }
 }
