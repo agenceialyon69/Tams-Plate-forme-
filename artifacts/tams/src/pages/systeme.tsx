@@ -2804,6 +2804,9 @@ function SystemeTab() {
             {(platformReality.readiness.limitations ?? []).length > 0 && (
               <div className="sm:col-span-2 text-muted-foreground">Limites : {(platformReality.readiness.limitations as string[]).join(" · ")}</div>
             )}
+            {(platformReality.readiness.recommendedFixes ?? []).length > 0 && (
+              <div className="sm:col-span-2 text-muted-foreground">Correctifs recommandés : {(platformReality.readiness.recommendedFixes as string[]).join(" · ")}</div>
+            )}
           </div>
         ) : (
           <div className="text-sm text-muted-foreground">Chargement des statuts réels…</div>
