@@ -25,6 +25,7 @@ import workflowsRouter from "./workflows";
 import exportRouter from "./export";
 import missionsRouter from "./missions";
 import kernelRouter from "./kernel";
+import devRuntimeRouter from "./dev-runtime";
 
 const router: IRouter = Router();
 
@@ -59,6 +60,7 @@ router.use(workflowsRouter);
 router.use(exportRouter);
 router.use(missionsRouter);
 router.use(kernelRouter);
+router.use(devRuntimeRouter);
 router.use(defaultRateLimit);
 
 export default router;
