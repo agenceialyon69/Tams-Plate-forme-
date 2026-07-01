@@ -16,7 +16,7 @@ export interface Provider {
   id: string;
   name: string;
   type: "free" | "freemium" | "paid";
-  status: "available" | "planned" | "rate_limited" | "disabled";
+  status: "available" | "planned" | "experimental" | "rate_limited" | "disabled";
   baseUrl?: string;
   requiresAuth: boolean;
   authType?: "api_key" | "oauth" | "none";
@@ -631,7 +631,7 @@ router.get("/registry/capabilities/:id", (req, res) => {
   if (!capability) {
     return res.status(404).json({ error: "Capability not found" });
   }
-  res.json(capability);
+  return res.json(capability);
 });
 
 router.get("/registry/providers", (_req, res) => {
@@ -649,7 +649,7 @@ router.get("/registry/providers/:id", (req, res) => {
   if (!provider) {
     return res.status(404).json({ error: "Provider not found" });
   }
-  res.json(provider);
+  return res.json(provider);
 });
 
 router.get("/registry/status", (_req, res) => {
@@ -712,13 +712,13 @@ router.post("/registry/providers/:id/check", async (req, res) => {
 
     clearTimeout(timeout);
 
-    res.json({
+    return res.json({
       provider: provider.id,
       status: response.ok ? "healthy" : "unhealthy",
       httpStatus: response.status,
     });
   } catch (error) {
-    res.json({
+    return res.json({
       provider: provider.id,
       status: "unreachable",
       error: error instanceof Error ? error.message : "Unknown error",
