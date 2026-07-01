@@ -8,6 +8,7 @@
  * 100 % gratuit : toute inférence passe par le routeur IA free-first (lib/ai).
  */
 import { aiChat, aiConfigured, type AiTask } from "./ai";
+import { StudioOrchestrator } from "./studio/studio-orchestrator";
 import {
   SYSTEM_PROMPT,
   gatherUserContext,
@@ -454,8 +455,149 @@ export async function runAgentPipeline(
  *  2. délégation — exécuter ces agents (en parallèle)
  *  3. synthèse — consolider une réponse exécutive unique
  */
+const HONEST_MEDIA_LIMIT = "La génération vidéo réelle n’est pas encore connectée. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.";
+
+function localPlanningFallback(task: string): OrchestrationResult {
+  const lower = task.toLowerCase();
+  const isVideo = /vid[ée]o|tiktok|reel|runway|kling|veo/.test(lower);
+
+  if (isVideo) {
+    const platform = lower.includes("tiktok")
+      ? "tiktok"
+      : lower.includes("instagram") || lower.includes("reel")
+        ? "instagram"
+        : lower.includes("youtube")
+          ? "youtube"
+          : lower.includes("linkedin")
+            ? "linkedin"
+            : "generic";
+    const studio = new StudioOrchestrator().orchestrate({
+      objective: task,
+      targetPlatform: platform,
+      format: platform === "youtube" ? "long_video" : "short_video",
+      tone: "energetic",
+      product: lower.includes("activewear") ? "produit activewear" : "produit",
+    });
+    const externalPrompt = [
+      "Créer une vidéo verticale publicitaire native et crédible.",
+      studio.creativeBrief,
+      studio.scriptPlan,
+      studio.storyboardPlan,
+      "Style: plans courts, mouvement naturel, lumière réaliste, texte lisible, aucun claim non vérifié.",
+      "Respecter la plateforme cible et terminer par un CTA clair.",
+    ].join("\n\n");
+    const result = (agent: AgentId, output: string): AgentRunResult => ({
+      agent,
+      name: AGENTS[agent].name,
+      output,
+      toolsUsed: [],
+    });
+    const results: AgentRunResult[] = [
+      result("executive", [
+        "OBJECTIF REFORMULÉ",
+        `Préparer un plan de vidéo ${platform} exploitable pour présenter le produit, sans prétendre produire un fichier média.`,
+        "COORDINATION",
+        "Product clarifie la valeur, Marketing construit l’accroche, Studio livre la production, Research pose les hypothèses, Red Team contrôle les promesses et DevOps précise les limites techniques.",
+        HONEST_MEDIA_LIMIT,
+      ].join("\n\n")),
+      result("product", [
+        "CIBLE",
+        "Personne active cherchant une tenue confortable, valorisante et adaptée à un usage quotidien.",
+        "PROPOSITION DE VALEUR",
+        "Montrer le bénéfice concret en situation réelle plutôt qu’énumérer des caractéristiques.",
+        "ANGLE PRODUIT",
+        "Du mouvement réel, une coupe visible et une preuve d’usage. Toute performance produit doit être validée avant publication.",
+      ].join("\n\n")),
+      result("marketing", [
+        "HOOK TIKTOK",
+        "« Ta tenue suit-elle vraiment ton rythme ? »",
+        "PROMESSE",
+        "Découvrir une tenue activewear pensée pour accompagner les mouvements du quotidien.",
+        "STRUCTURE COURTE",
+        "0–3 s hook visuel · 3–10 s problème · 10–22 s produit en action · 22–27 s bénéfice · 27–30 s CTA.",
+      ].join("\n\n")),
+      result("studio", [
+        "SCRIPT",
+        studio.scriptPlan,
+        "STORYBOARD",
+        studio.storyboardPlan,
+        "SHOT LIST",
+        "1. Gros plan matière et texture.\n2. Enfilage ou préparation.\n3. Mouvement dynamique en plan large.\n4. Détail coupe/confort.\n5. Plan résultat puis CTA.",
+        "PROMPT KLING / RUNWAY / VEO",
+        externalPrompt,
+        "CAPTIONS",
+        "Bouge librement. Reste toi-même. Découvre la collection. #activewear #tiktokfashion #movement",
+        "PLAN DE MONTAGE",
+        studio.productionSteps.map(step => `${step.order}. ${step.name} — ${step.notes}`).join("\n"),
+      ].join("\n\n")),
+      result("research", [
+        "HYPOTHÈSES À VÉRIFIER",
+        "Audience exacte, bénéfice prioritaire, preuves produit disponibles, droits musique/image et vocabulaire de marque.",
+        "CONTRAINTES PLATEFORME",
+        "Vertical 9:16, hook immédiat, sous-titres lisibles, rythme court, safe zones UI et contenu publicitaire identifiable.",
+        "Les tendances doivent être vérifiées au moment de publier ; aucune tendance temps réel n’est inventée.",
+      ].join("\n\n")),
+      result("redteam", [
+        "RISQUES",
+        "Faux claim de performance, résultat corporel implicite, témoignage non prouvé, musique sans licence, visuel trompeur ou promesse de fichier inexistant.",
+        "GARDE-FOUS",
+        "Valider chaque claim, utiliser des assets autorisés, relire les captions et ne jamais annoncer qu’un média est produit sans artefact vérifiable.",
+      ].join("\n\n")),
+      result("devops", [
+        "ÉTAT TECHNIQUE",
+        "Aucun fichier vidéo réel n’a été généré. Studio fournit ici un plan déterministe ; la génération externe reste manuelle.",
+        "PROCHAINES ACTIONS",
+        "1. Valider brief et claims.\n2. Copier le prompt dans Kling, Runway ou Veo.\n3. Importer le rendu réel.\n4. Monter/sous-titrer avec FFmpeg.\n5. Contrôler le fichier avant publication.",
+        HONEST_MEDIA_LIMIT,
+      ].join("\n\n")),
+    ];
+    return {
+      plan: {
+        rationale: "Plan multi-agent local spécialisé, utilisé même si le fournisseur IA est indisponible.",
+        delegations: results.filter(item => item.agent !== "executive").map(item => ({
+          agent: item.agent,
+          subtask: `Contribuer au plan: ${item.name}`,
+        })),
+      },
+      results,
+      synthesis: [
+        "PLAN GLOBAL",
+        "Le plan couvre cible, angle produit, hook, script, storyboard, shot list, prompt externe, captions, risques et étapes techniques.",
+        HONEST_MEDIA_LIMIT,
+        "PROCHAINE ACTION",
+        "Validez le brief, puis utilisez le prompt Studio dans un générateur externe. TAMS ne présentera un fichier comme généré qu’après réception d’un artefact réel.",
+      ].join("\n\n"),
+    };
+  }
+
+  const selected: AgentId[] = /d[ée]cision|choisir|option/.test(lower)
+    ? ["product", "decision", "redteam"]
+    : /code|d[ée]veloppement|bug|technique/.test(lower)
+      ? ["engineering", "product", "devops", "redteam"]
+      : /recherche|march[ée]|tendance/.test(lower)
+        ? ["research", "product", "marketing", "redteam"]
+        : ["product", "research", "marketing", "redteam"];
+  const results = selected.map(agent => ({
+    agent,
+    name: AGENTS[agent].name,
+    output: `Contribution en mode plan — ${AGENTS[agent].role}: analyser « ${task} », expliciter hypothèses, livrables, risques et prochaine action vérifiable.`,
+    toolsUsed: [],
+  }));
+  return {
+    plan: {
+      rationale: "Plan local structuré utilisé car la planification IA est indisponible.",
+      delegations: selected.map(agent => ({ agent, subtask: `Préparer la contribution ${AGENTS[agent].role}` })),
+    },
+    results,
+    synthesis: "Mode plan uniquement — aucune exécution autonome. Validez les hypothèses, transformez les contributions en tâches, puis exécutez chaque action avec un outil explicitement connecté.",
+  };
+}
+
 export async function orchestrate(task: string): Promise<OrchestrationResult> {
   const cos = AGENTS.executive;
+  if (/vid[ée]o|tiktok|reel|runway|kling|veo/i.test(task)) {
+    return localPlanningFallback(task);
+  }
   const userContext = await gatherUserContext();
   const delegatable = AGENT_LIST.filter(a => a.id !== "executive");
 
@@ -480,14 +622,7 @@ export async function orchestrate(task: string): Promise<OrchestrationResult> {
       .map((d: any) => ({ agent: d.agent as AgentId, subtask: String(d.subtask || task) }));
     plan = { rationale: String(parsed.rationale || ""), delegations: valid };
   } catch {
-    // Repli déterministe : recherche + décision si l'IA/planif échoue.
-    plan = {
-      rationale: "Plan par défaut (planification IA indisponible).",
-      delegations: [
-        { agent: "research", subtask: task },
-        { agent: "decision", subtask: task },
-      ],
-    };
+    return localPlanningFallback(task);
   }
 
   if (plan.delegations.length === 0) {
