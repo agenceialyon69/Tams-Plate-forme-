@@ -120,5 +120,12 @@ jobs:
           echo "$studio" | grep -q '"storyboardPlan"' || { echo "❌ Studio sans storyboard"; fail=1; }
           echo "$studio" | grep -qi 'planned\|not yet connected' || { echo "❌ Studio sans limitation honnête"; fail=1; }
           echo "$studio" | grep -q 'example.com' && { echo "❌ Studio retourne un faux lien"; fail=1; } || echo "✅ Studio sans faux lien"
+          agents=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"task":"Génère une vidéo TikTok pour mon produit activewear et donne-moi le fichier à télécharger."}' http://127.0.0.1:4000/api/agents/orchestrate)
+          echo "$agents" | grep -q 'Planification IA indisponible' && { echo "❌ fallback Agents insuffisant"; fail=1; } || echo "✅ fallback Agents utile"
+          echo "$agents" | grep -q 'example.com' && { echo "❌ faux lien Agents"; fail=1; } || echo "✅ aucun faux lien Agents"
+          echo "$agents" | grep -qi 'SCRIPT' || { echo "❌ script Agents absent"; fail=1; }
+          echo "$agents" | grep -qi 'STORYBOARD' || { echo "❌ storyboard Agents absent"; fail=1; }
+          echo "$agents" | grep -qi 'KLING / RUNWAY / VEO' || { echo "❌ prompt vidéo externe absent"; fail=1; }
+          echo "$agents" | grep -q 'La génération vidéo réelle n’est pas encore connectée' || { echo "❌ limitation honnête absente"; fail=1; }
           [ "$(curl -s http://127.0.0.1:4000/api/tasks | head -c1)" = "[" ] && echo "✅ tasks tableau" || { echo "❌ tasks pas tableau"; fail=1; }
           exit $fail
