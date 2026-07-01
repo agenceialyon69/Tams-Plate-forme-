@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { db, conversationsTable, messagesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import {
@@ -13,15 +13,16 @@ const router = Router();
 const tasks = new Map<string, EngineeringTask>();
 const controller = new ChatEngineeringController(process.cwd());
 
-function requireRuntimeEnabled(_req: unknown, res: { status(code: number): { json(body: unknown): unknown } }, next: () => void): unknown {
+const requireRuntimeEnabled: RequestHandler = (_req, res, next): void => {
   if (!runtimeEnabled()) {
-    return res.status(503).json({
+    res.status(503).json({
       error: "TAMS Development Runtime désactivé",
       hint: "Configurer TAMS_DEV_RUNTIME_ENABLED=true uniquement dans un environnement de développement sécurisé.",
     });
+    return;
   }
   next();
-}
+};
 
 /**
  * Chat -> authenticated runtime -> task/tool/validation -> persisted chat report.
@@ -82,7 +83,7 @@ router.get(
   requireAuth,
   requireRuntimeEnabled,
   (req, res) => {
-    const task = tasks.get(req.params.taskId);
+    const task = tasks.get(String(req.params.taskId));
     if (!task) return res.status(404).json({ error: "Task runtime introuvable" });
     if (task.actorId !== req.user!.id) return res.status(403).json({ error: "Accès refusé" });
     return res.json(task);
