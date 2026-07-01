@@ -570,6 +570,43 @@ function localPlanningFallback(task: string): OrchestrationResult {
     };
   }
 
+  if (/repo|repository|d[ée]p[ôo]t|codebase|audit.*code/.test(lower)) {
+    const repoResults: AgentRunResult[] = [
+      {
+        agent: "executive",
+        name: AGENTS.executive.name,
+        output: "MODE READ-ONLY / PLAN UNIQUEMENT\nJe peux préparer l’audit et les corrections proposées. Je ne modifie pas le dépôt tant que Patch Engine, ownership et approbation d’écriture ne sont pas prouvés.",
+        toolsUsed: [],
+      },
+      {
+        agent: "engineering",
+        name: AGENTS.engineering.name,
+        output: "PLAN D’AUDIT\n1. Scan structure et dépendances.\n2. Identifier erreurs, dette et risques.\n3. Prioriser un plan de corrections.\n4. Produire un patch proposé.\n5. Exécuter typecheck, build et tests.\n6. Ouvrir une PR après validation humaine.",
+        toolsUsed: [],
+      },
+      {
+        agent: "redteam",
+        name: AGENTS.redteam.name,
+        output: "RISQUES\nSecrets, permissions excessives, injection de prompt, patch hors périmètre, tests insuffisants et push direct vers main doivent être refusés.",
+        toolsUsed: [],
+      },
+      {
+        agent: "devops",
+        name: AGENTS.devops.name,
+        output: "ÉTAT ACTUEL\nRepo Intelligence et validation existent partiellement. Patch Engine transactionnel, GitHub Operator et Railway Operator restent à connecter avec permissions minimales.",
+        toolsUsed: [],
+      },
+    ];
+    return {
+      plan: {
+        rationale: "Plan Dev Agent read-only, honnête et soumis à validation humaine.",
+        delegations: repoResults.filter(item => item.agent !== "executive").map(item => ({ agent: item.agent, subtask: item.output.split("\n")[0] })),
+      },
+      results: repoResults,
+      synthesis: "SCAN → RISQUES → PLAN → PATCH PROPOSÉ → TESTS → PR. Mode plan uniquement : aucune modification réelle du repo n’est annoncée.",
+    };
+  }
+
   const selected: AgentId[] = /d[ée]cision|choisir|option/.test(lower)
     ? ["product", "decision", "redteam"]
     : /code|d[ée]veloppement|bug|technique/.test(lower)
