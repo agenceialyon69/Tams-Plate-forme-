@@ -92,12 +92,20 @@ router.get("/system/readiness", async (_req, res) => {
   if (process.env.GROQ_API_KEY) configuredProviders.push("groq");
   if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) configuredProviders.push("gemini");
   if (process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY) configuredProviders.push("huggingface");
-  if (process.env.OPENROUTER_API_KEY) configuredProviders.push("openrouter");
+  if (process.env.OPENROUTER_API_KEY || process.env.OPENROUTE_API_KEY) configuredProviders.push("openrouter");
+  if (process.env.GITHUB_TOKEN) configuredProviders.push("github");
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME || process.env.RAILWAY_TOKEN) configuredProviders.push("railway");
 
+  const expectedProviders = ["groq", "gemini", "huggingface", "openrouter", "github", "railway"];
+  const missingProviders = expectedProviders.filter(provider => !configuredProviders.includes(provider));
   checks.providers_configured = {
     ok: configuredProviders.length > 0,
     status: configuredProviders.length > 0 ? `configured: ${configuredProviders.join(", ")}` : "none_configured",
-    notes: "Pollinations always available (no key required)",
+    notes: "Presence checks only; secret values are never returned. Pollinations requires no key.",
+  };
+  checks.providers_missing = {
+    ok: true,
+    status: missingProviders.length > 0 ? `missing_config: ${missingProviders.join(", ")}` : "none",
   };
 
   const allOk = Object.values(checks).every(c => c.ok);
