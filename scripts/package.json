@@ -7,7 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "dev-runtime": "tsx ./src/dev-runtime.ts",
     "dev-runtime:scenario": "tsx ./src/dev-runtime.ts scenario --root ..",
-    "test": "tsx --test ./src/*.test.ts",
+    "test": "tsx --test ./src/*.test.ts ../artifacts/tams/src/lib/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev-runtime:mission2": "tsx ./src/mission2-scenarios.ts"
   },
