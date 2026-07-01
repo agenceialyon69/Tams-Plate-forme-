@@ -39,3 +39,12 @@ Injection de prompt, exfiltration de secrets, confusion d'identité, écriture h
 ## Ordre de construction
 
 Ownership → workspace isolé → permissions → Repo Intelligence → Task Planner → Patch Engine → Validation → Repair Loop → GitHub Operator → Railway Operator → E2E et audit.
+
+
+## Minimum réellement branché
+
+Dans Agents, une demande d’analyse de dépôt déclenche maintenant un fallback read-only structuré :
+
+`scan → risques → plan → patch proposé → tests → PR`.
+
+Le résultat précise explicitement que Repo Intelligence et Validation Engine existent partiellement, tandis que Patch Engine transactionnel, GitHub Operator et Railway Operator ne sont pas encore connectés pour une exécution autonome. Aucune modification du dépôt n’est promise sans ownership, permission d’écriture et validation humaine.
