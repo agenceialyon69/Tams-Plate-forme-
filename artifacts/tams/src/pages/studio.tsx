@@ -1498,18 +1498,50 @@ function VideoForm({ onCancel, onSave, isLoading, projects }: { onCancel: () => 
   const [projectId, setProjectId] = useState("");
   const { toast } = useToast();
 
-  const genScript = useGenerateMediaScript({
-    mutation: {
-      onSuccess: (r) => {
-        setGeneratedScript(r.script);
-        setSuggestions(r.suggestions ?? []);
-        setActiveTab("script");
-        if (!name && r.suggestions?.[0]) setName(r.suggestions[0]);
-        toast({ title: "Script généré par IA" });
-      },
-      onError: () => toast({ title: "Erreur de génération", variant: "destructive" }),
-    },
-  });
+  const [platform, setPlatform] = useState("tiktok");
+  const [orchestrating, setOrchestrating] = useState(false);
+
+  async function orchestrateVideo() {
+    if (!prompt.trim() || orchestrating) return;
+    setOrchestrating(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/studio/orchestrate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objective: prompt.trim(),
+          type: "video",
+          targetPlatform: platform,
+          format: platform === "youtube" ? "long_video" : "short_video",
+          project: projectId || undefined,
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const plan = await response.json() as Record<string, unknown>;
+      const section = (label: string, value: unknown) => value
+        ? `${label}\n${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`
+        : "";
+      setGeneratedScript([
+        section("CREATIVE BRIEF", plan.creativeBrief),
+        section("SCRIPT", plan.scriptPlan),
+        section("STORYBOARD", plan.storyboardPlan),
+        section("ASSET PLAN", plan.assetPlan),
+        section("EDITING / PRODUCTION PLAN", plan.productionSteps),
+        section("EXPORT TARGETS", plan.exportTargets),
+        section("LIMITATIONS", plan.honestLimitations),
+        section("NEXT STEPS", plan.validationChecklist),
+        "La génération vidéo réelle n'est pas encore connectée.",
+      ].filter(Boolean).join("\n\n"));
+      setSuggestions([]);
+      setActiveTab("script");
+      if (!name) setName(prompt.trim().slice(0, 60));
+      toast({ title: "Plan Studio créé", description: "Plan réel reçu du backend. Aucun faux fichier vidéo n'a été créé." });
+    } catch (error) {
+      toast({ title: "Studio indisponible", description: error instanceof Error ? error.message : "Impossible de créer le plan", variant: "destructive" });
+    } finally {
+      setOrchestrating(false);
+    }
+  }
 
   const canSave = name.trim() && (url.trim() || generatedScript.trim());
 
@@ -1533,15 +1565,24 @@ function VideoForm({ onCancel, onSave, isLoading, projects }: { onCancel: () => 
 
       <input className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-violet-500/30 focus:border-violet-500/30 transition-all" placeholder="Titre de la vidéo..." value={name} onChange={e => setName(e.target.value)} />
 
+      {activeTab === "script" && (
+        <select value={platform} onChange={e => setPlatform(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none">
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+          <option value="youtube">YouTube</option>
+          <option value="linkedin">LinkedIn</option>
+        </select>
+      )}
+
       {activeTab === "url" ? (
         <input className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-violet-500/30 focus:border-violet-500/30 transition-all" placeholder="https://youtube.com/watch?v=..." value={url} onChange={e => setUrl(e.target.value)} />
       ) : (
         <div className="space-y-2">
           <div className="flex gap-2">
             <input className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-violet-500/30 focus:border-violet-500/30 transition-all" placeholder="Décrivez votre vidéo..." value={prompt} onChange={e => setPrompt(e.target.value)} />
-            <button disabled={!prompt.trim() || genScript.isPending} onClick={() => genScript.mutate({ data: { mediaType: "video", prompt: prompt.trim() } })} className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white rounded-xl text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-violet-500/20 shrink-0">
-              <Wand2 className={cn("w-3.5 h-3.5", genScript.isPending && "animate-spin")} />
-              {genScript.isPending ? "..." : "Générer"}
+            <button disabled={!prompt.trim() || orchestrating} onClick={orchestrateVideo} className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white rounded-xl text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98] shadow-lg shadow-violet-500/20 shrink-0">
+              <Wand2 className={cn("w-3.5 h-3.5", orchestrating && "animate-spin")} />
+              {orchestrating ? "..." : "Créer le plan"}
             </button>
           </div>
           {suggestions.length > 0 && (
