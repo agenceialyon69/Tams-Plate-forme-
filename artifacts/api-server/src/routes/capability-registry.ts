@@ -608,6 +608,20 @@ const CAPABILITIES: Capability[] = [
     validationNotes: "Built-in /api/healthz endpoint",
   },
 
+  // === ACTION BUS / AGENTS ===
+  {
+    id: "agents.orchestrate",
+    label: "Agents / Mission Plan",
+    description: "Create a useful multi-agent mission plan without claiming autonomous execution",
+    category: "analysis",
+    riskLevel: "low",
+    requiredPermission: "authenticated",
+    providers: [],
+    fallbackBehavior: "fail",
+    status: "available",
+    validationNotes: "Action Bus returns a plan; no background autonomous execution.",
+  },
+
   // === AUTOMATION ===
   {
     id: "automation.workflow",
@@ -644,22 +658,55 @@ export function getEnabledProviderIds(): string[] {
     .map(p => p.id);
 }
 
+type CapabilityMode = "real" | "plan_only" | "planned" | "read_only" | "disabled";
+
+const REAL_ACTIONS = new Set([
+  "studio.analyze", "studio.generate", "studio.brief.generate", "studio.script.generate",
+  "studio.storyboard.generate", "studio.prompt.generate", "studio.caption.generate",
+  "studio.document.generate", "studio.export.social", "image.generate", "observe.health",
+  "agents.orchestrate", "mission.plan",
+]);
+const PLAN_ACTIONS = new Set(["studio.video.edit.plan", "studio.music.plan", "video.edit"]);
+const READ_ONLY_ACTIONS = new Set(["memory.query", "deploy.check", "repo.audit", "repo.validate"]);
+const DISABLED_ACTIONS = new Set(["repo.patch"]);
+
+function capabilityOperationalMode(capability: Capability): CapabilityMode {
+  if (DISABLED_ACTIONS.has(capability.id)) return "disabled";
+  if (READ_ONLY_ACTIONS.has(capability.id)) return "read_only";
+  if (PLAN_ACTIONS.has(capability.id)) return "plan_only";
+  if (["text.generate", "text.analyze", "text.translate"].includes(capability.id)) {
+    return (process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.HF_TOKEN || process.env.OPENROUTER_API_KEY || process.env.OPENROUTE_API_KEY)
+      ? "real"
+      : "disabled";
+  }
+  if (REAL_ACTIONS.has(capability.id)) return "real";
+  if (capability.providers.some(provider => providerOperationalStatus(provider) === "requires_local")) return "planned";
+  return capability.status === "available" ? "plan_only" : capability.status === "disabled" ? "disabled" : "planned";
+}
+
+function capabilityActionAvailable(capability: Capability): boolean {
+  return ["real", "plan_only", "read_only"].includes(capabilityOperationalMode(capability));
+}
+
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
 router.get("/registry/capabilities", (_req, res) => {
   res.json({
-    capabilities: CAPABILITIES.map(capability => ({
-      ...capability,
-      declaredInCatalog: true,
-      providerConfigured: capability.providers.some(provider => ["available", "configured"].includes(providerOperationalStatus(provider))),
-      executableNow: capability.status === "available"
-        && capability.id !== "repo.patch"
-        && (capability.providers.length === 0 || capability.providers.some(provider => ["available", "configured"].includes(providerOperationalStatus(provider)))),
-      plannedOnly: capability.status === "planned",
-      requiresLocal: capability.providers.some(provider => providerOperationalStatus(provider) === "requires_local"),
-      readOnly: capability.id.startsWith("repo.") || capability.id === "deploy.check",
-      disabled: capability.status === "disabled",
-    })),
+    capabilities: CAPABILITIES.map(capability => {
+      const mode = capabilityOperationalMode(capability);
+      return {
+        ...capability,
+        declaredInCatalog: true,
+        providerConfigured: capability.providers.some(provider => ["available", "configured"].includes(providerOperationalStatus(provider))),
+        mode,
+        actionAvailable: capabilityActionAvailable(capability),
+        executableNow: mode === "real",
+        plannedOnly: mode === "planned",
+        requiresLocal: capability.providers.some(provider => providerOperationalStatus(provider) === "requires_local"),
+        readOnly: mode === "read_only",
+        disabled: mode === "disabled",
+      };
+    }),
     total: CAPABILITIES.length,
     available: CAPABILITIES.filter(c => c.status === "available").length,
     planned: CAPABILITIES.filter(c => c.status === "planned").length,
