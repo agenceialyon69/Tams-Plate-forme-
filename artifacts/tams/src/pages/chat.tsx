@@ -168,7 +168,6 @@ function getToolMeta(name: string) {
   return { icon: Zap, label: "Action effectuée", color: "bg-primary/10 text-primary border-primary/20", link: undefined, actionLabel: "Exécution..." };
 }
 
-/* Enriched Tool Call Card with animation */
 function ToolCallCard({ tool }: { tool: ToolCall }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -232,7 +231,6 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
   );
 }
 
-/* ─── Quick Action buttons ─── */
 function QuickActions({ onAction }: { onAction: (text: string) => void }) {
   const actions = [
     { icon: Lightbulb, label: "Décision", prompt: "Aide-moi à décider : ", color: "text-amber-400" },
@@ -262,30 +260,15 @@ function QuickActions({ onAction }: { onAction: (text: string) => void }) {
   );
 }
 
-/* ─── Slash command picker ─── */
-function SlashCommandPicker({
-  query,
-  onSelect,
-  onClose,
-}: {
-  query: string;
-  onSelect: (cmd: string) => void;
-  onClose: () => void;
-}) {
+function SlashCommandPicker({ query, onSelect, onClose }: { query: string; onSelect: (cmd: string) => void; onClose: () => void; }) {
   const filtered = SLASH_COMMANDS.filter(
     (c) => c.command.includes(query) || c.label.toLowerCase().includes(query.toLowerCase())
   );
-
   if (filtered.length === 0) return null;
-
   return (
     <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
       {filtered.map((cmd) => (
-        <button
-          key={cmd.command}
-          onClick={() => { onSelect(cmd.command + " "); onClose(); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors text-left"
-        >
+        <button key={cmd.command} onClick={() => { onSelect(cmd.command + " "); onClose(); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors text-left">
           <div className={cn("w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0", cmd.color)}>
             <cmd.icon className="w-3.5 h-3.5" />
           </div>
@@ -302,7 +285,6 @@ function SlashCommandPicker({
   );
 }
 
-/* ─── Date separator ─── */
 function DateSeparator({ date }: { date: Date }) {
   const label = isToday(date) ? "Aujourd'hui" : isYesterday(date) ? "Hier" : format(date, "d MMMM yyyy", { locale: fr });
   return (
@@ -314,7 +296,6 @@ function DateSeparator({ date }: { date: Date }) {
   );
 }
 
-/* ─── Thinking indicator ─── */
 function ThinkingIndicator({ step }: { step: number }) {
   const s = THINKING_STEPS[step % THINKING_STEPS.length];
   return (
@@ -330,7 +311,6 @@ function ThinkingIndicator({ step }: { step: number }) {
   );
 }
 
-/* ─── Typing indicator ─── */
 function TypingIndicator() {
   return (
     <div className="flex items-start gap-3 px-4 py-2">
@@ -346,7 +326,6 @@ function TypingIndicator() {
   );
 }
 
-/* ─── Action status bar ─── */
 function ActionStatusBar({ actions }: { actions: Array<{ label: string; status: "pending" | "done" | "error" }> }) {
   if (actions.length === 0) return null;
   const done = actions.filter((a) => a.status === "done").length;
@@ -370,26 +349,13 @@ function ActionStatusBar({ actions }: { actions: Array<{ label: string; status: 
   );
 }
 
-/* ─── Memory badge ─── */
-function MemoryBadge({
-  count,
-  memories,
-  onToggleContext,
-}: {
-  count: number;
-  memories: string[];
-  onToggleContext: () => void;
-}) {
+function MemoryBadge({ count, memories, onToggleContext }: { count: number; memories: string[]; onToggleContext: () => void; }) {
   if (count === 0) return null;
-
   return (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            onClick={onToggleContext}
-            className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full hover:bg-amber-500/20 transition-colors"
-          >
+          <button onClick={onToggleContext} className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
             <MemoryStick className="w-3 h-3" />
             <span>Mémoire : {count} élément{count !== 1 ? "s" : ""}</span>
           </button>
@@ -397,9 +363,7 @@ function MemoryBadge({
         <TooltipContent side="bottom" className="max-w-xs">
           <div className="space-y-1">
             <p className="font-semibold text-[10px] uppercase tracking-wider opacity-70">Mémoires utilisées</p>
-            {memories.map((m, i) => (
-              <p key={i} className="text-[10px] truncate">{m}</p>
-            ))}
+            {memories.map((m, i) => (<p key={i} className="text-[10px] truncate">{m}</p>))}
           </div>
         </TooltipContent>
       </Tooltip>
@@ -407,27 +371,11 @@ function MemoryBadge({
   );
 }
 
-/* ─── Context Panel (Memory sidebar) ─── */
-interface MemoryItem {
-  id: string;
-  type: string;
-  content: string;
-  relevance: number;
-}
+interface MemoryItem { id: string; type: string; content: string; relevance: number; }
 
-function ContextPanel({
-  isOpen,
-  onClose,
-  memories,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  memories: MemoryItem[];
-}) {
+function ContextPanel({ isOpen, onClose, memories }: { isOpen: boolean; onClose: () => void; memories: MemoryItem[]; }) {
   const [, navigate] = useLocation();
-
   if (!isOpen) return null;
-
   return (
     <div className="absolute right-0 top-0 bottom-0 w-80 bg-card border-l border-border z-20 flex flex-col animate-slide-in shadow-xl">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -442,29 +390,168 @@ function ContextPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {memories.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-4">Aucune mémoire utilisée</p>
-        ) : (
-          memories.map((mem) => (
-            <div key={mem.id} className="p-3 rounded-xl bg-secondary/40 border border-border space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{mem.type}</span>
-                <span className="text-[9px] text-muted-foreground">{Math.round(mem.relevance * 100)}%</span>
-              </div>
-              <p className="text-xs text-foreground/80 line-clamp-3">{mem.content}</p>
+        ) : memories.map((mem) => (
+          <div key={mem.id} className="p-3 rounded-xl bg-secondary/40 border border-border space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{mem.type}</span>
+              <span className="text-[9px] text-muted-foreground">{Math.round(mem.relevance * 100)}%</span>
             </div>
-          ))
-        )}
+            <p className="text-xs text-foreground/80 line-clamp-3">{mem.content}</p>
+          </div>
+        ))}
       </div>
       <div className="p-4 border-t border-border">
-        <button
-          onClick={() => { onClose(); navigate("/systeme"); }}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-        >
+        <button onClick={() => { onClose(); navigate("/systeme"); }} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors">
           <GitBranch className="w-3.5 h-3.5" />
           Voir dans le graphe
         </button>
       </div>
     </div>
   );
+}
+
+/* ─── Structured Content Renderer ─── */
+function StructuredContent({ content }: { content: string }) {
+  const blocks = useMemo(() => {
+    try { return parseContent(content); }
+    catch { return [{ type: "text" as const, content }]; }
+  }, [content]);
+  return (
+    <div className="space-y-2">
+      {blocks.map((block, i) => (<ContentBlock key={i} block={block} />))}
+    </div>
+  );
+}
+
+interface ContentBlockType {
+  type: "text" | "code" | "table" | "quote" | "list" | "heading";
+  content: string;
+  language?: string;
+  headers?: string[];
+  rows?: string[][];
+  items?: string[];
+  level?: number;
+}
+
+function parseContent(content: string): ContentBlockType[] {
+  const blocks: ContentBlockType[] = [];
+  const lines = content.split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith("```")) {
+      const lang = line.slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
+      blocks.push({ type: "code", content: codeLines.join("\n"), language: lang });
+      i++; continue;
+    }
+    if (line.startsWith("> ")) {
+      const quoteLines: string[] = [line.slice(2)];
+      i++;
+      while (i < lines.length && lines[i].startsWith("> ")) { quoteLines.push(lines[i].slice(2)); i++; }
+      blocks.push({ type: "quote", content: quoteLines.join("\n") }); continue;
+    }
+    if (line.includes("|") && i + 1 < lines.length && lines[i + 1].includes("|-")) {
+      const headers = line.split("|").map(h => h.trim()).filter(Boolean);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes("|")) {
+        const row = lines[i].split("|").map(c => c.trim()).filter(Boolean);
+        if (row.length > 0) rows.push(row);
+        i++;
+      }
+      blocks.push({ type: "table", content: "", headers, rows }); continue;
+    }
+    if (line.match(/^#{1,3}\s/)) {
+      const level = line.match(/^(#+)/)?.[0].length ?? 1;
+      blocks.push({ type: "heading", content: line.replace(/^#{1,3}\s/, ""), level });
+      i++; continue;
+    }
+    if (line.match(/^[-*]\s/) || line.match(/^\d+\.\s/)) {
+      const items: string[] = [];
+      while (i < lines.length && (lines[i].match(/^[-*]\s/) || lines[i].match(/^\d+\.\s/))) {
+        items.push(lines[i].replace(/^[-*\d.\s]+/, ""));
+        i++;
+      }
+      blocks.push({ type: "list", content: "", items }); continue;
+    }
+    if (line.trim()) {
+      const textLines: string[] = [line];
+      i++;
+      while (i < lines.length && lines[i].trim() && !lines[i].startsWith("```") && !lines[i].startsWith("> ") && !lines[i].match(/^[-*]\s/) && !lines[i].match(/^\d+\.\s/)) {
+        textLines.push(lines[i]); i++;
+      }
+      blocks.push({ type: "text", content: textLines.join("\n") }); continue;
+    }
+    i++;
+  }
+  return blocks;
+}
+
+function highlightCode(code: string, language?: string): React.ReactNode {
+  const keywords = ["const", "let", "var", "function", "return", "if", "else", "for", "while", "import", "from", "export", "default", "class", "extends", "async", "await", "try", "catch", "new", "this", "typeof"];
+  const strings = /"([^"]*)"|'([^']*)'|`([^`]*)`/g;
+  const comments = /\/\/.*$/gm;
+  const numbers = /\b\d+\.?\d*\b/g;
+  let highlighted = code;
+  highlighted = highlighted.replace(comments, match => `§COMMENT§${match}§END§`);
+  highlighted = highlighted.replace(strings, match => `§STRING§${match}§END§`);
+  highlighted = highlighted.replace(numbers, match => `§NUMBER§${match}§END§`);
+  keywords.forEach(kw => {
+    const regex = new RegExp(`\\b${kw}\\b`, "g");
+    highlighted = highlighted.replace(regex, match => `§KEYWORD§${match}§END§`);
+  });
+  const parts = highlighted.split(/(§\w+§|§END§)/);
+  let currentClass = "";
+  return parts.map((part, i) => {
+    if (part === "§COMMENT§") { currentClass = "text-muted-foreground italic"; return null; }
+    if (part === "§STRING§") { currentClass = "text-emerald-400"; return null; }
+    if (part === "§NUMBER§") { currentClass = "text-amber-400"; return null; }
+    if (part === "§KEYWORD§") { currentClass = "text-violet-400 font-semibold"; return null; }
+    if (part === "§END§") { currentClass = ""; return null; }
+    return <span key={i} className={currentClass}>{part}</span>;
+  });
+}
+
+function ContentBlock({ block }: { block: ContentBlockType }) {
+  switch (block.type) {
+    case "code":
+      return (
+        <div className="rounded-xl overflow-hidden bg-[#1e1e2e] border border-border/50 my-2">
+          <div className="flex items-center justify-between px-3 py-2 bg-[#252537] border-b border-border/30">
+            <span className="text-[10px] text-muted-foreground font-mono">{block.language || "code"}</span>
+            <span className="text-[10px] text-muted-foreground/50">{block.content.split("\n").length} lignes</span>
+          </div>
+          <pre className="px-3 py-2 overflow-x-auto text-xs font-mono leading-relaxed">
+            <code>{highlightCode(block.content, block.language)}</code>
+          </pre>
+        </div>
+      );
+    case "table":
+      return (
+        <div className="overflow-x-auto my-2">
+          <table className="w-full text-xs border-collapse">
+            <thead><tr className="border-b border-border">{block.headers?.map((h, j) => (<th key={j} className="text-left px-2 py-1.5 text-muted-foreground font-semibold">{h}</th>))}</tr></thead>
+            <tbody>{block.rows?.map((row, ri) => (<tr key={ri} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">{row.map((cell, ci) => (<td key={ci} className="px-2 py-1.5">{cell}</td>))}</tr>))}</tbody>
+          </table>
+        </div>
+      );
+    case "quote":
+      return <blockquote className="border-l-2 border-violet-400/60 pl-3 py-1 my-2 text-sm text-foreground/80 italic bg-violet-500/5 rounded-r-lg">{block.content}</blockquote>;
+    case "heading":
+      const Tag = `h${Math.min(block.level ?? 1, 3)}` as keyof React.JSX.IntrinsicElements;
+      return <Tag className={cn("font-semibold text-foreground mt-3 mb-1", block.level === 1 && "text-base", block.level === 2 && "text-sm", block.level === 3 && "text-xs")}>{block.content}</Tag>;
+    case "list":
+      return (
+        <ul className="space-y-1 my-1">
+          {block.items?.map((item, li) => (<li key={li} className="flex items-start gap-2 text-sm"><span className="w-1 h-1 rounded-full bg-primary/60 mt-2 shrink-0" /><span>{item}</span></li>))}
+        </ul>
+      );
+    default:
+      return <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{block.content}</p>;
+  }
 }
 
 export default function Chat() { return <div>Loading...</div>; }
