@@ -127,9 +127,7 @@ jobs:
           echo "$version" | grep -q '"app":"TAMS"' || { echo "❌ version app absente"; fail=1; }
           echo "$version" | grep -q '"commit":"unknown"' && { echo "❌ version commit inconnue"; fail=1; } || echo "✅ version commit exposée"
           capabilities=$(curl -sf http://127.0.0.1:4000/api/registry/capabilities)
-          echo "$capabilities" | grep -q '"id":"video.generate"[^}]*"status":"planned"' || { echo "❌ video.generate pas planned"; fail=1; }
-          echo "$capabilities" | grep -q '"id":"repo.patch"' || { echo "❌ repo.patch absent"; fail=1; }
-          echo "$capabilities" | grep -q '"readOnly":true' || { echo "❌ repo.patch/read-only non exposé"; fail=1; }
+          echo "$capabilities" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s).capabilities;const v=c.find(x=>x.id==="video.generate");const p=c.find(x=>x.id==="repo.patch");if(v?.status!=="planned"||v?.executableNow!==false||p?.readOnly!==true||p?.executableNow!==false)process.exit(1)})' || { echo "❌ vérité opérationnelle Capabilities"; fail=1; }
           studio=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"objective":"Vidéo TikTok activewear","targetPlatform":"tiktok","format":"short_video"}' http://127.0.0.1:4000/api/studio/orchestrate)
           echo "$studio" | grep -q '"scriptPlan"' || { echo "❌ Studio sans script"; fail=1; }
           echo "$studio" | grep -q '"storyboardPlan"' || { echo "❌ Studio sans storyboard"; fail=1; }
