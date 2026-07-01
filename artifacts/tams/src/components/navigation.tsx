@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, MessageSquare, Briefcase, Layers, Cpu, Users, Heart, WifiOff, RefreshCw } from "lucide-react";
+import { Home, MessageSquare, Briefcase, Layers, Cpu, Users, Heart, WifiOff, RefreshCw, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./notifications-panel";
 import { useOffline } from "@/hooks/useOffline";
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/vie",     label: "Vie",     icon: Heart },
   { href: "/studio",  label: "Studio",  icon: Layers },
   { href: "/systeme", label: "Système", icon: Cpu },
+  { href: "/capabilities", label: "Capacités", icon: ListChecks },
 ];
 
 export function BottomNav() {
