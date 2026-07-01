@@ -10,6 +10,7 @@ import type {
   StudioPlan,
   StudioAssetPlan,
   StudioProductionStep,
+  StudioPlatform,
 } from "./studio-types";
 
 // Provider availability truth table — must match capability-registry.ts
