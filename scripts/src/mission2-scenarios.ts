@@ -18,7 +18,7 @@ const scenarioB = await controller.handle({
   objective: "Ajoute une note dans la documentation interne indiquant que le TAMS Dev Runtime est pilotable par tâche.",
   mode: "apply_safe_patch",
   strategy: "docs_update",
-  targetFile: ".tams/runtime-chat-note.md",
+  targetFile: "docs/runtime-chat-note.md",
   content: "# TAMS Development Runtime — Chat\n\nLe TAMS Dev Runtime est pilotable par tâche depuis le chat authentifié.\n",
 });
 
