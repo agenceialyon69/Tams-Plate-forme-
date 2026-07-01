@@ -36,7 +36,7 @@ jobs:
           # passe par lib/ai.ts (fetch, OpenAI-compatible, fournisseurs gratuits).
           if grep -rnE "from \"openai\"|from 'openai'|import\(['\"]openai['\"]\)|require\(['\"]openai['\"]\)" artifacts/api-server/src >/dev/null 2>&1; then echo "❌ SDK openai réintroduit (free-first only — voir lib/ai.ts)"; fail=1; else echo "✅ pas de SDK openai (free-first)"; fi
           # VIS : routes critiques RÉELLEMENT montées (sinon page = 404, ex Workflows).
-          for r in workflowsRouter studioVideoRouter studioMusicRouter integrationsRouter selfDevRouter; do
+          for r in workflowsRouter studioVideoRouter studioMusicRouter integrationsRouter selfDevRouter devRuntimeRouter; do
             grep -q "$r" artifacts/api-server/src/routes/index.ts || { echo "❌ route non montée: $r"; fail=1; }
           done
           grep -q '/system/validate' artifacts/api-server/src/routes/system.ts && echo "✅ VIS endpoint présent" || { echo "❌ VIS /system/validate manquant"; fail=1; }
@@ -81,6 +81,14 @@ jobs:
           test -f .tams/runtime-check.md
           grep -q 'TAMS Development Runtime Check' .tams/runtime-check.md
           grep -q 'diff --git a/.tams/runtime-check.md' runtime-report.json
+      - name: Scénarios Chat Runtime A/B/C/D
+        env:
+          TAMS_DEV_RUNTIME_ENABLED: "true"
+        run: |
+          pnpm --filter @workspace/scripts dev-runtime:mission2 | tee mission2-report.json
+          grep -q '"verdict": "PASS"' mission2-report.json
+          test -f .tams/runtime-chat-note.md
+          grep -q 'pilotable par tâche' .tams/runtime-chat-note.md
       - name: Smoke test (démarrage réel + endpoints)
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
