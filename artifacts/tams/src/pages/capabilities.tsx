@@ -16,6 +16,7 @@ type RunResult = {
 };
 
 const actions = [
+  ["dev.agent.core", "Dev Agent Core", "Claude Code-like v1 : repo, patch preview, permissions, validation"],
   ["text.generate", "Texte", "Description produit"],
   ["studio.script.generate", "Script Studio", "Script vidéo"],
   ["studio.storyboard.generate", "Storyboard", "Plan scène par scène"],
@@ -35,6 +36,7 @@ const actions = [
 ] as const;
 
 function defaultInput(id: string): string {
+  if (id === "dev.agent.core") return "Analyse TAMS comme Claude Code : repo intelligence, patch preview, permission layer, validation plan, GitHub PR loop.";
   if (id === "voice.transcribe") return "Colle ici une URL audio publique.";
   if (id === "audio.music.generate") return "Musique courte moderne sportive premium, énergie TikTok, sans paroles.";
   if (id === "audio.synthesize") return "Cette tenue est pensée pour bouger librement toute la journée.";
@@ -52,7 +54,7 @@ function badge(status: string): string {
 }
 
 export default function CapabilitiesPage() {
-  const [active, setActive] = useState("video.generate");
+  const [active, setActive] = useState("dev.agent.core");
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [results, setResults] = useState<Record<string, RunResult>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
