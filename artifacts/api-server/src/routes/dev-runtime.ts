@@ -71,8 +71,11 @@ router.post(
     if (!body?.objective?.trim()) return res.status(400).json({ error: "objective requis" });
 
     try {
+      // The conversations schema has no user ownership column yet.
+      // Fail closed: the public chat bridge is read-only until ownership exists.
       const task = await controller.handle({
         ...body,
+        mode: "read_only",
         actorId: req.user!.id,
       });
       tasks.set(task.id, task);
