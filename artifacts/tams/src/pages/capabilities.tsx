@@ -33,6 +33,7 @@ type Provider = {
 function statusClass(status?: string) {
   if (status === "available" || status === "ready" || status === "ok") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
   if (status === "planned" || status === "disabled") return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  if (status === "requires_local_gpu" || status === "requires_local") return "border-orange-500/30 bg-orange-500/10 text-orange-300";
   if (status === "experimental") return "border-blue-500/30 bg-blue-500/10 text-blue-300";
   return "border-muted bg-muted/40 text-muted-foreground";
 }
@@ -117,7 +118,7 @@ export default function CapabilitiesPage() {
       {!loading && !error && (
         <>
           <section className="grid gap-3 md:grid-cols-4">
-            <StatCard icon={Activity} label="Statut" value={status?.status ?? "unknown"} />
+            <StatCard icon={Activity} label="Statut" value={status?.status ?? (capabilities.length > 0 ? "available" : "indisponible")} />
             <StatCard icon={Layers} label="Capacités" value={String(status?.capabilities?.total ?? capabilities.length)} />
             <StatCard icon={CheckCircle2} label="Disponibles" value={String(status?.capabilities?.available ?? capabilities.filter(c => c.status === "available").length)} />
             <StatCard icon={Server} label="Providers" value={String(status?.providers?.total ?? providers.length)} />
@@ -136,6 +137,14 @@ export default function CapabilitiesPage() {
             <p className="text-sm text-muted-foreground">
               Actions dangereuses : {status?.runtime?.unsafeActionsEnabled ? "actives — à corriger" : "désactivées"}.
             </p>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+            <p><span className="font-medium text-emerald-300">Available</span> = utilisable maintenant.</p>
+            <p><span className="font-medium text-amber-300">Planned</span> = visible mais pas encore exécutable.</p>
+            <p><span className="font-medium text-orange-300">Requires local GPU</span> = nécessite un worker GPU local.</p>
+            <p><span className="font-medium text-blue-300">Experimental</span> = disponible avec limites.</p>
+            <p><span className="font-medium">Disabled</span> = volontairement désactivé.</p>
           </section>
 
           <section className="space-y-4">
