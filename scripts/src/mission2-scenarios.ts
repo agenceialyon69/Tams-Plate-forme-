@@ -23,7 +23,7 @@ const scenarioB = await controller.handle({
   content: "# TAMS Development Runtime — Chat\n\nLe TAMS Dev Runtime est pilotable par tâche depuis le chat authentifié.\n",
 });
 
-const scenarioBContent = await tools.readFile("docs/runtime-chat-note.md");
+const scenarioBContent = await tools.readFile("docs/runtime-chat-note.md").catch(() => "");
 
 const scenarioC = await controller.handle({
   actorId,
