@@ -222,6 +222,17 @@ export class ChatEngineeringController {
       return task;
     }
 
+    if ((strategy === "runtime_validation" || strategy === "debug_from_failure") && mode !== "deploy_check") {
+      task.status = "Refused";
+      task.report = {
+        verdict: "REFUSED",
+        summary: "Validation active interdite en mode read_only",
+        limitations: ["Le bridge HTTP reste read_only tant que l’ownership conversation/utilisateur n’est pas prouvé"],
+      };
+      log("security_refusal", task.report.summary);
+      return task;
+    }
+
     if (strategy === "runtime_validation" || strategy === "debug_from_failure" || mode === "deploy_check") {
       task.status = "Validating";
       const validation = await this.engine.validate(request.healthUrl);
