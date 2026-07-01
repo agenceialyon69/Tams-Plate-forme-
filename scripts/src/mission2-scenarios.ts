@@ -22,6 +22,8 @@ const scenarioB = await controller.handle({
   content: "# TAMS Development Runtime — Chat\n\nLe TAMS Dev Runtime est pilotable par tâche depuis le chat authentifié.\n",
 });
 
+const scenarioBContent = await tools.readFile("docs/runtime-chat-note.md");
+
 const scenarioC = await controller.handle({
   actorId,
   objective: "Lance une validation du runtime.",
@@ -39,7 +41,7 @@ const afterDangerous = await tools.gitDiff();
 
 const checks = {
   A: scenarioA.report.verdict === "PASS" && scenarioA.impactedFiles.length === 0,
-  B: scenarioB.report.verdict === "PASS" && scenarioB.strategy === "docs_update" && scenarioB.diff.includes("runtime-chat-note.md"),
+  B: scenarioB.report.verdict === "PASS" && scenarioB.strategy === "docs_update" && scenarioB.impactedFiles.includes("docs/runtime-chat-note.md") && scenarioBContent.includes("pilotable par tâche"),
   C: scenarioC.report.verdict === "PASS" && scenarioC.report.validation?.build.exitCode === 0 && scenarioC.report.validation?.tests?.exitCode === 0,
   D: scenarioD.report.verdict === "REFUSED" && beforeDangerous === afterDangerous,
 };
