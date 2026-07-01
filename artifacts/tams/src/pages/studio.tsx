@@ -1860,8 +1860,39 @@ export default function Studio() {
     setShowForm(true);
   }
 
-  function handleSave(data: AssetInput) {
-    create.mutate({ data });
+  async function handleSave(data: AssetInput) {
+    if (data.type === "image" && data.url) {
+      create.mutate({ data });
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/api/studio/orchestrate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objective: data.content?.trim() || data.name,
+          type: data.type,
+          format: data.type,
+          targetPlatform: "generic",
+          project: data.tags?.find(tag => tag.startsWith("project:")),
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const plan = await response.json();
+      create.mutate({
+        data: {
+          ...data,
+          content: JSON.stringify(plan, null, 2),
+          tags: [...(data.tags ?? []), "studio-orchestrated"],
+        },
+      });
+    } catch (error) {
+      toast({
+        title: "Création interrompue",
+        description: error instanceof Error ? error.message : "Le backend Studio est indisponible. Aucun faux résultat n'a été enregistré.",
+        variant: "destructive",
+      });
+    }
   }
 
   function handleChatGenerateImage(prompt: string) {
