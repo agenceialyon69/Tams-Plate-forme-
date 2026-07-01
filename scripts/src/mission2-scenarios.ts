@@ -1,7 +1,8 @@
+import path from "node:path";
 import { ChatEngineeringController } from "./dev-runtime-chat";
 import { RepositoryTools } from "./dev-runtime";
 
-const root = process.cwd();
+const root = path.resolve(process.cwd(), "..");
 const controller = new ChatEngineeringController(root);
 const tools = new RepositoryTools(root);
 const actorId = "ci-authenticated-user";
