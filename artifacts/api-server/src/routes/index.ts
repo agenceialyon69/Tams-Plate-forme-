@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { aiRateLimit, defaultRateLimit } from "../middlewares/rate-limit.js";
 import healthRouter from "./health.js";
+import versionRouter from "./version.js";
 import authRouter from "./auth.js";
 import briefingRouter from "./briefing.js";
 import conversationsRouter from "./conversations.js";
@@ -38,6 +39,7 @@ router.use(authRouter);
 
 // Health routes - public
 router.use(healthRouter);
+router.use(versionRouter);
 
 router.use(briefingRouter);
 router.use("/conversations", aiRateLimit);
