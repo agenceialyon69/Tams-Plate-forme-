@@ -41,9 +41,12 @@ jobs:
           need artifacts/tams/src/pages/chat.tsx "SHOT LIST" "Chat affiche shot list"
           need artifacts/tams/src/pages/chat.tsx "CAPTIONS" "Chat affiche captions"
           need artifacts/tams/src/pages/studio.tsx "Plan vidéo prêt" "Studio affiche résultat utilisateur"
-          need artifacts/tams/src/pages/capabilities.tsx "Exécutable maintenant" "Capabilities nuance exécution"
+          need artifacts/tams/src/pages/capabilities.tsx "Action UI" "Capabilities actionnables"
+          need artifacts/tams/src/pages/capabilities.tsx "/api/capabilities/execute" "Capabilities appelle l'Action Bus"
+          need artifacts/api-server/src/routes/capability-actions.ts "router.post(\"/capabilities/execute\"" "Capability Action Bus montable"
           need artifacts/tams/src/pages/systeme.tsx "/api/version" "Système affiche version"
           need artifacts/api-server/src/routes/index.ts "versionRouter" "route version montée"
+          need artifacts/api-server/src/routes/index.ts "capabilityActionsRouter" "Capability Action Bus monté"
           need artifacts/api-server/src/lib/agents.ts "SCAN → RISQUES → PLAN → PATCH PROPOSÉ → TESTS → PR" "Dev Agent read-only utile"
           if grep -q "example.com" artifacts/tams/src/pages/chat.tsx; then echo "❌ faux lien example.com dans Chat"; fail=1; else echo "✅ aucun faux lien Chat"; fi
           # VIS : routes critiques RÉELLEMENT montées (sinon page = 404, ex Workflows).
@@ -133,6 +136,12 @@ jobs:
           echo "$studio" | grep -q '"storyboardPlan"' || { echo "❌ Studio sans storyboard"; fail=1; }
           echo "$studio" | grep -qi 'planned\|not yet connected' || { echo "❌ Studio sans limitation honnête"; fail=1; }
           echo "$studio" | grep -q 'example.com' && { echo "❌ Studio retourne un faux lien"; fail=1; } || echo "✅ Studio sans faux lien"
+          action=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"capabilityId":"studio.script.generate","input":"Vidéo TikTok activewear"}' http://127.0.0.1:4000/api/capabilities/execute)
+          echo "$action" | grep -q '"status":"success"' || { echo "❌ Action Bus studio script non success"; fail=1; }
+          echo "$action" | grep -qi 'SCRIPT' || { echo "❌ Action Bus script absent"; fail=1; }
+          image=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"capabilityId":"image.generate","input":"activewear premium"}' http://127.0.0.1:4000/api/capabilities/execute)
+          echo "$image" | grep -q '"type":"image"' || { echo "❌ Action Bus image sans artifact image"; fail=1; }
+          echo "$image" | grep -q 'pollinations' || { echo "❌ Action Bus image sans Pollinations"; fail=1; }
           agents=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"task":"Génère une vidéo TikTok pour mon produit activewear et donne-moi le fichier à télécharger."}' http://127.0.0.1:4000/api/agents/orchestrate)
           echo "$agents" | grep -q 'Planification IA indisponible' && { echo "❌ fallback Agents insuffisant"; fail=1; } || echo "✅ fallback Agents utile"
           echo "$agents" | grep -q 'example.com' && { echo "❌ faux lien Agents"; fail=1; } || echo "✅ aucun faux lien Agents"
