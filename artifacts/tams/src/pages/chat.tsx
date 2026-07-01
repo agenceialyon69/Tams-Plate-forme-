@@ -47,440 +47,906 @@ const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 const MODES = [
   { value: "chat", label: "Conversation", icon: MessageSquare },
   { value: "chief_of_staff", label: "Chef de Cabinet", icon: Zap },
-  { value: "decision", label: "Décision", icon: Lightbulb },
-  { value: "red_team", label: "Red Team", icon: Shield },
-  { value: "execution", label: "Exécution", icon: CheckCircle2 },
-] as const;
-
-type Mode = typeof MODES[number]["value"];
-
-const modeColor: Record<Mode, string> = {
-  chat: "text-blue-400 bg-blue-500/10",
-  chief_of_staff: "text-violet-400 bg-violet-500/10",
-  decision: "text-amber-400 bg-amber-500/10",
-  red_team: "text-red-400 bg-red-500/10",
-  execution: "text-emerald-400 bg-emerald-500/10",
-};
-
-const modeGradient: Record<Mode, string> = {
-  chat: "from-blue-500/5 to-transparent",
-  chief_of_staff: "from-violet-500/5 to-transparent",
-  decision: "from-amber-500/5 to-transparent",
-  red_team: "from-red-500/5 to-transparent",
-  execution: "from-emerald-500/5 to-transparent",
-};
-
-const THINKING_STEPS = [
-  { icon: BrainCircuit, text: "Analyse du contexte..." },
-  { icon: Database, text: "Recherche dans la mémoire..." },
-  { icon: Wrench, text: "Appel d'outils..." },
-  { icon: Sparkles, text: "Génération de la réponse..." },
+  { value: "business_analyst", label: "Analyste Métier", icon: BarChart3 },
+  { value: "data_scientist", label: "Data Scientist", icon: Database },
 ];
 
-const TAMS_CAN_DO = [
-  { domain: "Analyse & Décision", icon: "brain", available: true, actions: [{ label: "Analyser une décision", prompt: "Aide-moi à décider : ", available: true }, { label: "Red Team / risques", prompt: "Qu'est-ce qui peut mal tourner avec ", available: true }, { label: "Interroger la mémoire", prompt: "Qu'est-ce que tu sais sur ", available: true }] },
-  { domain: "Studio Créatif", icon: "palette", available: true, actions: [{ label: "Plan Studio", prompt: "/studio ", available: true }, { label: "Générer une image", prompt: "/image ", available: true }, { label: "Script / brief", prompt: "/script ", available: true }, { label: "Plan musique", prompt: "Crée un plan musical pour ", available: true }] },
-  { domain: "Projets & Tâches", icon: "folder", available: true, actions: [{ label: "Créer un projet", prompt: "/projet ", available: true }, { label: "Créer une tâche", prompt: "/tâche ", available: true }, { label: "Ajouter un contact", prompt: "/contact ", available: true }] },
-  { domain: "Système", icon: "monitor", available: true, actions: [{ label: "Santé système", prompt: "Vérifie la santé du système", available: true }, { label: "Statut providers", prompt: "Quel est l'état des providers ?", available: true }] },
-  { domain: "Dev Runtime", icon: "terminal", available: false, actions: [{ label: "Audit repo", prompt: "/runtime audit", available: false }, { label: "Valider build", prompt: "/runtime validate", available: false }] },
-] as const;
+const PANELS = {
+  STANDARD: "standard",
+  TAMS_CAN_DO: "tams_can_do",
+  WORKFLOW_ACTIONS: "workflow_actions",
+};
 
-type TamsCanDoAction = { label: string; prompt: string; available: boolean };
-type TamsCanDoDomain = { domain: string; icon: string; available: boolean; actions: readonly TamsCanDoAction[] };
-
-const SLASH_COMMANDS = [
-  { command: "/tâche", label: "Créer une tâche", icon: CheckCircle2, color: "text-emerald-400", example: "/tâche Appeler le client demain à 14h" },
-  { command: "/projet", label: "Créer un projet", icon: FolderOpen, color: "text-blue-400", example: "/projet Refonte du site web" },
-  { command: "/contact", label: "Ajouter un contact", icon: UserPlus, color: "text-violet-400", example: "/contact Jean Dupont, Acme Corp, jean@acme.com" },
-  { command: "/studio", label: "Générer dans Studio", icon: Palette, color: "text-pink-400", example: "/studio image un portrait cyberpunk" },
-  { command: "/décision", label: "Analyser une décision", icon: Lightbulb, color: "text-amber-400", example: "/décision Dois-je changer de fournisseur ?" },
+const TAMS_CAN_DO_ITEMS = [
+  {
+    id: "internal_documents",
+    label: "Accès aux documents internes",
+    icon: FolderOpen,
+    description: "Récupérer et traiter des documents",
+  },
+  {
+    id: "write_emails",
+    label: "Rédiger des emails",
+    icon: FileText,
+    description: "Composer et envoyer des emails",
+  },
+  {
+    id: "create_presentations",
+    label: "Créer des présentations",
+    icon: Film,
+    description: "Générer du contenu de présentation",
+  },
+  {
+    id: "task_management",
+    label: "Gestion des tâches",
+    icon: ListChecks,
+    description: "Créer et gérer des tâches",
+  },
+  {
+    id: "web_search",
+    label: "Recherche Web",
+    icon: Search,
+    description: "Effectuer des recherches sur internet",
+  },
+  {
+    id: "database_queries",
+    label: "Requêtes Base de données",
+    icon: Database,
+    description: "Interroger les bases de données",
+  },
 ];
 
-interface ToolCall { name: string; result: string; status?: "pending" | "done" | "error"; args?: Record<string, unknown>; step?: string; error?: string; }
+const WORKFLOW_ACTIONS = [
+  {
+    id: "analyze_market",
+    label: "Analyser le marché",
+    category: "Analysis",
+    icon: BarChart3,
+  },
+  {
+    id: "competitive_analysis",
+    label: "Analyse concurrentielle",
+    category: "Analysis",
+    icon: Target,
+  },
+  {
+    id: "financial_forecast",
+    label: "Prévisions financières",
+    category: "Finance",
+    icon: BarChart3,
+  },
+  {
+    id: "risk_assessment",
+    label: "Évaluation des risques",
+    category: "Finance",
+    icon: AlertTriangle,
+  },
+  {
+    id: "resource_planning",
+    label: "Planification des ressources",
+    category: "Operations",
+    icon: Layers,
+  },
+  {
+    id: "timeline_creation",
+    label: "Créer une chronologie",
+    category: "Operations",
+    icon: GitBranch,
+  },
+];
 
-function getToolMeta(name: string) {
-  const lower = name.toLowerCase();
-  if (lower.includes("task") || lower.includes("tâche")) return { icon: CheckCircle2, label: "Tâche créée", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail", actionLabel: "Création de tâche..." };
-  if (lower.includes("project") || lower.includes("projet")) return { icon: FolderOpen, label: "Projet créé", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/travail", actionLabel: "Création de projet..." };
-  if (lower.includes("contact") || lower.includes("person")) return { icon: UserPlus, label: "Contact ajouté", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/contacts", actionLabel: "Ajout du contact..." };
-  if (lower.includes("memory") || lower.includes("mémoire")) return { icon: MessageSquare, label: "Mémoire enregistrée", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: "/systeme", actionLabel: "Enregistrement mémoire..." };
-  if (lower.includes("decision") || lower.includes("décision")) return { icon: Lightbulb, label: "Décision analysée", color: "bg-orange-500/10 text-orange-400 border-orange-500/20", link: "/systeme", actionLabel: "Création d'une décision..." };
-  if (lower.includes("image") || lower.includes("studio")) return { icon: Image, label: "Asset Studio créé", color: "bg-pink-500/10 text-pink-400 border-pink-500/20", link: "/studio", actionLabel: "Génération Studio..." };
-  if (lower.includes("briefing")) return { icon: BarChart3, label: "Briefing du jour", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/systeme", actionLabel: "Récupération du briefing..." };
-  if (lower.includes("update_task_status")) return { icon: ListChecks, label: "Statut mis à jour", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail", actionLabel: "Mise à jour du statut..." };
-  if (lower.includes("project_contact")) return { icon: UserPlus, label: "Contact lié au projet", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/travail", actionLabel: "Liaison contact-projet..." };
-  if (lower.includes("reminder") || lower.includes("rappel")) return { icon: BrainCircuit, label: "Rappel programmé", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: undefined, actionLabel: "Programmation du rappel..." };
-  return { icon: Zap, label: "Action effectuée", color: "bg-primary/10 text-primary border-primary/20", link: undefined, actionLabel: "Exécution..." };
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  content: string;
+  role: "user" | "assistant";
+  createdAt: string;
+  intent?: string;
+  routeIntent?: string;
 }
 
-function ToolCallCard({ tool }: { tool: ToolCall }) {
-  const [, navigate] = useLocation();
+interface MatchedCommand {
+  command: string;
+  intent: string;
+  parameters: Record<string, unknown>;
+  confidence: number;
+}
+
+interface RuntimeTask {
+  taskId: string;
+  command: string;
+  status: "pending" | "running" | "completed" | "failed";
+}
+
+export default function ChatPage() {
+  const [mode, setMode] = useState("chat");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showTamsPanel, setShowTamsPanel] = useState(false);
+  const [showWorkflowActions, setShowWorkflowActions] = useState(false);
+  const [currentPanel, setCurrentPanel] = useState(PANELS.STANDARD);
+  const [panelHistory, setPanelHistory] = useState<string[]>([]);
+  const [routeIntentVisible, setRouteIntentVisible] = useState(false);
+  const [matchedCommand, setMatchedCommand] = useState<MatchedCommand | null>(null);
+  const [runtimeTask, setRuntimeTask] = useState<RuntimeTask | null>(null);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gpt-4");
+  const [retryCount, setRetryCount] = useState(0);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [isHovered, setIsHovered] = useState(false);
-  const meta = getToolMeta(tool.name);
-  const isPending = tool.status === "pending";
-  const isDone = tool.status === "done";
-  const isError = tool.status === "error";
-  const handleClick = useCallback(() => {
-    if (meta.link && !isError) navigate(meta.link);
-    else if (isError) toast({ title: "Erreur outil", description: tool.error ?? "Erreur inconnue", variant: "destructive" });
-  }, [meta.link, isError, navigate, toast, tool.error]);
-  return (
-    <div className="w-full mt-2">
-      <button onClick={handleClick} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} disabled={isError}
-        className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all duration-300 hover-lift", meta.color, meta.link && !isError && "hover:shadow-sm cursor-pointer", isHovered && meta.link && !isError && "scale-[1.01]", isPending && "animate-pulse", isError && "border-red-500/30 bg-red-500/5 cursor-default")}>
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-500", isDone ? "bg-emerald-500/20" : isError ? "bg-red-500/20" : "bg-current/10")}>
-          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : isDone ? <Check className="w-4 h-4 text-emerald-400" /> : isError ? <AlertTriangle className="w-4 h-4 text-red-400" /> : <meta.icon className="w-4 h-4" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold truncate">{isPending ? meta.actionLabel : isDone ? meta.label : isError ? "Erreur" : meta.label}</span>
-            {isDone && meta.link && <ArrowRight className="w-3 h-3 opacity-60 shrink-0" />}
-          </div>
-          <p className="text-[10px] opacity-60 truncate font-mono">{tool.name}</p>
-        </div>
-      </button>
-    </div>
-  );
-}
-
-function QuickActions({ onAction }: { onAction: (text: string) => void }) {
-  const actions = [
-    { icon: Lightbulb, label: "Décision", prompt: "Aide-moi à décider : ", color: "text-amber-400" },
-    { icon: CheckCircle2, label: "Tâche", prompt: "/tâche ", color: "text-emerald-400" },
-    { icon: Shield, label: "Red Team", prompt: "Qu'est-ce qui peut mal tourner avec ", color: "text-red-400" },
-    { icon: BarChart3, label: "Briefing", prompt: "Donne-moi mon briefing du jour", color: "text-blue-400" },
-    { icon: Wand2, label: "Résumé", prompt: "Résume la situation actuelle : ", color: "text-violet-400" },
-  ];
-  return (
-    <div className="flex gap-1.5 flex-wrap">
-      {actions.map(({ icon: Icon, label, prompt, color }) => (
-        <button key={label} onClick={() => onAction(prompt)} className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium", "bg-secondary/60 hover:bg-secondary border border-border hover:border-primary/20", "transition-all duration-200 hover:scale-[1.02]", color)}>
-          <Icon className="w-3 h-3" />{label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SlashCommandPicker({ query, onSelect, onClose }: { query: string; onSelect: (cmd: string) => void; onClose: () => void; }) {
-  const filtered = SLASH_COMMANDS.filter((c) => c.command.includes(query) || c.label.toLowerCase().includes(query.toLowerCase()));
-  if (filtered.length === 0) return null;
-  return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
-      {filtered.map((cmd) => (
-        <button key={cmd.command} onClick={() => { onSelect(cmd.command + " "); onClose(); }} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors text-left">
-          <div className={cn("w-7 h-7 rounded-lg bg-secondary flex items-center justify-center shrink-0", cmd.color)}><cmd.icon className="w-3.5 h-3.5" /></div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2"><span className="text-xs font-semibold font-mono">{cmd.command}</span><span className="text-[10px] text-muted-foreground">{cmd.label}</span></div>
-            <p className="text-[10px] text-muted-foreground truncate">{cmd.example}</p>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function DateSeparator({ date }: { date: Date }) {
-  const label = isToday(date) ? "Aujourd'hui" : isYesterday(date) ? "Hier" : format(date, "d MMMM yyyy", { locale: fr });
-  return (
-    <div className="flex items-center gap-3 my-4">
-      <div className="flex-1 h-px bg-border" />
-      <span className="text-[10px] text-muted-foreground font-medium px-2 py-0.5 rounded-full bg-secondary">{label}</span>
-      <div className="flex-1 h-px bg-border" />
-    </div>
-  );
-}
-
-function ThinkingIndicator({ step }: { step: number }) {
-  const s = THINKING_STEPS[step % THINKING_STEPS.length];
-  return (
-    <div className="flex items-start gap-3 px-4 py-2">
-      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5"><Bot className="w-3.5 h-3.5 text-primary" /></div>
-      <div className="flex items-center gap-2 text-muted-foreground"><s.icon className="w-3.5 h-3.5 animate-pulse text-primary/60" /><span className="text-xs animate-pulse">{s.text}</span></div>
-    </div>
-  );
-}
-
-function TypingIndicator() {
-  return (
-    <div className="flex items-start gap-3 px-4 py-2">
-      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5"><Bot className="w-3.5 h-3.5 text-primary" /></div>
-      <div className="flex items-center gap-1 py-2">{[0, 1, 2].map((i) => (<span key={i} className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />))}</div>
-    </div>
-  );
-}
-
-function ActionStatusBar({ actions }: { actions: Array<{ label: string; status: "pending" | "done" | "error" }> }) {
-  if (actions.length === 0) return null;
-  const done = actions.filter((a) => a.status === "done").length;
-  const total = actions.length;
-  return (
-    <div className="mx-4 mt-2 p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5">
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span className="font-medium">Exécution en cours…</span><span>{done}/{total}</span></div>
-      <Progress value={(done / total) * 100} className="h-1" />
-      <div className="space-y-0.5">{actions.map((a, i) => (<div key={i} className="flex items-center gap-1.5 text-[10px]">{a.status === "done" ? <Check className="w-3 h-3 text-emerald-400" /> : a.status === "error" ? <AlertTriangle className="w-3 h-3 text-red-400" /> : <Loader2 className="w-3 h-3 animate-spin text-primary" />}<span className={a.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}>{a.label}</span></div>))}</div>
-    </div>
-  );
-}
-
-function MemoryBadge({ count, memories, onToggleContext }: { count: number; memories: string[]; onToggleContext: () => void; }) {
-  if (count === 0) return null;
-  return (
-    <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-      <button onClick={onToggleContext} className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-        <MemoryStick className="w-3 h-3" /><span>Mémoire : {count} élément{count !== 1 ? "s" : ""}</span>
-      </button>
-    </TooltipTrigger><TooltipContent side="bottom" className="max-w-xs"><div className="space-y-1"><p className="font-semibold text-[10px] uppercase tracking-wider opacity-70">Mémoires utilisées</p>{memories.map((m, i) => (<p key={i} className="text-[10px] truncate">{m}</p>))}</div></TooltipContent></Tooltip></TooltipProvider>
-  );
-}
-
-interface MemoryItem { id: string; type: string; content: string; relevance: number; }
-
-function ContextPanel({ isOpen, onClose, memories }: { isOpen: boolean; onClose: () => void; memories: MemoryItem[]; }) {
+  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  if (!isOpen) return null;
-  return (
-    <div className="absolute right-0 top-0 bottom-0 w-80 bg-card border-l border-border z-20 flex flex-col animate-slide-in shadow-xl">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2"><Brain className="w-4 h-4 text-violet-400" /><h3 className="text-sm font-semibold">Contexte</h3></div>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-secondary transition-colors"><X className="w-3.5 h-3.5" /></button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {memories.length === 0 ? <p className="text-xs text-muted-foreground text-center py-4">Aucune mémoire utilisée</p>
-          : memories.map((mem) => (
-            <div key={mem.id} className="p-3 rounded-xl bg-secondary/40 border border-border space-y-1">
-              <div className="flex items-center justify-between"><span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{mem.type}</span><span className="text-[9px] text-muted-foreground">{Math.round(mem.relevance * 100)}%</span></div>
-              <p className="text-xs text-foreground/80 line-clamp-3">{mem.content}</p>
-            </div>
-          ))}
-      </div>
-      <div className="p-4 border-t border-border">
-        <button onClick={() => { onClose(); navigate("/systeme"); }} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-secondary text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors">
-          <GitBranch className="w-3.5 h-3.5" />Voir dans le graphe
-        </button>
-      </div>
-    </div>
+
+  const { data: conversations, isLoading: isLoadingConversations } = useListConversations();
+  const createConversation = useCreateConversation();
+  const deleteConversation = useDeleteConversation();
+  const { data: messagesData } = useListMessages(selectedConversation?.id || "");
+
+  // Update messages when messagesData changes
+  useEffect(() => {
+    if (messagesData) {
+      setMessages(messagesData);
+    }
+  }, [messagesData]);
+
+  const handleNewConversation = useCallback(async () => {
+    try {
+      const newConversation = await createConversation.mutateAsync({
+        title: `Chat - ${new Date().toLocaleString("fr-FR")}`,
+      });
+      setSelectedConversation(newConversation);
+      setMessages([]);
+      setInput("");
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer une nouvelle conversation",
+        variant: "destructive",
+      });
+    }
+  }, [createConversation, toast]);
+
+  const handleDeleteConversation = useCallback(
+    async (conversationId: string) => {
+      try {
+        await deleteConversation.mutateAsync(conversationId);
+        queryClient.invalidateQueries({
+          queryKey: getListConversationsQueryKey(),
+        });
+        if (selectedConversation?.id === conversationId) {
+          setSelectedConversation(null);
+          setMessages([]);
+        }
+        setDeleteConfirm(null);
+        toast({
+          title: "Conversation supprimée",
+          description: "La conversation a été supprimée avec succès",
+        });
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de supprimer la conversation",
+          variant: "destructive",
+        });
+      }
+    },
+    [deleteConversation, selectedConversation, queryClient, toast]
   );
-}
 
-function StructuredContent({ content }: { content: string }) {
-  const blocks = useMemo(() => { try { return parseContent(content); } catch { return [{ type: "text" as const, content }]; } }, [content]);
-  return <div className="space-y-2">{blocks.map((block, i) => (<ContentBlock key={i} block={block} />))}</div>;
-}
-
-interface ContentBlockType { type: "text" | "code" | "table" | "quote" | "list" | "heading"; content: string; language?: string; headers?: string[]; rows?: string[][]; items?: string[]; level?: number; }
-
-function parseContent(content: string): ContentBlockType[] {
-  const blocks: ContentBlockType[] = [];
-  const lines = content.split("\n");
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
-      blocks.push({ type: "code", content: codeLines.join("\n"), language: lang }); i++; continue;
+  const processMessage = useCallback(async (content: string) => {
+    if (!selectedConversation) {
+      await handleNewConversation();
+      return;
     }
-    if (line.startsWith("> ")) {
-      const quoteLines: string[] = [line.slice(2)]; i++;
-      while (i < lines.length && lines[i].startsWith("> ")) { quoteLines.push(lines[i].slice(2)); i++; }
-      blocks.push({ type: "quote", content: quoteLines.join("\n") }); continue;
-    }
-    if (line.includes("|") && i + 1 < lines.length && lines[i + 1].includes("|-")) {
-      const headers = line.split("|").map(h => h.trim()).filter(Boolean); i += 2;
-      const rows: string[][] = [];
-      while (i < lines.length && lines[i].includes("|")) { const row = lines[i].split("|").map(c => c.trim()).filter(Boolean); if (row.length > 0) rows.push(row); i++; }
-      blocks.push({ type: "table", content: "", headers, rows }); continue;
-    }
-    if (line.match(/^#{1,3}\s/)) { const level = line.match(/^(#+)/)?.[0].length ?? 1; blocks.push({ type: "heading", content: line.replace(/^#{1,3}\s/, ""), level }); i++; continue; }
-    if (line.match(/^[-*]\s/) || line.match(/^\d+\.\s/)) {
-      const items: string[] = [];
-      while (i < lines.length && (lines[i].match(/^[-*]\s/) || lines[i].match(/^\d+\.\s/))) { items.push(lines[i].replace(/^[-*\d.\s]+/, "")); i++; }
-      blocks.push({ type: "list", content: "", items }); continue;
-    }
-    if (line.trim()) {
-      const textLines: string[] = [line]; i++;
-      while (i < lines.length && lines[i].trim() && !lines[i].startsWith("```") && !lines[i].startsWith("> ") && !lines[i].match(/^[-*]\s/) && !lines[i].match(/^\d+\.\s/)) { textLines.push(lines[i]); i++; }
-      blocks.push({ type: "text", content: textLines.join("\n") }); continue;
-    }
-    i++;
-  }
-  return blocks;
-}
 
-function highlightCode(code: string, language?: string): React.ReactNode {
-  const keywords = ["const", "let", "var", "function", "return", "if", "else", "for", "while", "import", "from", "export", "default", "class", "extends", "async", "await", "try", "catch", "new", "this", "typeof"];
-  let highlighted = code;
-  highlighted = highlighted.replace(/\/\/.*$/gm, match => `§COMMENT§${match}§END§`);
-  highlighted = highlighted.replace(/"([^"]*)"|'([^']*)'|`([^`]*)`/g, match => `§STRING§${match}§END§`);
-  highlighted = highlighted.replace(/\b\d+\.?\d*\b/g, match => `§NUMBER§${match}§END§`);
-  keywords.forEach(kw => { highlighted = highlighted.replace(new RegExp(`\\b${kw}\\b`, "g"), match => `§KEYWORD§${match}§END§`); });
-  const parts = highlighted.split(/(§\w+§|§END§)/);
-  let currentClass = "";
-  return parts.map((part, i) => {
-    if (part === "§COMMENT§") { currentClass = "text-muted-foreground italic"; return null; }
-    if (part === "§STRING§") { currentClass = "text-emerald-400"; return null; }
-    if (part === "§NUMBER§") { currentClass = "text-amber-400"; return null; }
-    if (part === "§KEYWORD§") { currentClass = "text-violet-400 font-semibold"; return null; }
-    if (part === "§END§") { currentClass = ""; return null; }
-    return <span key={i} className={currentClass}>{part}</span>;
-  });
-}
+    setIsLoading(true);
+    setRetryCount(0);
 
-function ContentBlock({ block }: { block: ContentBlockType }) {
-  switch (block.type) {
-    case "code":
-      return (
-        <div className="rounded-xl overflow-hidden bg-[#1e1e2e] border border-border/50 my-2">
-          <div className="flex items-center justify-between px-3 py-2 bg-[#252537] border-b border-border/30">
-            <span className="text-[10px] text-muted-foreground font-mono">{block.language || "code"}</span>
-            <span className="text-[10px] text-muted-foreground/50">{block.content.split("\n").length} lignes</span>
-          </div>
-          <pre className="px-3 py-2 overflow-x-auto text-xs font-mono leading-relaxed"><code>{highlightCode(block.content, block.language)}</code></pre>
-        </div>
-      );
-    case "table":
-      return (<div className="overflow-x-auto my-2"><table className="w-full text-xs border-collapse"><thead><tr className="border-b border-border">{block.headers?.map((h, j) => (<th key={j} className="text-left px-2 py-1.5 text-muted-foreground font-semibold">{h}</th>))}</tr></thead><tbody>{block.rows?.map((row, ri) => (<tr key={ri} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">{row.map((cell, ci) => (<td key={ci} className="px-2 py-1.5">{cell}</td>))}</tr>))}</tbody></table></div>);
-    case "quote":
-      return <blockquote className="border-l-2 border-violet-400/60 pl-3 py-1 my-2 text-sm text-foreground/80 italic bg-violet-500/5 rounded-r-lg">{block.content}</blockquote>;
-    case "heading":
-      const Tag = `h${Math.min(block.level ?? 1, 3)}` as keyof React.JSX.IntrinsicElements;
-      return <Tag className={cn("font-semibold text-foreground mt-3 mb-1", block.level === 1 && "text-base", block.level === 2 && "text-sm", block.level === 3 && "text-xs")}>{block.content}</Tag>;
-    case "list":
-      return <ul className="space-y-1 my-1">{block.items?.map((item, li) => (<li key={li} className="flex items-start gap-2 text-sm"><span className="w-1 h-1 rounded-full bg-primary/60 mt-2 shrink-0" /><span>{item}</span></li>))}</ul>;
-    default:
-      return <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{block.content}</p>;
-  }
-}
+    try {
+      const token = await getRuntimeAccessToken();
+      const userMessage: ChatMessage = {
+        id: `msg_${Date.now()}`,
+        conversationId: selectedConversation.id,
+        content: content,
+        role: "user",
+        createdAt: new Date().toISOString(),
+      };
 
-function extractSection(content: string, keywords: string[]): string[] {
-  const lines = content.split("\n");
-  const results: string[] = [];
-  let inSection = false;
-  for (const line of lines) {
-    const lower = line.toLowerCase();
-    const isHeader = keywords.some(k => lower.includes(k)) && (line.match(/^#{1,3}\s/) || line.match(/^[-*]\s/) || line.match(/^\d+\.\s/));
-    if (isHeader) {
-      inSection = true;
-      const cleaned = line.replace(/^#{1,3}\s|^[-*\d.\s]+/, "").trim();
-      if (cleaned) results.push(cleaned);
-    } else if (inSection && line.trim() && !line.match(/^#{1,3}\s/)) {
-      if (line.match(/^[-*]\s/) || line.match(/^\d+\.\s/)) { const cleaned = line.replace(/^[-*\d.\s]+/, "").trim(); if (cleaned) results.push(cleaned); }
-      else { inSection = false; }
-    } else if (line.match(/^#{1,3}\s/)) { inSection = false; }
-  }
-  if (results.length === 0) {
-    for (let i = 0; i < lines.length; i++) {
-      if (keywords.some(k => lines[i].toLowerCase().includes(k))) {
-        for (let j = i + 1; j < Math.min(i + 6, lines.length); j++) {
-          if (lines[j].match(/^[-*]\s/)) results.push(lines[j].replace(/^[-*\s]+/, "").trim());
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Try to match runtime command
+      try {
+        const matched = await matchRuntimeCommand({
+          command: content,
+          token: token || undefined,
+        });
+        setMatchedCommand(matched);
+        setRouteIntentVisible(true);
+
+        // If we have a matched command, trigger the runtime task
+        if (matched) {
+          const task = await requestRuntimeTask({
+            command: matched.command,
+            intent: matched.intent,
+            parameters: matched.parameters,
+            token: token || undefined,
+          });
+          setRuntimeTask(task);
+        }
+      } catch (error) {
+        if (error instanceof RuntimeBridgeError) {
+          console.error("Runtime bridge error:", error.message);
         }
       }
+
+      // Get response from API
+      const response = await fetch(`${API_BASE}/api/chat/message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversationId: selectedConversation.id,
+          content: content,
+          mode: mode,
+          matchedCommand: matchedCommand,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const assistantMessage: ChatMessage = {
+        id: `msg_${Date.now() + 1}`,
+        conversationId: selectedConversation.id,
+        content: data.message || "Je n'ai pas pu générer de réponse",
+        role: "assistant",
+        createdAt: new Date().toISOString(),
+        intent: data.intent,
+        routeIntent: data.routeIntent,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      setRouteIntentVisible(false);
+      setMatchedCommand(null);
+    } catch (error) {
+      console.error("Error processing message:", error);
+      const retryAttempt = retryCount + 1;
+      
+      if (retryAttempt < 3 && isOnline) {
+        setRetryCount(retryAttempt);
+        setTimeout(() => processMessage(content), 1000 * retryAttempt);
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de traiter votre message",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
-  }
-  return results;
-}
+  }, [selectedConversation, mode, matchedCommand, handleNewConversation, toast, isOnline, retryCount]);
 
-function ChiefOfStaffWidget({ content }: { content: string }) {
-  const priorities = extractSection(content, ["priorité", "priorities", "important"]);
-  const risks = extractSection(content, ["risque", "risks", "danger"]);
-  const actions = extractSection(content, ["action", "tâche", "task", "à faire"]);
-  return (
-    <div className="mt-3 space-y-2">
-      {(priorities.length > 0 || risks.length > 0 || actions.length > 0) ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {priorities.length > 0 && (<div className="p-2.5 rounded-xl bg-violet-500/5 border border-violet-500/10"><div className="flex items-center gap-1.5 mb-1.5"><Target className="w-3 h-3 text-violet-400" /><span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">Priorités</span></div><ul className="space-y-1">{priorities.slice(0, 3).map((p, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><ChevronRight className="w-2.5 h-2.5 text-violet-400 mt-0.5 shrink-0" /><span className="line-clamp-2">{p}</span></li>))}</ul></div>)}
-          {risks.length > 0 && (<div className="p-2.5 rounded-xl bg-red-500/5 border border-red-500/10"><div className="flex items-center gap-1.5 mb-1.5"><AlertTriangle className="w-3 h-3 text-red-400" /><span className="text-[10px] font-semibold text-red-400 uppercase tracking-wide">Risques</span></div><ul className="space-y-1">{risks.slice(0, 3).map((r, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><ChevronRight className="w-2.5 h-2.5 text-red-400 mt-0.5 shrink-0" /><span className="line-clamp-2">{r}</span></li>))}</ul></div>)}
-          {actions.length > 0 && (<div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10"><div className="flex items-center gap-1.5 mb-1.5"><ListChecks className="w-3 h-3 text-emerald-400" /><span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Actions</span></div><ul className="space-y-1">{actions.slice(0, 3).map((a, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><ChevronRight className="w-2.5 h-2.5 text-emerald-400 mt-0.5 shrink-0" /><span className="line-clamp-2">{a}</span></li>))}</ul></div>)}
+  const handleSendMessage = useCallback(async () => {
+    if (!input.trim()) return;
+
+    const message = input;
+    setInput("");
+    await processMessage(message);
+  }, [input, processMessage]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
+  );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Online/Offline handling
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  const groupedConversations = useMemo(() => {
+    if (!conversations) return {};
+
+    const groups: Record<string, Conversation[]> = {
+      today: [],
+      yesterday: [],
+      thisWeek: [],
+      older: [],
+    };
+
+    conversations.forEach((conv) => {
+      const convDate = new Date(conv.createdAt);
+      if (isToday(convDate)) {
+        groups.today.push(conv);
+      } else if (isYesterday(convDate)) {
+        groups.yesterday.push(conv);
+      } else if (convDate.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000) {
+        groups.thisWeek.push(conv);
+      } else {
+        groups.older.push(conv);
+      }
+    });
+
+    return groups;
+  }, [conversations]);
+
+  const renderConversationGroup = (
+    title: string,
+    convs: Conversation[]
+  ) => (
+    <div key={title} className="space-y-2">
+      <div className="text-xs font-semibold text-gray-500 px-3 py-2 uppercase tracking-wide">
+        {title}
+      </div>
+      {convs.map((conv) => (
+        <div key={conv.id} className="group relative px-2">
+          <button
+            onClick={() => setSelectedConversation(conv)}
+            className={cn(
+              "w-full text-left px-3 py-2 rounded-lg transition-colors",
+              selectedConversation?.id === conv.id
+                ? "bg-blue-100 text-blue-900"
+                : "hover:bg-gray-100"
+            )}
+          >
+            <div className="flex items-start gap-2 min-w-0">
+              <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{conv.title}</p>
+                <p className="text-xs text-gray-500">
+                  {format(new Date(conv.createdAt), "HH:mm", { locale: fr })}
+                </p>
+              </div>
+            </div>
+          </button>
+          <button
+            onClick={() => setDeleteConfirm(conv.id)}
+            className="absolute right-2 top-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" />
+          </button>
         </div>
-      ) : null}
+      ))}
     </div>
   );
-}
 
-function DecisionWidget({ content }: { content: string }) {
-  const pros = extractSection(content, ["pour", "pros", "avantage", "bénéfice", "positif"]);
-  const cons = extractSection(content, ["contre", "cons", "inconvénient", "risque", "négatif"]);
-  return (
-    <div className="mt-3 space-y-2">
-      {(pros.length > 0 || cons.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {pros.length > 0 && (<div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10"><div className="flex items-center gap-1.5 mb-1.5"><CheckCircle2 className="w-3 h-3 text-emerald-400" /><span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Pour</span></div><ul className="space-y-1">{pros.slice(0, 4).map((p, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><span className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5"><Check className="w-2 h-2 text-emerald-400" /></span><span className="line-clamp-2">{p}</span></li>))}</ul></div>)}
-          {cons.length > 0 && (<div className="p-2.5 rounded-xl bg-red-500/5 border border-red-500/10"><div className="flex items-center gap-1.5 mb-1.5"><X className="w-3 h-3 text-red-400" /><span className="text-[10px] font-semibold text-red-400 uppercase tracking-wide">Contre</span></div><ul className="space-y-1">{cons.slice(0, 4).map((c, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><span className="w-3.5 h-3.5 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5"><X className="w-2 h-2 text-red-400" /></span><span className="line-clamp-2">{c}</span></li>))}</ul></div>)}
-        </div>
-      )}
+  const tamsCanDoSection = () => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-3">
+        <h3 className="text-sm font-semibold text-gray-700">Capacités TAMS</h3>
+        <button
+          onClick={() => setCurrentPanel(PANELS.STANDARD)}
+          className="text-xs text-gray-500 hover:text-gray-700"
+        >
+          ← Retour
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 px-3">
+        {TAMS_CAN_DO_ITEMS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <TooltipProvider key={item.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      setInput(`Peux-tu ${item.label.toLowerCase()}?`);
+                      setCurrentPanel(PANELS.STANDARD);
+                    }}
+                    className="flex items-start gap-2 p-2 rounded-lg hover:bg-blue-50 transition-colors text-left"
+                  >
+                    <Icon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-900">{item.label}</p>
+                      <p className="text-xs text-gray-600">{item.description}</p>
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  {item.description}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        })}
+      </div>
     </div>
   );
-}
 
-function RedTeamWidget({ content }: { content: string }) {
-  const challenges = extractSection(content, ["challenge", "problème", "risque", "faille", "weakness"]);
-  const mitigations = extractSection(content, ["mitigation", "solution", "contre-mesure", "alternative"]);
-  return (
-    <div className="mt-3 space-y-2">
-      {challenges.length > 0 && (<div className="p-2.5 rounded-xl bg-red-500/5 border border-red-500/10"><div className="flex items-center gap-1.5 mb-1.5"><Shield className="w-3 h-3 text-red-400" /><span className="text-[10px] font-semibold text-red-400 uppercase tracking-wide">Points de vigilance</span></div><ul className="space-y-1">{challenges.slice(0, 4).map((c, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><AlertTriangle className="w-2.5 h-2.5 text-red-400 mt-0.5 shrink-0" /><span className="line-clamp-2">{c}</span></li>))}</ul></div>)}
-      {mitigations.length > 0 && (<div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10"><div className="flex items-center gap-1.5 mb-1.5"><Check className="w-3 h-3 text-emerald-400" /><span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Recommandations</span></div><ul className="space-y-1">{mitigations.slice(0, 4).map((m, i) => (<li key={i} className="text-[10px] text-foreground/80 flex items-start gap-1"><CheckCircle2 className="w-2.5 h-2.5 text-emerald-400 mt-0.5 shrink-0" /><span className="line-clamp-2">{m}</span></li>))}</ul></div>)}
-    </div>
-  );
-}
+  const workflowActionsSection = () => {
+    const categories = Array.from(
+      new Set(WORKFLOW_ACTIONS.map((a) => a.category))
+    );
 
-function ExecutionWidget({ content }: { content: string }) {
-  const tasks = extractSection(content, ["tâche", "task", "créé", "ajouté", "action"]);
-  return (
-    <div className="mt-3">
-      {tasks.length > 0 && (
-        <div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-          <div className="flex items-center gap-1.5 mb-2"><ListChecks className="w-3 h-3 text-emerald-400" /><span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Tâches créées</span></div>
-          <div className="space-y-1.5">{tasks.slice(0, 5).map((t, i) => (<div key={i} className="flex items-center gap-2 text-[10px] text-foreground/80 bg-emerald-500/5 rounded-lg px-2 py-1.5"><span className="w-4 h-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 text-[8px] font-bold text-emerald-400">{i + 1}</span><span className="line-clamp-1">{t}</span><Check className="w-2.5 h-2.5 text-emerald-400 ml-auto shrink-0" /></div>))}</div>
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-3">
+          <h3 className="text-sm font-semibold text-gray-700">Actions Workflow</h3>
+          <button
+            onClick={() => setCurrentPanel(PANELS.STANDARD)}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            ← Retour
+          </button>
         </div>
-      )}
-    </div>
-  );
-}
-
-function ModeWidget({ mode, content }: { mode: Mode; content: string }) {
-  switch (mode) {
-    case "chief_of_staff": return <ChiefOfStaffWidget content={content} />;
-    case "decision": return <DecisionWidget content={content} />;
-    case "red_team": return <RedTeamWidget content={content} />;
-    case "execution": return <ExecutionWidget content={content} />;
-    default: return null;
-  }
-}
-
-function MessageBubble({ msg, mode, onQuickAction }: { msg: Message; mode: Mode; onQuickAction: (text: string) => void; }) {
-  const isUser = msg.role === "user";
-  return (
-    <div className={cn("flex gap-2 animate-slide-up", isUser ? "justify-end" : "justify-start")}>
-      {!isUser && (
-        <div className="relative shrink-0">
-          <Avatar className="w-7 h-7 mt-1 ring-2 ring-primary/20 animate-pulse-soft">
-            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-[10px]"><Bot className="w-3.5 h-3.5" /></AvatarFallback>
-          </Avatar>
-          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-background" />
-        </div>
-      )}
-      <div className={cn("max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm relative overflow-hidden transition-all duration-300 hover:shadow-md", isUser ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-sm shadow-lg shadow-primary/10" : "bg-gradient-to-br from-secondary to-secondary/80 text-foreground rounded-bl-sm border border-border/50 shadow-sm hover:border-border/80")}>
-        {!isUser && <div className={cn("absolute inset-0 bg-gradient-to-br opacity-30 pointer-events-none rounded-2xl rounded-bl-sm", modeGradient[mode] ?? modeGradient.chat)} />}
-        <div className="relative z-10">
-          <div className="flex items-center gap-1.5 mb-1">
-            {isUser ? <User className="w-3 h-3 opacity-60" /> : <span className="text-[10px] font-semibold text-primary/70">TAMS AI</span>}
-          </div>
-          <div className="animate-fade-in" style={{ animationDelay: "0.1s" }}><StructuredContent content={msg.content} /></div>
-          <div className={cn("text-[10px] mt-1 text-right", isUser ? "text-primary-foreground/60" : "text-muted-foreground")}>{formatTime(msg.createdAt)}</div>
-          {!isUser && (<><ModeWidget mode={mode} content={msg.content} /><QuickActions onAction={onQuickAction} /></>)}
+        <div className="space-y-3 px-3">
+          {categories.map((category) => (
+            <div key={category} className="space-y-2">
+              <h4 className="text-xs font-semibold text-gray-600 uppercase">
+                {category}
+              </h4>
+              <div className="grid grid-cols-1 gap-2">
+                {WORKFLOW_ACTIONS.filter((a) => a.category === category).map(
+                  (action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => {
+                          setInput(`Execute ${action.label}`);
+                          setCurrentPanel(PANELS.STANDARD);
+                        }}
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-orange-50 transition-colors text-left"
+                      >
+                        <Icon className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                        <span className="text-xs font-medium text-gray-900">
+                          {action.label}
+                        </span>
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-      {isUser && (<Avatar className="w-7 h-7 mt-1 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground text-[10px]"><User className="w-3.5 h-3.5" /></AvatarFallback></Avatar>)}
+    );
+  };
+
+  const renderSidebar = () => (
+    <div className="h-full bg-white border-r border-gray-200 flex flex-col">
+      <div className="p-4 border-b border-gray-200">
+        <button
+          onClick={handleNewConversation}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Nouvelle conversation
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {isLoadingConversations ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          </div>
+        ) : conversations && conversations.length > 0 ? (
+          <div className="space-y-4 p-4">
+            {Object.entries(groupedConversations).map(([group, convs]) =>
+              convs.length > 0 ? renderConversationGroup(group, convs) : null
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
+            Aucune conversation
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderMainPanel = () => {
+    if (currentPanel === PANELS.TAMS_CAN_DO) {
+      return tamsCanDoSection();
+    }
+
+    if (currentPanel === PANELS.WORKFLOW_ACTIONS) {
+      return workflowActionsSection();
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {MODES.map((m) => {
+            const Icon = m.icon;
+            return (
+              <TooltipProvider key={m.value}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setMode(m.value)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium",
+                        mode === m.value
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {m.label}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    Mode: {m.label}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => {
+              setPanelHistory([...panelHistory, currentPanel]);
+              setCurrentPanel(PANELS.TAMS_CAN_DO);
+            }}
+            className="flex items-center justify-center gap-2 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors text-sm font-medium text-blue-700"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            TAMS Can Do
+          </button>
+
+          <button
+            onClick={() => {
+              setPanelHistory([...panelHistory, currentPanel]);
+              setCurrentPanel(PANELS.WORKFLOW_ACTIONS);
+            }}
+            className="flex items-center justify-center gap-2 p-3 rounded-lg bg-orange-50 hover:bg-orange-100 transition-colors text-sm font-medium text-orange-700"
+          >
+            <Wand2 className="w-4 h-4" />
+            Actions Workflow
+          </button>
+        </div>
+
+        {matchedCommand && routeIntentVisible && (
+          <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-green-900">Intent Détecté</p>
+                <p className="text-xs text-green-700 mt-1">
+                  <strong>Commande:</strong> {matchedCommand.command}
+                </p>
+                <p className="text-xs text-green-700">
+                  <strong>Intent:</strong> {matchedCommand.intent}
+                </p>
+                <p className="text-xs text-green-700">
+                  <strong>Confiance:</strong> {(matchedCommand.confidence * 100).toFixed(0)}%
+                </p>
+                {runtimeTask && (
+                  <div className="mt-2 pt-2 border-t border-green-200">
+                    <p className="text-xs text-green-700">
+                      <strong>Tâche Runtime:</strong> {runtimeTask.taskId}
+                    </p>
+                    <p className="text-xs text-green-700">
+                      <strong>Statut:</strong> {runtimeTask.status}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-600 px-1">Suggestions Rapides</p>
+          <div className="grid grid-cols-1 gap-2">
+            {[
+              "Analyse de marché",
+              "Rédiger un email",
+              "Créer une présentation",
+              "Recherche produits",
+            ].map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => setInput(suggestion)}
+                className="text-left px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm text-gray-700"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-50 gap-4 p-4">
+      {/* Sidebar */}
+      {isSidebarOpen && (
+        <div className="w-64 rounded-lg shadow-sm bg-white flex flex-col">
+          {renderSidebar()}
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-white shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              {isSidebarOpen ? (
+                <ChevronLeft className="w-5 h-5" />
+              ) : (
+                <MessageSquare className="w-5 h-5" />
+              )}
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">TAMS Chat</h1>
+              <p className="text-xs text-gray-500">
+                {selectedConversation ? selectedConversation.title : "Pas de conversation"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isOnline && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 px-3 py-1 rounded-lg bg-red-50 border border-red-200">
+                      <WifiOff className="w-4 h-4 text-red-600" />
+                      <span className="text-xs font-medium text-red-600">Hors ligne</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    Vous êtes actuellement hors ligne
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      setShowModelSelector(!showModelSelector);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium text-gray-700"
+                  >
+                    <Brain className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Sélectionner un modèle
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate("/")}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Tableau de bord
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+
+        <div className="flex gap-4 flex-1 min-h-0">
+          {/* Messages Area */}
+          <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm">
+            {selectedConversation ? (
+              <>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center space-y-3">
+                        <div className="flex justify-center">
+                          <Brain className="w-12 h-12 text-gray-300" />
+                        </div>
+                        <p className="text-gray-500 text-sm">Aucun message. Commencez une conversation!</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {messages.map((message) => (
+                        <div key={message.id} className={cn(
+                          "flex gap-3",
+                          message.role === "user" ? "justify-end" : "justify-start"
+                        )}>
+                          {message.role === "assistant" && (
+                            <Avatar className="w-8 h-8 bg-blue-600 flex-shrink-0">
+                              <AvatarFallback className="text-white text-xs">AI</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div className={cn(
+                            "max-w-xs lg:max-w-md px-4 py-2 rounded-lg",
+                            message.role === "user"
+                              ? "bg-blue-600 text-white rounded-br-none"
+                              : "bg-gray-100 text-gray-900 rounded-bl-none"
+                          )}>
+                            <p className="text-sm break-words">{message.content}</p>
+                            {message.intent && (
+                              <p className="text-xs mt-1 opacity-70">
+                                Intent: {message.intent}
+                              </p>
+                            )}
+                            {message.routeIntent && (
+                              <p className="text-xs mt-1 opacity-70">
+                                Route: {message.routeIntent}
+                              </p>
+                            )}
+                          </div>
+                          {message.role === "user" && (
+                            <Avatar className="w-8 h-8 bg-gray-300 flex-shrink-0">
+                              <AvatarFallback className="text-gray-700 text-xs">U</AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      ))}
+                      {isLoading && (
+                        <div className="flex gap-3 justify-start">
+                          <Avatar className="w-8 h-8 bg-blue-600 flex-shrink-0">
+                            <AvatarFallback className="text-white text-xs">AI</AvatarFallback>
+                          </Avatar>
+                          <div className="bg-gray-100 px-4 py-2 rounded-lg rounded-bl-none">
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 p-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Tapez votre message..."
+                      className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isLoading || !isOnline}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={isLoading || !input.trim() || !isOnline}
+                      className={cn(
+                        "px-4 py-2 rounded-lg font-medium transition-colors",
+                        isLoading || !input.trim() || !isOnline
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      )}
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-3">
+                  <div className="flex justify-center">
+                    <MessageSquare className="w-12 h-12 text-gray-300" />
+                  </div>
+                  <p className="text-gray-500 text-sm">Sélectionnez une conversation ou créez-en une nouvelle</p>
+                  <button
+                    onClick={handleNewConversation}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  >
+                    Nouvelle conversation
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel - Quick Actions */}
+          <div className="w-72 bg-white rounded-lg shadow-sm p-4 overflow-y-auto">
+            {renderMainPanel()}
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la conversation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action ne peut pas être annulée. Êtes-vous sûr de vouloir supprimer cette conversation?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteConfirm) {
+                  handleDeleteConversation(deleteConfirm);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Model Selector Modal */}
+      {showModelSelector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-lg">
+            <h2 className="text-lg font-bold mb-4">Sélectionner un modèle</h2>
+            <div className="space-y-2 mb-6">
+              {["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-opus", "claude-3-sonnet"].map((model) => (
+                <button
+                  key={model}
+                  onClick={() => {
+                    setSelectedModel(model);
+                    setShowModelSelector(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-4 py-2 rounded-lg transition-colors",
+                    selectedModel === model
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200"
+                  )}
+                >
+                  {model}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowModelSelector(false)}
+              className="w-full px-4 py-2 rounded-lg bg-gray-300 hover:bg-gray-400 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-function formatTime(d: string) {
-  return new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
-export default function Chat() { return <div>Loading...</div>; }
