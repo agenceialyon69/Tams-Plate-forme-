@@ -30,6 +30,7 @@ import missionsRouter from "./missions.js";
 import kernelRouter from "./kernel.js";
 import devRuntimeRouter from "./dev-runtime.js";
 import capabilityRegistryRouter from "./capability-registry.js";
+import capabilityActionsRouter from "./capability-actions.js";
 import chatCapabilitiesRouter from "./chat-capabilities.js";
 
 const router: IRouter = Router();
@@ -71,6 +72,7 @@ router.use(missionsRouter);
 router.use(kernelRouter);
 router.use(devRuntimeRouter);
 router.use(capabilityRegistryRouter);
+router.use(capabilityActionsRouter);
 router.use(chatCapabilitiesRouter);
 router.use(defaultRateLimit);
 
