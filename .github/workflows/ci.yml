@@ -62,7 +62,7 @@ jobs:
         with:
           node-version: 22
       - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - name: Build (comme Railway)
         run: |
           BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/tams run build
