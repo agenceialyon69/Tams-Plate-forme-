@@ -24,6 +24,8 @@ type Capability = {
   requiresLocal?: boolean;
   readOnly?: boolean;
   disabled?: boolean;
+  mode?: string;
+  actionAvailable?: boolean;
 };
 
 type Provider = {
@@ -35,6 +37,18 @@ type Provider = {
   notes?: string;
 };
 
+type CapabilityActionResponse = {
+  capabilityId: string;
+  status: string;
+  mode: string;
+  title: string;
+  result: string;
+  artifact: { type: "text" | "image" | "json" | "file" | "none"; url?: string; content?: string };
+  limitations: string[];
+  nextActions: string[];
+  providerUsed?: string;
+};
+
 function statusClass(status?: string) {
   if (status === "available" || status === "configured" || status === "online" || status === "ready" || status === "ok" || status === "real") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
   if (status === "planned" || status === "plan_only" || status === "missing_config" || status === "disabled") return "border-amber-500/30 bg-amber-500/10 text-amber-300";
@@ -44,6 +58,7 @@ function statusClass(status?: string) {
 }
 
 function capabilityMode(capability: Capability): string {
+  if (capability.mode) return capability.mode;
   if (capability.disabled) return "disabled";
   if (capability.requiresLocal) return "requires_local";
   if (capability.plannedOnly || capability.status === "planned") return "planned";
@@ -64,6 +79,39 @@ export default function CapabilitiesPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
+  const [actionInput, setActionInput] = useState("");
+  const [actionResult, setActionResult] = useState<CapabilityActionResponse | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  async function executeCapability() {
+    if (!selectedCapability || actionLoading) return;
+    setActionLoading(true);
+    setActionError(null);
+    setActionResult(null);
+    try {
+      const response = await fetch(`${API_BASE}/api/capabilities/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          capabilityId: selectedCapability.id,
+          input: actionInput,
+          options: {
+            platform: /tiktok/i.test(actionInput) ? "tiktok" : "generic",
+            targetLanguage: selectedCapability.id === "text.translate" ? "anglais" : undefined,
+          },
+        }),
+      });
+      const data = await response.json() as CapabilityActionResponse | { error?: string };
+      if (!response.ok || !("capabilityId" in data)) throw new Error("error" in data ? data.error : `HTTP ${response.status}`);
+      setActionResult(data);
+    } catch (actionFailure) {
+      setActionError(actionFailure instanceof Error ? actionFailure.message : "Action indisponible");
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -153,6 +201,50 @@ export default function CapabilitiesPage() {
             </p>
           </section>
 
+          {selectedCapability && (
+            <section className="rounded-2xl border border-primary/30 bg-card p-4 md:p-5 space-y-4" data-testid="capability-action-panel">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">Tester — {selectedCapability.label}</h2>
+                  <p className="text-sm text-muted-foreground">{selectedCapability.id} · mode {capabilityMode(selectedCapability)}</p>
+                </div>
+                <button onClick={() => { setSelectedCapability(null); setActionResult(null); setActionError(null); }} className="text-xs text-muted-foreground hover:text-foreground">Fermer</button>
+              </div>
+              <textarea
+                value={actionInput}
+                onChange={event => setActionInput(event.target.value)}
+                rows={4}
+                placeholder="Décrivez ce que TAMS doit faire…"
+                className="w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+                data-testid="capability-action-input"
+              />
+              <button
+                onClick={executeCapability}
+                disabled={actionLoading}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                data-testid="capability-action-submit"
+              >
+                {actionLoading ? "Exécution…" : "Exécuter"}
+              </button>
+              {actionError && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</div>}
+              {actionResult && (
+                <div className="space-y-3 rounded-xl border border-border bg-background/70 p-4" data-testid="capability-action-result">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong>{actionResult.title}</strong>
+                    <span className={cn("rounded-full border px-2 py-0.5 text-xs", statusClass(actionResult.mode))}>{actionResult.status} · {actionResult.mode}</span>
+                    {actionResult.providerUsed && <span className="text-xs text-muted-foreground">provider : {actionResult.providerUsed}</span>}
+                  </div>
+                  {actionResult.artifact.type === "image" && actionResult.artifact.url && (
+                    <img src={actionResult.artifact.url} alt={actionResult.title} className="max-h-96 w-full rounded-xl border border-border object-contain" />
+                  )}
+                  <pre className="whitespace-pre-wrap break-words text-sm font-sans">{actionResult.result}</pre>
+                  {actionResult.limitations.length > 0 && <div className="text-sm text-amber-300">Limitations : {actionResult.limitations.join(" · ")}</div>}
+                  {actionResult.nextActions.length > 0 && <div className="text-sm text-muted-foreground">Prochaines actions : {actionResult.nextActions.join(" · ")}</div>}
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
             <p><span className="font-medium text-emerald-300">Available</span> = utilisable maintenant.</p>
             <p><span className="font-medium text-amber-300">Planned</span> = visible mais pas encore exécutable.</p>
@@ -179,6 +271,19 @@ export default function CapabilitiesPage() {
                       <p className="text-sm text-muted-foreground">{capability.description}</p>
                       <p className="mt-2 text-xs text-muted-foreground">Déclarée : {capability.status} · Exécutable maintenant : {capability.executableNow ? "oui" : "non"}</p>
                       {capability.validationNotes && <p className="mt-3 text-xs text-muted-foreground">{capability.validationNotes}</p>}
+                      {capability.actionAvailable ? (
+                        <button
+                          onClick={() => { setSelectedCapability(capability); setActionInput(""); setActionResult(null); setActionError(null); }}
+                          className="mt-4 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                          data-testid={`test-capability-${capability.id}`}
+                        >
+                          Tester
+                        </button>
+                      ) : (
+                        <p className="mt-4 text-xs text-muted-foreground">
+                          {capabilityMode(capability) === "plan_only" ? "Mode plan uniquement" : "Non disponible pour l’instant"}
+                        </p>
+                      )}
                     </article>
                   ))}
                 </div>
