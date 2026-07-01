@@ -91,10 +91,10 @@ The `StudioOrchestrator` (`artifacts/api-server/src/lib/studio/studio-orchestrat
   creativeBrief: string;
   scriptPlan: string;
   storyboardPlan: string;
-  assetPlan: string;
+  assetPlan: StudioAssetPlan[];
   requiredCapabilities: string[];
   recommendedProviders: string[];
-  productionSteps: string[];
+  productionSteps: StudioProductionStep[];
   validationChecklist: string[];
   exportTargets: string[];
   missingCapabilities: string[];
