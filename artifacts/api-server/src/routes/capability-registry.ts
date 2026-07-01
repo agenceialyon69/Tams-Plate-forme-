@@ -16,7 +16,7 @@ export interface Provider {
   id: string;
   name: string;
   type: "free" | "freemium" | "paid";
-  status: "available" | "planned" | "rate_limited" | "disabled";
+  status: "available" | "planned" | "experimental" | "rate_limited" | "disabled";
   baseUrl?: string;
   requiresAuth: boolean;
   authType?: "api_key" | "oauth" | "none";
@@ -149,6 +149,15 @@ const PROVIDERS: Record<string, Provider> = {
     authType: "none",
     notes: "Local text-to-speech, fast and offline",
   },
+  edge_tts: {
+    id: "edge_tts",
+    name: "Edge TTS",
+    type: "free",
+    status: "planned",
+    requiresAuth: false,
+    authType: "none",
+    notes: "Microsoft Edge TTS, free, no API key",
+  },
 
   // === VIDEO/MEDIA PROVIDERS ===
   ffmpeg: {
@@ -158,7 +167,7 @@ const PROVIDERS: Record<string, Provider> = {
     status: "available",
     requiresAuth: false,
     authType: "none",
-    notes: "Video encoding, conversion, trimming",
+    notes: "Video encoding, conversion, trimming — available in Railway/Nixpacks",
   },
   remotion: {
     id: "remotion",
@@ -176,7 +185,7 @@ const PROVIDERS: Record<string, Provider> = {
     status: "planned",
     requiresAuth: false,
     authType: "none",
-    notes: "AI music generation, requires GPU",
+    notes: "AI music generation, requires local GPU — not available on Railway",
   },
   riffusion: {
     id: "riffusion",
@@ -198,6 +207,28 @@ const PROVIDERS: Record<string, Provider> = {
     requiresAuth: true,
     authType: "api_key",
     notes: "Workflow automation, self-hosted",
+  },
+
+  // === DEPLOYMENT / INFRA PROVIDERS ===
+  railway: {
+    id: "railway",
+    name: "Railway",
+    type: "freemium",
+    status: "available",
+    baseUrl: "https://backboard.railway.app",
+    requiresAuth: true,
+    authType: "api_key",
+    notes: "Deployment platform — deploy.check reads Railway env vars",
+  },
+  github: {
+    id: "github",
+    name: "GitHub",
+    type: "free",
+    status: "available",
+    baseUrl: "https://api.github.com",
+    requiresAuth: true,
+    authType: "api_key",
+    notes: "Repo audit/validate — read-only operations only",
   },
 };
 
@@ -241,6 +272,29 @@ const CAPABILITIES: Capability[] = [
   },
 
   // === STUDIO CAPABILITIES ===
+  {
+    id: "studio.analyze",
+    label: "Studio Analysis",
+    description: "Analyze creative project requirements and suggest a production plan",
+    category: "analysis",
+    riskLevel: "low",
+    requiredPermission: "authenticated",
+    providers: [PROVIDERS.groq, PROVIDERS.gemini],
+    fallbackBehavior: "fallback_free",
+    status: "available",
+    validationNotes: "Read-only analysis, no content generation",
+  },
+  {
+    id: "studio.generate",
+    label: "Studio Generate",
+    description: "Orchestrate multi-step creative content generation",
+    category: "text",
+    riskLevel: "low",
+    requiredPermission: "authenticated",
+    providers: [PROVIDERS.groq, PROVIDERS.gemini],
+    fallbackBehavior: "fallback_free",
+    status: "available",
+  },
   {
     id: "studio.brief.generate",
     label: "Brief Generation",
@@ -307,6 +361,41 @@ const CAPABILITIES: Capability[] = [
     fallbackBehavior: "fallback_free",
     status: "available",
   },
+  {
+    id: "studio.video.edit.plan",
+    label: "Video Edit Plan",
+    description: "Plan a video edit sequence (timeline, cuts, subtitles)",
+    category: "video",
+    riskLevel: "low",
+    requiredPermission: "authenticated",
+    providers: [PROVIDERS.groq, PROVIDERS.gemini],
+    fallbackBehavior: "fallback_free",
+    status: "available",
+    validationNotes: "Produces a plan only; actual encoding requires FFmpeg worker",
+  },
+  {
+    id: "studio.music.plan",
+    label: "Music Plan",
+    description: "Plan music direction, mood, instruments for a project",
+    category: "audio",
+    riskLevel: "low",
+    requiredPermission: "authenticated",
+    providers: [PROVIDERS.groq, PROVIDERS.gemini],
+    fallbackBehavior: "fallback_free",
+    status: "available",
+    validationNotes: "Plan only — actual generation requires MusicGen local GPU",
+  },
+  {
+    id: "studio.export.social",
+    label: "Social Export Plan",
+    description: "Produce platform-specific export recommendations (TikTok, Instagram, YouTube)",
+    category: "text",
+    riskLevel: "low",
+    requiredPermission: "authenticated",
+    providers: [PROVIDERS.groq, PROVIDERS.gemini],
+    fallbackBehavior: "fallback_free",
+    status: "available",
+  },
 
   // === IMAGE CAPABILITIES ===
   {
@@ -319,7 +408,7 @@ const CAPABILITIES: Capability[] = [
     providers: [PROVIDERS.pollinations, PROVIDERS.huggingface_image, PROVIDERS.comfyui],
     fallbackBehavior: "fallback_free",
     status: "available",
-    validationNotes: "Pollinations primary (free, no auth), ComfyUI for local GPU",
+    validationNotes: "Pollinations primary (free, no auth); ComfyUI for local GPU",
   },
   {
     id: "image.analyze",
@@ -335,7 +424,7 @@ const CAPABILITIES: Capability[] = [
 
   // === AUDIO CAPABILITIES ===
   {
-    id: "audio.transcribe",
+    id: "voice.transcribe",
     label: "Speech to Text",
     description: "Transcribe audio to text",
     category: "audio",
@@ -344,7 +433,7 @@ const CAPABILITIES: Capability[] = [
     providers: [PROVIDERS.whisper],
     fallbackBehavior: "fail",
     status: "planned",
-    validationNotes: "Local Whisper planned for offline transcription",
+    validationNotes: "Local Whisper planned — requires GPU/local worker, not available on Railway",
   },
   {
     id: "audio.synthesize",
@@ -353,10 +442,10 @@ const CAPABILITIES: Capability[] = [
     category: "audio",
     riskLevel: "low",
     requiredPermission: "authenticated",
-    providers: [PROVIDERS.piper],
+    providers: [PROVIDERS.piper, PROVIDERS.edge_tts],
     fallbackBehavior: "fail",
     status: "planned",
-    validationNotes: "Local Piper TTS planned for offline synthesis",
+    validationNotes: "Piper planned for local offline synthesis; Edge TTS planned",
   },
   {
     id: "audio.music.generate",
@@ -368,7 +457,7 @@ const CAPABILITIES: Capability[] = [
     providers: [PROVIDERS.musicgen, PROVIDERS.riffusion],
     fallbackBehavior: "fail",
     status: "planned",
-    validationNotes: "MusicGen local GPU required, Riffusion experimental",
+    validationNotes: "MusicGen requires local GPU — NOT available on Railway. Riffusion experimental.",
   },
 
   // === VIDEO CAPABILITIES ===
@@ -382,7 +471,7 @@ const CAPABILITIES: Capability[] = [
     providers: [PROVIDERS.ffmpeg],
     fallbackBehavior: "fail",
     status: "available",
-    validationNotes: "FFmpeg available for programmatic editing",
+    validationNotes: "FFmpeg available in Railway/Nixpacks build",
   },
   {
     id: "video.generate",
@@ -394,7 +483,7 @@ const CAPABILITIES: Capability[] = [
     providers: [PROVIDERS.remotion],
     fallbackBehavior: "fail",
     status: "planned",
-    validationNotes: "Remotion planned for React-based video generation",
+    validationNotes: "Remotion planned — requires local worker, not yet connected",
   },
 
   // === ANALYSIS CAPABILITIES ===
@@ -405,10 +494,10 @@ const CAPABILITIES: Capability[] = [
     category: "analysis",
     riskLevel: "low",
     requiredPermission: "authenticated",
-    providers: [],
+    providers: [PROVIDERS.github],
     fallbackBehavior: "fail",
     status: "available",
-    validationNotes: "Built-in Dev Runtime analysis",
+    validationNotes: "Built-in Dev Runtime — read-only GitHub access",
   },
   {
     id: "repo.validate",
@@ -420,24 +509,22 @@ const CAPABILITIES: Capability[] = [
     providers: [],
     fallbackBehavior: "fail",
     status: "available",
-    validationNotes: "Built-in Dev Runtime validation",
+    validationNotes: "Built-in Dev Runtime validation — read_only mode only from Chat",
   },
-
-  // === AUTOMATION CAPABILITIES ===
   {
-    id: "automation.workflow",
-    label: "Workflow Automation",
-    description: "Run automated workflows",
-    category: "automation",
-    riskLevel: "medium",
+    id: "repo.patch",
+    label: "Repository Patch",
+    description: "Apply safe patches to repository files",
+    category: "analysis",
+    riskLevel: "high",
     requiredPermission: "approved",
-    providers: [PROVIDERS.n8n],
+    providers: [PROVIDERS.github],
     fallbackBehavior: "fail",
-    status: "planned",
-    validationNotes: "n8n integration planned for workflow automation",
+    status: "available",
+    validationNotes: "Dev Runtime patch mode — requires explicit approval, never touches main",
   },
 
-  // === SEARCH CAPABILITIES ===
+  // === SEARCH ===
   {
     id: "search.web",
     label: "Web Search",
@@ -448,10 +535,10 @@ const CAPABILITIES: Capability[] = [
     providers: [],
     fallbackBehavior: "fail",
     status: "planned",
-    validationNotes: "Web search integration planned (DuckDuckGo, Tavily)",
+    validationNotes: "Planned: DuckDuckGo or Tavily integration",
   },
 
-  // === MEMORY CAPABILITIES ===
+  // === MEMORY ===
   {
     id: "memory.query",
     label: "Memory Query",
@@ -462,10 +549,10 @@ const CAPABILITIES: Capability[] = [
     providers: [],
     fallbackBehavior: "fail",
     status: "available",
-    validationNotes: "Built-in memory system",
+    validationNotes: "Built-in memory system with pgvector",
   },
 
-  // === DEPLOYMENT CAPABILITIES ===
+  // === DEPLOYMENT ===
   {
     id: "deploy.check",
     label: "Deployment Check",
@@ -473,10 +560,10 @@ const CAPABILITIES: Capability[] = [
     category: "analysis",
     riskLevel: "low",
     requiredPermission: "authenticated",
-    providers: [],
+    providers: [PROVIDERS.railway],
     fallbackBehavior: "fail",
     status: "available",
-    validationNotes: "Built-in Dev Runtime deploy check",
+    validationNotes: "Read-only Railway env check — never triggers a deploy",
   },
   {
     id: "observe.health",
@@ -490,7 +577,42 @@ const CAPABILITIES: Capability[] = [
     status: "available",
     validationNotes: "Built-in /api/healthz endpoint",
   },
+
+  // === AUTOMATION ===
+  {
+    id: "automation.workflow",
+    label: "Workflow Automation",
+    description: "Run automated workflows",
+    category: "automation",
+    riskLevel: "medium",
+    requiredPermission: "approved",
+    providers: [PROVIDERS.n8n],
+    fallbackBehavior: "fail",
+    status: "planned",
+    validationNotes: "n8n integration planned — self-hosted",
+  },
 ];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Returns capabilities matching a given category */
+export function getCapabilitiesByCategory(category: Capability["category"]): Capability[] {
+  return CAPABILITIES.filter(c => c.category === category);
+}
+
+/** Returns capabilities safe to expose to the runtime chat (read-only, low/medium risk) */
+export function getRuntimeSafeCapabilities(): Capability[] {
+  return CAPABILITIES.filter(
+    c => c.riskLevel === "low" && c.requiredPermission !== "admin",
+  );
+}
+
+/** Returns all provider ids that are truly enabled (not planned/experimental) */
+export function getEnabledProviderIds(): string[] {
+  return Object.values(PROVIDERS)
+    .filter(p => p.status === "available")
+    .map(p => p.id);
+}
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
@@ -509,7 +631,7 @@ router.get("/registry/capabilities/:id", (req, res) => {
   if (!capability) {
     return res.status(404).json({ error: "Capability not found" });
   }
-  res.json(capability);
+  return res.json(capability);
 });
 
 router.get("/registry/providers", (_req, res) => {
@@ -527,7 +649,7 @@ router.get("/registry/providers/:id", (req, res) => {
   if (!provider) {
     return res.status(404).json({ error: "Provider not found" });
   }
-  res.json(provider);
+  return res.json(provider);
 });
 
 router.get("/registry/status", (_req, res) => {
@@ -552,11 +674,12 @@ router.get("/registry/status", (_req, res) => {
     },
     freeProvidersAvailable: availableFree.map(p => p.id),
     limitations: [
-      "Video generation: Remotion planned, not available",
-      "Music generation: MusicGen planned, requires local GPU",
-      "Speech-to-text: Whisper planned for local processing",
-      "Text-to-speech: Piper planned for local synthesis",
-      "n8n workflows: Planned for automation",
+      "video.generate: Remotion planned, not yet connected",
+      "audio.music.generate: MusicGen planned, requires local GPU — NOT available on Railway",
+      "voice.transcribe: Whisper planned, requires local worker",
+      "audio.synthesize: Piper planned, requires local installation",
+      "automation.workflow: n8n planned, self-hosted",
+      "search.web: DuckDuckGo/Tavily planned",
     ],
     honestyNote: "TAMS never pretends to generate video/music if provider is not connected. All planned features are clearly marked.",
   });
@@ -589,14 +712,13 @@ router.post("/registry/providers/:id/check", async (req, res) => {
 
     clearTimeout(timeout);
 
-    res.json({
+    return res.json({
       provider: provider.id,
       status: response.ok ? "healthy" : "unhealthy",
       httpStatus: response.status,
-      responseTime: "N/A",
     });
   } catch (error) {
-    res.json({
+    return res.json({
       provider: provider.id,
       status: "unreachable",
       error: error instanceof Error ? error.message : "Unknown error",
