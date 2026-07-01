@@ -23,12 +23,6 @@ async function downloadAudio(url: string): Promise<Buffer> {
   return buffer;
 }
 
-function bufferToBody(buffer: Buffer): BodyInit {
-  const copy = new Uint8Array(buffer.byteLength);
-  copy.set(buffer);
-  return copy;
-}
-
 export async function transcribeAudioUrl(audioUrl: string, model?: string): Promise<TranscriptionResult> {
   const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY;
   if (!token) {
@@ -53,7 +47,7 @@ export async function transcribeAudioUrl(audioUrl: string, model?: string): Prom
           "Content-Type": "application/octet-stream",
           "x-wait-for-model": "true",
         },
-        body: bufferToBody(audio),
+        body: audio as any,
         signal: AbortSignal.timeout(120_000),
       });
       if (response.status !== 503) break;
