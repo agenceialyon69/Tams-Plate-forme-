@@ -19,6 +19,11 @@ type Capability = {
   status: string;
   riskLevel?: string;
   validationNotes?: string;
+  executableNow?: boolean;
+  plannedOnly?: boolean;
+  requiresLocal?: boolean;
+  readOnly?: boolean;
+  disabled?: boolean;
 };
 
 type Provider = {
@@ -31,11 +36,20 @@ type Provider = {
 };
 
 function statusClass(status?: string) {
-  if (status === "available" || status === "configured" || status === "online" || status === "ready" || status === "ok") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
-  if (status === "planned" || status === "missing_config" || status === "disabled") return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  if (status === "available" || status === "configured" || status === "online" || status === "ready" || status === "ok" || status === "real") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+  if (status === "planned" || status === "plan_only" || status === "missing_config" || status === "disabled") return "border-amber-500/30 bg-amber-500/10 text-amber-300";
   if (status === "requires_local_gpu" || status === "requires_local" || status === "read_only") return "border-orange-500/30 bg-orange-500/10 text-orange-300";
   if (status === "experimental") return "border-blue-500/30 bg-blue-500/10 text-blue-300";
   return "border-muted bg-muted/40 text-muted-foreground";
+}
+
+function capabilityMode(capability: Capability): string {
+  if (capability.disabled) return "disabled";
+  if (capability.requiresLocal) return "requires_local";
+  if (capability.plannedOnly || capability.status === "planned") return "planned";
+  if (capability.readOnly) return "read_only";
+  if (capability.executableNow) return "real";
+  return "plan_only";
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -160,9 +174,10 @@ export default function CapabilitiesPage() {
                           <h4 className="font-medium">{capability.label}</h4>
                           <p className="text-xs text-muted-foreground">{capability.id}</p>
                         </div>
-                        <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusClass(capability.status))}>{capability.status}</span>
+                        <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusClass(capabilityMode(capability)))}>{capabilityMode(capability)}</span>
                       </div>
                       <p className="text-sm text-muted-foreground">{capability.description}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">Déclarée : {capability.status} · Exécutable maintenant : {capability.executableNow ? "oui" : "non"}</p>
                       {capability.validationNotes && <p className="mt-3 text-xs text-muted-foreground">{capability.validationNotes}</p>}
                     </article>
                   ))}
