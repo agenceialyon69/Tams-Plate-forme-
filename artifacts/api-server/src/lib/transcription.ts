@@ -23,6 +23,12 @@ async function downloadAudio(url: string): Promise<Buffer> {
   return buffer;
 }
 
+function bufferToBody(buffer: Buffer): BodyInit {
+  const copy = new Uint8Array(buffer.byteLength);
+  copy.set(buffer);
+  return copy;
+}
+
 export async function transcribeAudioUrl(audioUrl: string, model?: string): Promise<TranscriptionResult> {
   const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY;
   if (!token) {
@@ -47,7 +53,7 @@ export async function transcribeAudioUrl(audioUrl: string, model?: string): Prom
           "Content-Type": "application/octet-stream",
           "x-wait-for-model": "true",
         },
-        body: audio,
+        body: bufferToBody(audio),
         signal: AbortSignal.timeout(120_000),
       });
       if (response.status !== 503) break;
@@ -64,8 +70,12 @@ export async function transcribeAudioUrl(audioUrl: string, model?: string): Prom
       };
     }
 
-    const data = await response.json().catch(async () => ({ text: await response!.text() }));
-    const text = typeof data?.text === "string" ? data.text : typeof data === "string" ? data : JSON.stringify(data);
+    const data: unknown = await response.json().catch(async () => ({ text: await response.text() }));
+    const text = typeof data === "object" && data !== null && "text" in data && typeof (data as { text?: unknown }).text === "string"
+      ? (data as { text: string }).text
+      : typeof data === "string"
+        ? data
+        : JSON.stringify(data);
     if (!text.trim()) return { ok: false, status: 502, error: "Transcription vide", hint: "Le provider n’a retourné aucun texte." };
     return { ok: true, text };
   } catch (err) {
