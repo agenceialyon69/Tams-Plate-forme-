@@ -4,12 +4,14 @@
  * Toutes les requêtes passent par le Kernel. Aucune route ne peut le contourner.
  *
  * Endpoints:
- * - POST   /api/kernel          — traite une requête via le Kernel
- * - GET    /api/kernel/status   — statut du Kernel
- * - GET    /api/kernel/log      — journal du Kernel
+ * - POST   /api/kernel              — traite une requête via le Kernel
+ * - POST   /api/kernel/route-intent — classifie un message sans l'exécuter
+ * - GET    /api/kernel/status       — statut du Kernel
+ * - GET    /api/kernel/log          — journal du Kernel
  * - GET    /api/kernel/capabilities — liste des capacités enregistrées
  * - POST   /api/kernel/self-improve — déclenche le self-improvement
- * - GET    /api/kernel/scenarios — exécute les scénarios obligatoires
+ * - GET    /api/kernel/scenarios    — exécute les scénarios obligatoires
+ * - POST   /api/kernel/stream       — streaming SSE temps réel
  */
 
 import { Router } from "express";
@@ -22,11 +24,17 @@ import {
   listCapabilities,
   selfImprove,
   type KernelRequest,
-} from "../lib/kernel";
-import { runScenarios } from "../lib/scenarios";
-import { runValidation } from "../lib/validation";
+} from "../lib/kernel/index.js";
+import { runScenarios } from "../lib/scenarios.js";
+import { runValidation } from "../lib/validation.js";
+import { classifyIntent } from "../lib/kernel/intent-engine.js";
+import { routeCapability } from "../lib/kernel/capability-router.js";
+import { getEffectivePermissionMode } from "../lib/kernel/permission-layer.js";
 
 const router = Router();
+
+const runtimeEnabled = () => process.env.TAMS_DEV_RUNTIME_ENABLED === "true";
+const UNSAFE_ACTIONS_ENABLED = false as const;
 
 // Initialise le Kernel au premier appel
 let kernelInitialized = false;
@@ -37,7 +45,7 @@ function ensureKernel(): void {
   }
 }
 
-// ─── POST /api/kernel — point d'entrée unique ──────────────────────────────────
+// ─── POST /api/kernel — point d'entrée unique ──────────────────────────────────────────
 
 const KernelBody = z.object({
   message: z.string().min(1, "message requis"),
@@ -69,14 +77,116 @@ router.post("/kernel", async (req, res) => {
   }
 });
 
-// ─── GET /api/kernel/status ────────────────────────────────────────────────────
+// ─── POST /api/kernel/route-intent — classifie sans exécuter ───────────────────────────
+//
+// Le Chat OS appelle cet endpoint pour savoir comment traiter un message
+// AVANT de l'envoyer. Réponse rapide (< 500ms), jamais d'exécution réelle.
+
+const RouteIntentBody = z.object({
+  message: z.string().min(1, "message requis"),
+  context: z.record(z.unknown()).optional(),
+});
+
+router.post("/kernel/route-intent", async (req, res) => {
+  try {
+    const parsed = RouteIntentBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    }
+
+    const { message } = parsed.data;
+
+    // Classify intent using the Intent Engine
+    const intentResult = await classifyIntent(message);
+
+    // Route to the best capability provider
+    const route = routeCapability(intentResult.intent, intentResult.recommendedCapability);
+
+    // Effective permission based on runtime flags
+    const effectiveMode = getEffectivePermissionMode(runtimeEnabled(), UNSAFE_ACTIONS_ENABLED);
+
+    // Suggest a Chat OS mode based on intent
+    const MODE_MAP: Record<string, string> = {
+      decision: "decision",
+      red_team: "red_team",
+      dev: "execution",
+      workspace: "execution",
+      studio: "chat",
+      memory: "chat",
+      system: "chief_of_staff",
+      conversation: "chat",
+      unknown: "chat",
+    };
+    const suggestedMode = MODE_MAP[intentResult.domain] ?? "chat";
+
+    // Build a suggested pre-filled action for the chat input
+    const SUGGESTED_ACTIONS: Partial<Record<string, string>> = {
+      generate_image: "/image ",
+      generate_video: "/studio ",
+      generate_music: "/studio ",
+      studio_create: "/studio ",
+      create_task: "/tâche ",
+      task_create: "/tâche ",
+      create_project: "/projet ",
+      project_plan: "/projet ",
+      make_decision: "/décision ",
+      decision_red_team: "/décision ",
+      repo_audit: "/runtime audit ",
+      system_health: "Vérifie la santé du système",
+      system_check: "Vérifie le système",
+    };
+    const suggestedAction = SUGGESTED_ACTIONS[intentResult.intent];
+
+    const canExecuteNow = intentResult.missingPrerequisites.length === 0
+      && (route?.canExecuteNow ?? true);
+
+    return res.json({
+      intent: intentResult.intent,
+      domain: intentResult.domain,
+      confidence: intentResult.confidence,
+      riskLevel: intentResult.riskLevel,
+      requiredPermission: intentResult.requiredPermission,
+      missionKind: intentResult.missionKind,
+      recommendedCapability: intentResult.recommendedCapability ?? route?.capability,
+      providerCandidates: intentResult.providerCandidates.length > 0
+        ? intentResult.providerCandidates
+        : (route?.primaryProvider ? [route.primaryProvider] : []),
+      executionMode: intentResult.executionMode,
+      userFacingExplanation: intentResult.userFacingExplanation,
+      missingPrerequisites: intentResult.missingPrerequisites,
+      suggestedMode,
+      suggestedAction,
+      canExecuteNow,
+      reasoning: intentResult.reasoning,
+      route: route
+        ? {
+            capability: route.capability,
+            primaryProvider: route.primaryProvider,
+            primaryStatus: route.primaryStatus,
+            canExecuteNow: route.canExecuteNow,
+            honestNote: route.honestNote,
+          }
+        : null,
+      effectivePermissionMode: effectiveMode,
+      runtimeEnabled: runtimeEnabled(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "route-intent error");
+    return res.status(500).json({
+      error: "route-intent failed",
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+// ─── GET /api/kernel/status ────────────────────────────────────────────────────────────
 
 router.get("/kernel/status", (_req, res) => {
   ensureKernel();
   res.json(getQueueStatus());
 });
 
-// ─── GET /api/kernel/log ────────────────────────────────────────────────────────
+// ─── GET /api/kernel/log ───────────────────────────────────────────────────────────────
 
 router.get("/kernel/log", (req, res) => {
   ensureKernel();
@@ -84,14 +194,14 @@ router.get("/kernel/log", (req, res) => {
   res.json({ data: getKernelLog(limit) });
 });
 
-// ─── GET /api/kernel/capabilities ───────────────────────────────────────────────
+// ─── GET /api/kernel/capabilities ──────────────────────────────────────────────────────
 
 router.get("/kernel/capabilities", (_req, res) => {
   ensureKernel();
   res.json({ data: listCapabilities() });
 });
 
-// ─── POST /api/kernel/self-improve ──────────────────────────────────────────────
+// ─── POST /api/kernel/self-improve ────────────────────────────────────────────────────
 
 router.post("/kernel/self-improve", async (req, res) => {
   try {
@@ -104,7 +214,7 @@ router.post("/kernel/self-improve", async (req, res) => {
   }
 });
 
-// ─── GET /api/kernel/scenarios — scénarios obligatoires ─────────────────────────
+// ─── GET /api/kernel/scenarios — scénarios obligatoires ──────────────────────────────
 
 router.get("/kernel/scenarios", async (req, res) => {
   try {
@@ -163,7 +273,7 @@ router.get("/kernel/scenarios", async (req, res) => {
   }
 });
 
-// ─── POST /api/kernel/stream — streaming SSE temps réel ──────────────────────────
+// ─── POST /api/kernel/stream — streaming SSE temps réel ──────────────────────────────
 
 router.post("/kernel/stream", async (req, res) => {
   try {
