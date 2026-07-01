@@ -56,9 +56,9 @@ La CI exécute invariants, installation sans mutation du lockfile, build Railway
 
 ## 9. Résultats
 
-CI run 301 : PASS. Invariants, installation, build Railway-like, CSS, typecheck, tests runtime, scénario réel, scénarios A/B/C/D et smoke test ont tous réussi.
+CI run 304 : PASS. Invariants, installation, build Railway-like, CSS, typecheck, tests runtime, scénario réel, scénarios A/B/C/D et smoke test ont tous réussi.
 
-Preuve : https://github.com/agenceialyon69/Tams-Plate-forme-/actions/runs/28522082535
+Preuve : https://github.com/agenceialyon69/Tams-Plate-forme-/actions/runs/28522584020
 
 ## 10. Railway
 
