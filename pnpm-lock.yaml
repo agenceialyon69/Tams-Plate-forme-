@@ -723,6 +723,9 @@ importers:
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.101.0(react@19.1.0)
+      '@supabase/supabase-js':
+        specifier: ^2.49.4
+        version: 2.108.2
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.4
