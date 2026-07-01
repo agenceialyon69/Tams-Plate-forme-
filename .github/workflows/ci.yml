@@ -44,6 +44,10 @@ jobs:
           need artifacts/tams/src/pages/capabilities.tsx "Exécutable maintenant" "Capabilities nuance exécution"
           need artifacts/tams/src/pages/systeme.tsx "/api/version" "Système affiche version"
           need artifacts/api-server/src/routes/index.ts "versionRouter" "route version montée"
+          need artifacts/api-server/src/routes/index.ts "capabilityActionsRouter" "Capability Action Bus monté"
+          need artifacts/tams/src/pages/capabilities.tsx "/api/capabilities/execute" "UI Capabilities exécute le bus"
+          need artifacts/tams/src/pages/capabilities.tsx "capability-action-result" "UI affiche le résultat"
+          need artifacts/tams/src/pages/capabilities.tsx "actionAvailable" "boutons seulement si action branchée"
           need artifacts/api-server/src/lib/agents.ts "SCAN → RISQUES → PLAN → PATCH PROPOSÉ → TESTS → PR" "Dev Agent read-only utile"
           if grep -q "example.com" artifacts/tams/src/pages/chat.tsx; then echo "❌ faux lien example.com dans Chat"; fail=1; else echo "✅ aucun faux lien Chat"; fi
           # VIS : routes critiques RÉELLEMENT montées (sinon page = 404, ex Workflows).
@@ -123,6 +127,25 @@ jobs:
           check http://127.0.0.1:4000/api/registry/capabilities 200
           check http://127.0.0.1:4000/api/registry/providers 200
           check http://127.0.0.1:4000/api/chat/capabilities 200
+          execute() { curl -sf -X POST -H 'Content-Type: application/json' -d "$2" http://127.0.0.1:4000/api/capabilities/execute; }
+          text_action=$(execute text '{"capabilityId":"text.generate","input":"Écris une description produit activewear.","options":{}}')
+          echo "$text_action" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!((x.status==="success"&&x.result)||x.status==="missing_config"))process.exit(1)})' || { echo "❌ text.generate"; fail=1; }
+          script_action=$(execute script '{"capabilityId":"studio.script.generate","input":"Vidéo TikTok activewear","options":{"platform":"tiktok"}}')
+          echo "$script_action" | grep -qi 'Video Script Plan\|SCRIPT' || { echo "❌ studio script"; fail=1; }
+          storyboard_action=$(execute storyboard '{"capabilityId":"studio.storyboard.generate","input":"Vidéo TikTok activewear","options":{"platform":"tiktok"}}')
+          echo "$storyboard_action" | grep -qi 'Storyboard' || { echo "❌ storyboard"; fail=1; }
+          image_action=$(execute image '{"capabilityId":"image.generate","input":"activewear editorial studio photo","options":{}}')
+          echo "$image_action" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(x.mode!=="real"||x.artifact?.type!=="image"||!x.artifact?.url?.startsWith("https://image.pollinations.ai/"))process.exit(1)})' || { echo "❌ image.generate"; fail=1; }
+          video_action=$(execute video '{"capabilityId":"video.generate","input":"vidéo activewear","options":{}}')
+          echo "$video_action" | grep -q '"status":"planned"' || { echo "❌ video.generate non planned"; fail=1; }
+          edit_action=$(execute edit '{"capabilityId":"video.edit","input":"monter une vidéo","options":{}}')
+          echo "$edit_action" | grep -q '"mode":"plan_only"' || { echo "❌ video.edit non plan_only"; fail=1; }
+          agents_action=$(execute agents '{"capabilityId":"agents.orchestrate","input":"Prépare le lancement TikTok activewear","options":{}}')
+          echo "$agents_action" | grep -qi 'Chief of Staff\|PLAN GLOBAL' || { echo "❌ agents action"; fail=1; }
+          health_action=$(execute health '{"capabilityId":"observe.health","input":"","options":{}}')
+          echo "$health_action" | grep -q '"status":"success"' || { echo "❌ health action"; fail=1; }
+          patch_action=$(execute patch '{"capabilityId":"repo.patch","input":"corrige le repo","options":{}}')
+          echo "$patch_action" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(x.status!=="disabled"||x.mode!=="disabled"||!/Aucune modification/.test(x.limitations.join(" ")))process.exit(1)})' || { echo "❌ repo.patch guard"; fail=1; }
           version=$(curl -sf http://127.0.0.1:4000/api/version)
           echo "$version" | grep -q '"app":"TAMS"' || { echo "❌ version app absente"; fail=1; }
           echo "$version" | grep -q '"commit":"unknown"' && { echo "❌ version commit inconnue"; fail=1; } || echo "✅ version commit exposée"
