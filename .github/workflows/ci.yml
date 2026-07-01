@@ -87,8 +87,8 @@ jobs:
         run: |
           pnpm --filter @workspace/scripts dev-runtime:mission2 | tee mission2-report.json
           grep -q '"verdict": "PASS"' mission2-report.json
-          test -f .tams/runtime-chat-note.md
-          grep -q 'pilotable par tâche' .tams/runtime-chat-note.md
+          test -f docs/runtime-chat-note.md
+          grep -q 'pilotable par tâche' docs/runtime-chat-note.md
       - name: Smoke test (démarrage réel + endpoints)
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
