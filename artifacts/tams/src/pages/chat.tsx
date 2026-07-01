@@ -1326,7 +1326,7 @@ export default function Chat() {
           if (!studioResponse.ok) throw new Error(`Studio HTTP ${studioResponse.status}`);
           const plan = await studioResponse.json() as {
             creativeBrief?: string; scriptPlan?: string; storyboardPlan?: string;
-            assetPlan?: unknown[]; productionSteps?: unknown[]; exportTargets?: string[];
+            assetPlan?: unknown[]; productionSteps?: Array<{ order?: number; name?: string; notes?: string }>; exportTargets?: string[];
             honestLimitations?: string[]; missingCapabilities?: string[];
           };
           const videoPrompt = [
@@ -1341,9 +1341,12 @@ export default function Chat() {
             plan.creativeBrief && `BRIEF\n${plan.creativeBrief}`,
             plan.scriptPlan && `SCRIPT / PLAN DE TOURNAGE\n${plan.scriptPlan}`,
             plan.storyboardPlan && `STORYBOARD\n${plan.storyboardPlan}`,
+            "SHOT LIST\n1. Gros plan produit/matière.\n2. Mise en situation activewear.\n3. Mouvement en plan large.\n4. Détail coupe et confort.\n5. Résultat puis CTA.",
             `PROMPT KLING / RUNWAY / VEO\n${videoPrompt}`,
+            "CAPTIONS\nBouge librement. Reste toi-même. Découvre la collection. #activewear #tiktokfashion #movement",
+            plan.productionSteps?.length ? `PLAN DE MONTAGE\n${plan.productionSteps.map(step => `${step.order ?? "-"}. ${step.name ?? "Étape"} — ${step.notes ?? ""}`).join("\n")}` : "",
             plan.exportTargets?.length ? `EXPORTS\n- ${plan.exportTargets.join("\n- ")}` : "",
-            `LIMITES\nLa génération vidéo réelle n'est pas encore connectée.`,
+            "LIMITES\nLa génération vidéo réelle n’est pas encore connectée. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.",
             ...(plan.honestLimitations ?? []),
             ...(plan.missingCapabilities ?? []),
             "PROCHAINE ACTION\nOuvrez Studio pour ajuster le plan ou copiez le prompt dans Kling, Runway ou Veo.",

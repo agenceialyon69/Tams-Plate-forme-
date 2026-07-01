@@ -37,7 +37,14 @@ jobs:
           if grep -rnE "from \"openai\"|from 'openai'|import\(['\"]openai['\"]\)|require\(['\"]openai['\"]\)" artifacts/api-server/src >/dev/null 2>&1; then echo "❌ SDK openai réintroduit (free-first only — voir lib/ai.ts)"; fail=1; else echo "✅ pas de SDK openai (free-first)"; fi
           need artifacts/tams/src/pages/chat.tsx "/api/kernel/route-intent" "Chat route via Kernel"
           need artifacts/tams/src/pages/chat.tsx "/api/studio/orchestrate" "Chat route vidéo via Studio"
-          need artifacts/tams/src/pages/chat.tsx "La génération vidéo réelle n'est pas encore connectée" "limitation vidéo honnête"
+          need artifacts/tams/src/pages/chat.tsx "La génération vidéo réelle n’est pas encore connectée" "limitation vidéo honnête"
+          need artifacts/tams/src/pages/chat.tsx "SHOT LIST" "Chat affiche shot list"
+          need artifacts/tams/src/pages/chat.tsx "CAPTIONS" "Chat affiche captions"
+          need artifacts/tams/src/pages/studio.tsx "Plan vidéo prêt" "Studio affiche résultat utilisateur"
+          need artifacts/tams/src/pages/capabilities.tsx "Exécutable maintenant" "Capabilities nuance exécution"
+          need artifacts/tams/src/pages/systeme.tsx "/api/version" "Système affiche version"
+          need artifacts/api-server/src/routes/index.ts "versionRouter" "route version montée"
+          need artifacts/api-server/src/lib/agents.ts "SCAN → RISQUES → PLAN → PATCH PROPOSÉ → TESTS → PR" "Dev Agent read-only utile"
           if grep -q "example.com" artifacts/tams/src/pages/chat.tsx; then echo "❌ faux lien example.com dans Chat"; fail=1; else echo "✅ aucun faux lien Chat"; fi
           # VIS : routes critiques RÉELLEMENT montées (sinon page = 404, ex Workflows).
           for r in workflowsRouter studioVideoRouter studioMusicRouter integrationsRouter selfDevRouter devRuntimeRouter; do
@@ -103,6 +110,7 @@ jobs:
           fail=0
           check() { c=$(curl -s -o /dev/null -w '%{http_code}' "$1"); [ "$c" = "$2" ] && echo "✅ $1 $c" || { echo "❌ $1 $c≠$2"; fail=1; }; }
           check http://127.0.0.1:4000/api/healthz 200
+          check http://127.0.0.1:4000/api/version 200
           check http://127.0.0.1:4000/ 200
           check http://127.0.0.1:4000/api/agents 200
           check http://127.0.0.1:4000/api/conversations 200
@@ -115,6 +123,11 @@ jobs:
           check http://127.0.0.1:4000/api/registry/capabilities 200
           check http://127.0.0.1:4000/api/registry/providers 200
           check http://127.0.0.1:4000/api/chat/capabilities 200
+          version=$(curl -sf http://127.0.0.1:4000/api/version)
+          echo "$version" | grep -q '"app":"TAMS"' || { echo "❌ version app absente"; fail=1; }
+          echo "$version" | grep -q '"commit":"unknown"' && { echo "❌ version commit inconnue"; fail=1; } || echo "✅ version commit exposée"
+          capabilities=$(curl -sf http://127.0.0.1:4000/api/registry/capabilities)
+          echo "$capabilities" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s).capabilities;const v=c.find(x=>x.id==="video.generate");const p=c.find(x=>x.id==="repo.patch");if(v?.status!=="planned"||v?.executableNow!==false||p?.readOnly!==true||p?.executableNow!==false)process.exit(1)})' || { echo "❌ vérité opérationnelle Capabilities"; fail=1; }
           studio=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"objective":"Vidéo TikTok activewear","targetPlatform":"tiktok","format":"short_video"}' http://127.0.0.1:4000/api/studio/orchestrate)
           echo "$studio" | grep -q '"scriptPlan"' || { echo "❌ Studio sans script"; fail=1; }
           echo "$studio" | grep -q '"storyboardPlan"' || { echo "❌ Studio sans storyboard"; fail=1; }
@@ -127,5 +140,8 @@ jobs:
           echo "$agents" | grep -qi 'STORYBOARD' || { echo "❌ storyboard Agents absent"; fail=1; }
           echo "$agents" | grep -qi 'KLING / RUNWAY / VEO' || { echo "❌ prompt vidéo externe absent"; fail=1; }
           echo "$agents" | grep -q 'La génération vidéo réelle n’est pas encore connectée' || { echo "❌ limitation honnête absente"; fail=1; }
+          devagent=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"task":"Analyse mon repo et propose les corrections à faire."}' http://127.0.0.1:4000/api/agents/orchestrate)
+          echo "$devagent" | grep -q 'SCAN → RISQUES → PLAN → PATCH PROPOSÉ → TESTS → PR' || { echo "❌ Dev Agent plan absent"; fail=1; }
+          echo "$devagent" | grep -qi 'mode plan uniquement' || { echo "❌ Dev Agent limite absente"; fail=1; }
           [ "$(curl -s http://127.0.0.1:4000/api/tasks | head -c1)" = "[" ] && echo "✅ tasks tableau" || { echo "❌ tasks pas tableau"; fail=1; }
           exit $fail

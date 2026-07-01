@@ -2624,8 +2624,9 @@ function SystemeTab() {
     health: Record<string, any> | null;
     readiness: Record<string, any> | null;
     registry: Record<string, any> | null;
+    version: Record<string, any> | null;
     error: string | null;
-  }>({ health: null, readiness: null, registry: null, error: null });
+  }>({ health: null, readiness: null, registry: null, version: null, error: null });
 
   const fetchPlatformReality = async () => {
     try {
@@ -2633,12 +2634,14 @@ function SystemeTab() {
         fetch("/api/healthz"),
         fetch("/api/system/readiness"),
         fetch("/api/registry/status"),
+        fetch("/api/version"),
       ]);
-      if (responses.some(response => !response.ok)) {
+      const [healthResponse, readinessResponse, registryResponse, versionResponse] = responses;
+      if (!healthResponse.ok || !registryResponse.ok || !versionResponse.ok || ![200, 503].includes(readinessResponse.status)) {
         throw new Error(responses.map(response => `HTTP ${response.status}`).join(", "));
       }
-      const [healthData, readinessData, registryData] = await Promise.all(responses.map(response => response.json()));
-      setPlatformReality({ health: healthData, readiness: readinessData, registry: registryData, error: null });
+      const [healthData, readinessData, registryData, versionData] = await Promise.all(responses.map(response => response.json()));
+      setPlatformReality({ health: healthData, readiness: readinessData, registry: registryData, version: versionData, error: null });
     } catch (error) {
       setPlatformReality(current => ({ ...current, error: error instanceof Error ? error.message : "Statut indisponible" }));
     }
@@ -2791,8 +2794,18 @@ function SystemeTab() {
             <div>Railway détecté : <strong>{platformReality.readiness.checks?.railway?.status === "detected" ? "oui" : "non"}</strong></div>
             <div className="sm:col-span-2">Providers : <strong>{platformReality.readiness.checks?.providers_configured?.status ?? "non communiqué"}</strong></div>
             <div className="sm:col-span-2">Registry : <strong>{platformReality.registry?.status ?? "disponible"}</strong></div>
+            <div className="sm:col-span-2 rounded-lg bg-background/60 p-2 font-mono">
+              Version : <strong>{platformReality.version?.commit ?? "unknown"}</strong>
+              <span className="block text-muted-foreground">Environnement : {platformReality.version?.environment ?? "unknown"} · Build : {platformReality.version?.buildTime ?? "unknown"} · Frontend : {platformReality.version?.frontendBuild ?? "unknown"}</span>
+            </div>
+            <div>FFmpeg : <strong>{platformReality.readiness.checks?.ffmpeg?.status ?? "non communiqué"}</strong></div>
+            <div>Actions dangereuses : <strong>{platformReality.readiness.checks?.unsafe_actions?.status ?? "non communiqué"}</strong></div>
+            <div className="sm:col-span-2">Configuration manquante : <strong>{platformReality.readiness.checks?.providers_missing?.status ?? "aucune information"}</strong></div>
             {(platformReality.readiness.limitations ?? []).length > 0 && (
               <div className="sm:col-span-2 text-muted-foreground">Limites : {(platformReality.readiness.limitations as string[]).join(" · ")}</div>
+            )}
+            {(platformReality.readiness.recommendedFixes ?? []).length > 0 && (
+              <div className="sm:col-span-2 text-muted-foreground">Correctifs recommandés : {(platformReality.readiness.recommendedFixes as string[]).join(" · ")}</div>
             )}
           </div>
         ) : (

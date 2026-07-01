@@ -121,6 +121,11 @@ router.get("/system/readiness", async (_req, res) => {
       "Remotion: planned, not yet connected",
       "video.generate: planned only",
     ],
+    recommendedFixes: [
+      ...missingProviders.map(provider => `Configure ${provider} only if this provider is required`),
+      ...(runtimeEnabled() ? ["Disable TAMS_DEV_RUNTIME_ENABLED in production until conversation ownership is enforced"] : []),
+      ...(!isRailway ? ["Verify Railway runtime variables and deployment metadata"] : []),
+    ],
   });
 });
 

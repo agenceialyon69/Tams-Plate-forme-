@@ -1494,7 +1494,7 @@ function VideoForm({ onCancel, onSave, isLoading, projects }: { onCancel: () => 
   const [prompt, setPrompt] = useState("");
   const [generatedScript, setGeneratedScript] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"url" | "script">("url");
+  const [activeTab, setActiveTab] = useState<"url" | "script">("script");
   const [projectId, setProjectId] = useState("");
   const { toast } = useToast();
 
@@ -1525,12 +1525,15 @@ function VideoForm({ onCancel, onSave, isLoading, projects }: { onCancel: () => 
         section("CREATIVE BRIEF", plan.creativeBrief),
         section("SCRIPT", plan.scriptPlan),
         section("STORYBOARD", plan.storyboardPlan),
+        "SHOT LIST\n1. Gros plan matière.\n2. Produit porté en mouvement.\n3. Plan large dynamique.\n4. Détail coupe/confort.\n5. CTA final.",
+        section("PROMPT KLING / RUNWAY / VEO", [plan.creativeBrief, plan.scriptPlan, plan.storyboardPlan, "Vidéo native, réaliste, sans promesse produit non vérifiée."].filter(Boolean).join("\\n\\n")),
+        "CAPTIONS\nBouge librement. Reste toi-même. Découvre la collection. #activewear #tiktokfashion",
         section("ASSET PLAN", plan.assetPlan),
         section("EDITING / PRODUCTION PLAN", plan.productionSteps),
         section("EXPORT TARGETS", plan.exportTargets),
         section("LIMITATIONS", plan.honestLimitations),
         section("NEXT STEPS", plan.validationChecklist),
-        "La génération vidéo réelle n'est pas encore connectée.",
+        "La génération vidéo réelle n’est pas encore connectée. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.",
       ].filter(Boolean).join("\n\n"));
       setSuggestions([]);
       setActiveTab("script");
@@ -1593,6 +1596,9 @@ function VideoForm({ onCancel, onSave, isLoading, projects }: { onCancel: () => 
                 </button>
               ))}
             </div>
+          )}
+          {generatedScript && (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300">Plan vidéo prêt — aucun fichier média n’est présenté comme généré.</div>
           )}
           {generatedScript && (
             <textarea rows={6} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-violet-500/30 focus:border-violet-500/30 resize-none leading-relaxed font-mono transition-all" value={generatedScript} onChange={e => setGeneratedScript(e.target.value)} />

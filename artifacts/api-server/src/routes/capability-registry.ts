@@ -652,7 +652,9 @@ router.get("/registry/capabilities", (_req, res) => {
       ...capability,
       declaredInCatalog: true,
       providerConfigured: capability.providers.some(provider => ["available", "configured"].includes(providerOperationalStatus(provider))),
-      executableNow: capability.status === "available" && capability.providers.every(provider => !["missing_config", "planned", "requires_local", "disabled"].includes(providerOperationalStatus(provider))),
+      executableNow: capability.status === "available"
+        && capability.id !== "repo.patch"
+        && (capability.providers.length === 0 || capability.providers.some(provider => ["available", "configured"].includes(providerOperationalStatus(provider)))),
       plannedOnly: capability.status === "planned",
       requiresLocal: capability.providers.some(provider => providerOperationalStatus(provider) === "requires_local"),
       readOnly: capability.id.startsWith("repo.") || capability.id === "deploy.check",
