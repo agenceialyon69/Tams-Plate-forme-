@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { StudioOrchestrator } from "../lib/studio/studio-orchestrator";
+import { StudioOrchestrator } from "./studio-orchestrator";
 
 const orchestrator = new StudioOrchestrator();
 
