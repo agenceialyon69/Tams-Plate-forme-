@@ -272,6 +272,10 @@ export default function Agents() {
           </div>
         </div>
 
+        <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          Mode plan : les agents produisent des analyses et des plans structurés via le backend. Ils ne réalisent aucune action externe ni autonome sans outil explicitement connecté.
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-1 mt-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
           {[
@@ -342,7 +346,7 @@ export default function Agents() {
                   className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {running ? "En cours…" : "Lancer"}
+                  {running ? "En cours…" : "Créer le plan"}
                 </button>
               </div>
             </div>
@@ -613,7 +617,7 @@ export default function Agents() {
                   className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   {pipelineRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                  {pipelineRunning ? "Exécution…" : "Exécuter le pipeline"}
+                  {pipelineRunning ? "Préparation…" : "Créer le plan du pipeline"}
                 </button>
               </div>
             </div>
