@@ -4,6 +4,7 @@
  */
 
 import { Router } from "express";
+import { existsSync } from "node:fs";
 
 const router = Router();
 
@@ -16,7 +17,7 @@ export interface Provider {
   id: string;
   name: string;
   type: "free" | "freemium" | "paid";
-  status: "available" | "planned" | "experimental" | "rate_limited" | "disabled";
+  status: "available" | "configured" | "missing_config" | "planned" | "experimental" | "rate_limited" | "requires_local" | "read_only" | "disabled";
   baseUrl?: string;
   requiresAuth: boolean;
   authType?: "api_key" | "oauth" | "none";
@@ -231,6 +232,35 @@ const PROVIDERS: Record<string, Provider> = {
     notes: "Repo audit/validate — read-only operations only",
   },
 };
+
+function providerOperationalStatus(provider: Provider): Provider["status"] {
+  const configured: Record<string, boolean> = {
+    groq: !!process.env.GROQ_API_KEY,
+    gemini: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+    huggingface: !!(process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY),
+    huggingface_image: !!(process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY),
+    openrouter: !!(process.env.OPENROUTER_API_KEY || process.env.OPENROUTE_API_KEY),
+    github: !!process.env.GITHUB_TOKEN,
+    railway: !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME || process.env.RAILWAY_TOKEN),
+  };
+  if (provider.id in configured) return configured[provider.id] ? "configured" : "missing_config";
+  if (provider.id === "ffmpeg") {
+    return existsSync("/usr/bin/ffmpeg") || existsSync("/usr/local/bin/ffmpeg") || !!process.env.RAILWAY_ENVIRONMENT
+      ? "available"
+      : "missing_config";
+  }
+  if (["comfyui", "whisper", "piper", "musicgen", "ollama"].includes(provider.id)) return "requires_local";
+  return provider.status;
+}
+
+function operationalProvider(provider: Provider): Provider {
+  const status = providerOperationalStatus(provider);
+  return {
+    ...provider,
+    status,
+    notes: `${provider.notes ?? ""} Operational status: ${status}.`.trim(),
+  };
+}
 
 // ─── Capability Registry ────────────────────────────────────────────────────
 
@@ -618,7 +648,16 @@ export function getEnabledProviderIds(): string[] {
 
 router.get("/registry/capabilities", (_req, res) => {
   res.json({
-    capabilities: CAPABILITIES,
+    capabilities: CAPABILITIES.map(capability => ({
+      ...capability,
+      declaredInCatalog: true,
+      providerConfigured: capability.providers.some(provider => ["available", "configured"].includes(providerOperationalStatus(provider))),
+      executableNow: capability.status === "available" && capability.providers.every(provider => !["missing_config", "planned", "requires_local", "disabled"].includes(providerOperationalStatus(provider))),
+      plannedOnly: capability.status === "planned",
+      requiresLocal: capability.providers.some(provider => providerOperationalStatus(provider) === "requires_local"),
+      readOnly: capability.id.startsWith("repo.") || capability.id === "deploy.check",
+      disabled: capability.status === "disabled",
+    })),
     total: CAPABILITIES.length,
     available: CAPABILITIES.filter(c => c.status === "available").length,
     planned: CAPABILITIES.filter(c => c.status === "planned").length,
@@ -636,7 +675,7 @@ router.get("/registry/capabilities/:id", (req, res) => {
 
 router.get("/registry/providers", (_req, res) => {
   res.json({
-    providers: Object.values(PROVIDERS),
+    providers: Object.values(PROVIDERS).map(operationalProvider),
     total: Object.keys(PROVIDERS).length,
     available: Object.values(PROVIDERS).filter(p => p.status === "available").length,
     planned: Object.values(PROVIDERS).filter(p => p.status === "planned").length,
@@ -653,10 +692,14 @@ router.get("/registry/providers/:id", (req, res) => {
 });
 
 router.get("/registry/status", (_req, res) => {
-  const freeProviders = Object.values(PROVIDERS).filter(p => p.type === "free");
-  const availableFree = freeProviders.filter(p => p.status === "available");
+  const operationalProviders = Object.values(PROVIDERS).map(operationalProvider);
+  const freeProviders = operationalProviders.filter(p => p.type === "free");
+  const availableFree = freeProviders.filter(p => ["available", "configured"].includes(p.status));
+  const missingConfiguration = operationalProviders.filter(p => p.status === "missing_config").map(p => p.id);
+  const operationalStatus = availableFree.length === 0 ? "offline" : missingConfiguration.length > 0 ? "partial" : "online";
 
   res.json({
+    status: operationalStatus,
     strategy: "free-first",
     principle: "Always prefer free/local providers over paid SaaS",
     providers: {
@@ -664,8 +707,9 @@ router.get("/registry/status", (_req, res) => {
       free: freeProviders.length,
       freemium: Object.values(PROVIDERS).filter(p => p.type === "freemium").length,
       paid: Object.values(PROVIDERS).filter(p => p.type === "paid").length,
-      available: Object.values(PROVIDERS).filter(p => p.status === "available").length,
-      planned: Object.values(PROVIDERS).filter(p => p.status === "planned").length,
+      available: operationalProviders.filter(p => ["available", "configured"].includes(p.status)).length,
+      planned: operationalProviders.filter(p => ["planned", "requires_local"].includes(p.status)).length,
+      missingConfig: missingConfiguration.length,
     },
     capabilities: {
       total: CAPABILITIES.length,
@@ -673,6 +717,7 @@ router.get("/registry/status", (_req, res) => {
       planned: CAPABILITIES.filter(c => c.status === "planned").length,
     },
     freeProvidersAvailable: availableFree.map(p => p.id),
+    missingConfiguration,
     limitations: [
       "video.generate: Remotion planned, not yet connected",
       "audio.music.generate: MusicGen planned, requires local GPU — NOT available on Railway",

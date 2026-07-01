@@ -165,11 +165,12 @@ function providers(): Provider[] {
   }
 
   // 5. OpenRouter — modèles `:free` uniquement (jamais de modèle payant).
-  if (process.env.OPENROUTER_API_KEY) {
+  const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.OPENROUTE_API_KEY;
+  if (openRouterApiKey) {
     list.push({
       name: "openrouter",
       baseUrl: "https://openrouter.ai/api/v1",
-      apiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: openRouterApiKey,
       models: {
         chat: "meta-llama/llama-3.3-70b-instruct:free",
         fast: "meta-llama/llama-3.2-3b-instruct:free",

@@ -1303,6 +1303,56 @@ export default function Chat() {
     let doneReceived = false;
 
     try {
+      const intentResponse = await fetch(`${API_BASE}/api/kernel/route-intent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: content, context: { conversationId: selectedId } }),
+        signal: abortRef.current.signal,
+      });
+      if (intentResponse.ok) {
+        const intent = await intentResponse.json() as { intent?: string; route?: { honestNote?: string }; missingPrerequisites?: string[] };
+        if (intent.intent === "generate_video" || intent.intent === "studio_create") {
+          setThinkingSteps(["Routage Kernel...", "Préparation du plan Studio..."]);
+          const studioResponse = await fetch(`${API_BASE}/api/studio/orchestrate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              objective: content,
+              targetPlatform: /tiktok/i.test(content) ? "tiktok" : /instagram/i.test(content) ? "instagram" : /youtube/i.test(content) ? "youtube" : /linkedin/i.test(content) ? "linkedin" : "generic",
+              format: "short_video",
+            }),
+            signal: abortRef.current.signal,
+          });
+          if (!studioResponse.ok) throw new Error(`Studio HTTP ${studioResponse.status}`);
+          const plan = await studioResponse.json() as {
+            creativeBrief?: string; scriptPlan?: string; storyboardPlan?: string;
+            assetPlan?: unknown[]; productionSteps?: unknown[]; exportTargets?: string[];
+            honestLimitations?: string[]; missingCapabilities?: string[];
+          };
+          const videoPrompt = [
+            "Create a production-ready video from this brief:",
+            plan.creativeBrief,
+            plan.scriptPlan,
+            plan.storyboardPlan,
+            "Respect the target platform, pacing, shots and CTA. Do not invent product claims.",
+          ].filter(Boolean).join("\n\n");
+          setStreamingContent([
+            "Plan vidéo préparé par TAMS Studio",
+            plan.creativeBrief && `BRIEF\n${plan.creativeBrief}`,
+            plan.scriptPlan && `SCRIPT / PLAN DE TOURNAGE\n${plan.scriptPlan}`,
+            plan.storyboardPlan && `STORYBOARD\n${plan.storyboardPlan}`,
+            `PROMPT KLING / RUNWAY / VEO\n${videoPrompt}`,
+            plan.exportTargets?.length ? `EXPORTS\n- ${plan.exportTargets.join("\n- ")}` : "",
+            `LIMITES\nLa génération vidéo réelle n'est pas encore connectée.`,
+            ...(plan.honestLimitations ?? []),
+            ...(plan.missingCapabilities ?? []),
+            "PROCHAINE ACTION\nOuvrez Studio pour ajuster le plan ou copiez le prompt dans Kling, Runway ou Veo.",
+          ].filter(Boolean).join("\n\n"));
+          doneReceived = false;
+          return;
+        }
+      }
+
       const runtimeCommand = matchRuntimeCommand(content);
       if (runtimeCommand) {
         setThinkingSteps(["Authentification Supabase...", "Exécution sécurisée du runtime..."]);
@@ -1384,7 +1434,7 @@ export default function Chat() {
         ]).catch(() => {});
       }
       setIsStreaming(false);
-      setStreamingContent("");
+      if (doneReceived) setStreamingContent("");
       setToolCalls([]);
       setPendingUser(null);
       setThinkingSteps([]);
