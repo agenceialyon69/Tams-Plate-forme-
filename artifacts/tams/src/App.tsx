@@ -13,6 +13,7 @@ const Travail = lazy(() => import("@/pages/travail"));
 const Vie = lazy(() => import("@/pages/vie"));
 const Studio = lazy(() => import("@/pages/studio"));
 const Systeme = lazy(() => import("@/pages/systeme"));
+const Capabilities = lazy(() => import("@/pages/capabilities"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function LoadingFallback() {
@@ -47,6 +48,7 @@ function Router() {
           <Route path="/vie" component={Vie} />
           <Route path="/studio" component={Studio} />
           <Route path="/systeme" component={Systeme} />
+          <Route path="/capabilities" component={Capabilities} />
           <Route component={NotFound} />
         </Switch>
       </ErrorBoundary>
