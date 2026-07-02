@@ -528,10 +528,10 @@ async function dbHealth() {
   catch { return { status: "degraded", latencyMs: Date.now() - started }; }
 }
 router.get("/ops/status", async (_req, res) => {
-  const [database, jobCounts] = await Promise.all([
-    dbHealth(),
-    rows(`SELECT status,COUNT(*)::int AS count FROM jobs GROUP BY status`).catch(() => []),
-  ]);
+  const database = await dbHealth();
+  const jobCounts: Array<Record<string, any>> = await rows(
+    `SELECT status,COUNT(*)::int AS count FROM jobs GROUP BY status`,
+  ).catch((): Array<Record<string, any>> => []);
   const integrations = integrationStatuses();
   const degraded = database.status !== "healthy" || jobCounts.some(item => ["fail", "timeout"].includes(item.status) && Number(item.count) > 0);
   return res.json({ ok: true, status: degraded ? "degraded" : "healthy", commit: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA ?? "unknown", environment: process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.NODE_ENV ?? "unknown", database, jobs: jobCounts, integrations, secretsExposed: false, generatedAt: nowIso() });
