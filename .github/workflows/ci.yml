@@ -121,7 +121,7 @@ jobs:
           check http://127.0.0.1:4000/api/workflows 200
           check http://127.0.0.1:4000/api/system/validate 200
           check http://127.0.0.1:4000/api/system/selftest 200
-          check http://127.0.0.1:4000/api/system/export 200
+          check http://127.0.0.1:4000/api/system/export 401
           check http://127.0.0.1:4000/api/dev-agent/status 200
           check http://127.0.0.1:4000/api/dev-agent/validation/status 200
           check http://127.0.0.1:4000/api/dev-agent/ci/status 200
