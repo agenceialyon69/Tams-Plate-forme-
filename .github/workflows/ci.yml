@@ -40,6 +40,9 @@ jobs:
           need artifacts/tams/src/pages/chat.tsx "La génération vidéo réelle n’est pas encore connectée" "limitation vidéo honnête"
           need artifacts/tams/src/pages/chat.tsx "SHOT LIST" "Chat affiche shot list"
           need artifacts/tams/src/pages/chat.tsx "CAPTIONS" "Chat affiche captions"
+          need artifacts/tams/src/pages/chat.tsx "durableLocalMessages" "Chat conserve les messages locaux"
+          need artifacts/tams/src/pages/chat.tsx 'appendDurableMessage(selectedId, "user", content)' "question utilisateur durable avant fetch"
+          need artifacts/tams/src/pages/chat.tsx "Réponse vide du serveur" "Chat traite une réponse vide comme erreur"
           need artifacts/tams/src/pages/studio.tsx "Plan vidéo prêt" "Studio affiche résultat utilisateur"
           need artifacts/tams/src/pages/capabilities.tsx "Action UI" "Capabilities actionnables"
           need artifacts/tams/src/pages/capabilities.tsx "/api/capabilities/execute" "Capabilities appelle l'Action Bus"
@@ -165,3 +168,11 @@ jobs:
           echo "$devagent" | grep -qi 'mode plan uniquement' || { echo "❌ Dev Agent limite absente"; fail=1; }
           [ "$(curl -s http://127.0.0.1:4000/api/tasks | head -c1)" = "[" ] && echo "✅ tasks tableau" || { echo "❌ tasks pas tableau"; fail=1; }
           exit $fail
+
+      - name: Installer Chromium pour le test Chat
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E navigateur — pages critiques et persistance Chat
+        run: |
+          NODE_ENV=production PORT=4001 node ./artifacts/api-server/dist/index.mjs > /tmp/tams-e2e.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4001/api/healthz >/dev/null && break; sleep 1; done
+          E2E_BASE_URL=http://127.0.0.1:4001 pnpm run e2e
