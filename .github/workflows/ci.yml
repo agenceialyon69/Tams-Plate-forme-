@@ -39,7 +39,9 @@ jobs:
           pnpm --filter @workspace/scripts dev-runtime:mission2
           pnpm --filter @workspace/scripts life-os:scenarios
           grep -q '"verdict": "PASS"' life-os-scenarios-report.json
-      - name: Smoke provider, recovery and Life OS v5 bridges
+          pnpm --filter @workspace/scripts dev-agent:benchmark -- --smoke
+          grep -q '"verdict": "PASS"' dev-agent-benchmark-report.json
+      - name: Smoke provider, recovery, Life OS and Dev Agent Pro bridges
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:4000/api/healthz >/dev/null && break; sleep 1; done
@@ -75,6 +77,21 @@ jobs:
           curl -sf "http://127.0.0.1:4000/api/jobs/$job_id" | grep -q "$job_id"
           curl -sf "http://127.0.0.1:4000/api/jobs/$job_id/logs" | grep -q '"logs"'
           curl -sf http://127.0.0.1:4000/api/ops/status | grep -q '"secretsExposed":false'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/status | grep -q 'dev_agent_pro_v5_foundation'
+          sandbox=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"mission":"ci smoke","mode":"dry_run"}' http://127.0.0.1:4000/api/dev-agent/pro/sandbox)
+          sandbox_id=$(echo "$sandbox" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).sandbox.id))')
+          curl -sf -X POST -H 'Content-Type: application/json' -d '{"command":"git status","dryRun":true}' "http://127.0.0.1:4000/api/dev-agent/pro/sandbox/$sandbox_id/command" | grep -q '"status":"success"'
+          curl -s -o /tmp/blocked.txt -w "%{http_code}" -X POST -H 'Content-Type: application/json' -d '{"command":"rm -rf /","dryRun":true}' "http://127.0.0.1:4000/api/dev-agent/pro/sandbox/$sandbox_id/command" | grep -q '403'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/repo-index/status | grep -q 'indexed'
+          curl -sf 'http://127.0.0.1:4000/api/dev-agent/pro/repo-index/search?q=life-os%20coach' | grep -q 'life-os'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/plugins | grep -q 'shell-sandbox'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/subagents | grep -q 'Reviewer Agent'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/diff | grep -q 'empty_state'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/benchmark | grep -q '30'
+          curl -sf http://127.0.0.1:4000/api/dev-agent/pro/sessions | grep -q 'sessions'
+          plan=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"title":"ci plan","commands":["pnpm run typecheck"]}' http://127.0.0.1:4000/api/dev-agent/pro/command-plan)
+          plan_id=$(echo "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).plan.id))')
+          curl -sf -X POST "http://127.0.0.1:4000/api/dev-agent/pro/command-plan/$plan_id/run" | grep -q '"status":"success"'
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
