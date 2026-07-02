@@ -37,6 +37,8 @@ jobs:
           pnpm --filter @workspace/scripts test
           pnpm --filter @workspace/scripts dev-runtime:scenario
           pnpm --filter @workspace/scripts dev-runtime:mission2
+          pnpm --filter @workspace/scripts life-os:scenarios
+          grep -q '"verdict": "PASS"' life-os-scenarios-report.json
       - name: Smoke provider, recovery and Life OS v5 bridges
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
@@ -54,6 +56,25 @@ jobs:
           curl -sf http://127.0.0.1:4000/api/life-os/v5/plan | grep -q 'nextActions'
           curl -sf -X POST -H 'Content-Type: application/json' -d '{"text":"J’ai une facture urgente et je suis fatigué","persist":false}' http://127.0.0.1:4000/api/life-os/v5/capture | grep -q 'admin_finance\|health'
           curl -sf -X POST -H 'Content-Type: application/json' -d '{"decision":"Dois-je prendre une grosse décision projet cette semaine ?","energy":40,"urgency":50}' http://127.0.0.1:4000/api/life-os/v5/red-team | grep -q 'redFlags'
+          curl -sf http://127.0.0.1:4000/api/permissions/actions | grep -q 'email.send'
+          curl -sf http://127.0.0.1:4000/api/jobs | grep -q '"jobs"'
+          curl -sf http://127.0.0.1:4000/api/life-os/history/timeline | grep -q '"timeline"'
+          curl -sf http://127.0.0.1:4000/api/memory-graph/v2 | grep -q '"nodes"'
+          curl -sf http://127.0.0.1:4000/api/life-os/automations | grep -q 'Daily Life Briefing'
+          curl -sf http://127.0.0.1:4000/api/life-os/integrations/gmail/status | grep -q '"status":"missing_config"'
+          curl -sf http://127.0.0.1:4000/api/life-os/integrations/calendar/status | grep -q '"status":"missing_config"'
+          coach=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"prompt":"Je suis fatigué mais je veux lancer trois projets","energy":25}' http://127.0.0.1:4000/api/life-os/coach)
+          echo "$coach" | grep -q '"factsKnown"'
+          echo "$coach" | grep -q '"assumptions"'
+          echo "$coach" | grep -q '"recommendation"'
+          echo "$coach" | grep -q '"sources"'
+          echo "$coach" | grep -q '"limits"'
+          curl -sf -X POST -H 'Content-Type: application/json' -d '{"prompt":"Dois-je accélérer mon projet malgré ma fatigue ?","energy":20}' http://127.0.0.1:4000/api/life-os/coach/red-team | grep -q '"redTeamCounterArguments"'
+          job=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"type":"manual","input":{"scenario":"ci"},"dryRun":true}' http://127.0.0.1:4000/api/jobs)
+          job_id=$(echo "$job" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).job.id))')
+          curl -sf "http://127.0.0.1:4000/api/jobs/$job_id" | grep -q "$job_id"
+          curl -sf "http://127.0.0.1:4000/api/jobs/$job_id/logs" | grep -q '"logs"'
+          curl -sf http://127.0.0.1:4000/api/ops/status | grep -q '"secretsExposed":false'
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
