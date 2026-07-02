@@ -5,8 +5,8 @@
 ## Source de vérité
 
 Dépôt : `https://github.com/agenceialyon69/Tams-Plate-forme-.git`  
-Branche : `main`  
-Dernier audit architectural : commit `96fb610` (2026-06-26)
+Branche de livraison : `main`  
+Dernier registre d'implémentation : `37_IMPLEMENTATION_LEDGER_2026-07-02.md`
 
 ## Index constitution
 
@@ -15,8 +15,8 @@ Dernier audit architectural : commit `96fb610` (2026-06-26)
 | 00 | `00_READ_FIRST.md` | Ce fichier — index et règles d'entrée |
 | 01 | `01_MISSION.md` | Mission, utilisateur unique, règle finale |
 | 02 | `02_PRODUCT_VISION.md` | Vision produit, modules prioritaires |
-| 03 | `03_NORTH_STAR.md` | Les 10 capacités indispensables (NOUVEAU) |
-| 04 | `04_10_PILLARS.md` | Détail de chaque pilier (NOUVEAU) |
+| 03 | `03_NORTH_STAR.md` | Les capacités indispensables |
+| 04 | `04_10_PILLARS.md` | Détail de chaque pilier |
 | 05 | `05_ENGINEERING_RULES.md` | Règles d'exécution ingénierie |
 | 06 | `06_GITHUB_STANDARD.md` | Workflow GitHub, commits, SHA |
 | 07 | `07_RAILWAY_STANDARD.md` | Déploiement Railway, build, env vars |
@@ -47,20 +47,35 @@ Dernier audit architectural : commit `96fb610` (2026-06-26)
 | 32 | `32_FINAL_ACCEPTANCE.md` | Critères d'acceptation finale |
 | 33 | `33_RED_TEAM_AUDIT_2026-06-26.md` | Audit Red Team initial |
 | 34 | `34_RED_TEAM_REPORT_2026-06-26_FIXES.md` | Audit post-corrections |
-| 35 | `35_STATE.md` | **État vivant** : fait / en cours / reste (LIRE EN PREMIER) |
-| 36 | `36_FREE_STACK.md` | **Stack gratuite obligatoire** (zéro payant) |
+| 35 | `35_STATE.md` | État vivant : fait / en cours / reste |
+| 36 | `36_FREE_STACK.md` | Stack gratuite obligatoire |
+| 37 | `37_IMPLEMENTATION_LEDGER_2026-07-02.md` | Registre des lots réellement construits et validés |
 
 ## Les 11 piliers
-TAMS = AI Operating System **personnel**. Les 11 piliers (détail : `04_10_PILLARS.md`) :
-1. Chief of Staff · 2. Chat OS · 3. Agent System · 4. Memory Graph ·
-5. Decision OS · 6. Workspace · 7. Studio · 8. AI Router · 9. Mobile Premium ·
-10. Platform OS · **11. Personal Life OS** (santé, famille, finances, vie).
-> Chaque ligne de code doit améliorer **au moins un pilier**. Sinon, ne pas la développer.
 
-## Règles d'entrée (non négociables)
-1. **Lire `35_STATE.md`** (avancement) avant de commencer ; le mettre à jour après chaque lot.
-2. **Une seule branche : `main`** (autodeploy Railway). Pas de branches divergentes.
-3. **Zéro payant** : uniquement la stack gratuite/auto-hébergeable (`36_FREE_STACK.md`).
-4. Lire aussi `01_MISSION.md` + `08_ARCHITECTURE.md` + le fichier du module concerné.
-5. Ne jamais supposer une structure absente du dépôt réel.
-6. Ne jamais pousser du travail cassé sur `main` (build + typecheck + démarrage OK).
+TAMS = AI Operating System **personnel**. Les 11 piliers :
+
+1. Chief of Staff  
+2. Chat OS  
+3. Agent System  
+4. Memory Graph  
+5. Decision OS  
+6. Workspace  
+7. Studio  
+8. AI Router  
+9. Mobile Premium  
+10. Platform OS  
+11. Personal Life OS : santé, famille, finances, admin, carrière, apprentissage.
+
+> Chaque ligne de code doit améliorer au moins un pilier. Sinon, ne pas la développer.
+
+## Règles d'entrée
+
+1. Lire `35_STATE.md` avant de commencer.
+2. Lire le registre `37_IMPLEMENTATION_LEDGER_2026-07-02.md` pour éviter de reconstruire ce qui existe déjà.
+3. Garder `main` comme source de vérité.
+4. Utiliser des branches temporaires uniquement pour PR + CI + validation.
+5. Zéro payant obligatoire : voir `36_FREE_STACK.md`.
+6. Lire aussi `01_MISSION.md`, `08_ARCHITECTURE.md` et le fichier du module concerné.
+7. Ne jamais supposer une structure absente du dépôt réel.
+8. Ne jamais livrer du travail cassé : build + typecheck + smoke + validation production si possible.
