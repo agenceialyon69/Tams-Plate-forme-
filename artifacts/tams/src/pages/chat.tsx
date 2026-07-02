@@ -1380,11 +1380,13 @@ export default function Chat() {
           const videoPlan = [
             "Plan vidéo préparé par TAMS Studio",
             plan.creativeBrief && `BRIEF\n${plan.creativeBrief}`,
+            "HOOK\n« Le legging qui suit ton rythme, dans une démonstration UGC naturelle. »",
             plan.scriptPlan && `SCRIPT / PLAN DE TOURNAGE\n${plan.scriptPlan}`,
             plan.storyboardPlan && `STORYBOARD\n${plan.storyboardPlan}`,
             "SHOT LIST\n1. Gros plan produit/matière.\n2. Mise en situation activewear.\n3. Mouvement en plan large.\n4. Détail coupe et confort.\n5. Résultat puis CTA.",
             `PROMPT KLING / RUNWAY / VEO\n${videoPrompt}`,
             "CAPTIONS\nBouge librement. Reste toi-même. Découvre la collection. #activewear #tiktokfashion #movement",
+            "CTA\nDécouvre le legging et vérifie les détails produit avant de commander.",
             plan.productionSteps?.length ? `PLAN DE MONTAGE\n${plan.productionSteps.map(step => `${step.order ?? "-"}. ${step.name ?? "Étape"} — ${step.notes ?? ""}`).join("\n")}` : "",
             plan.exportTargets?.length ? `EXPORTS\n- ${plan.exportTargets.join("\n- ")}` : "",
             "LIMITES\nLa génération vidéo réelle n’est pas encore connectée. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.",
