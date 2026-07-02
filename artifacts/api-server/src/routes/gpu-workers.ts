@@ -5,6 +5,7 @@ const router = Router();
 
 type GpuKind = "video" | "image" | "audio" | "voice" | "vision" | "general";
 type GpuJobStatus = "queued" | "running" | "success" | "failed" | "missing_config";
+type WorkerLookup = { key: string; url: string };
 
 type GpuJob = {
   id: string;
@@ -19,6 +20,7 @@ type GpuJob = {
 };
 
 const jobs = new Map<string, GpuJob>();
+const validKinds: GpuKind[] = ["video", "image", "audio", "voice", "vision", "general"];
 
 function env(name: string) {
   const value = process.env[name];
@@ -29,7 +31,11 @@ function now() {
   return new Date().toISOString();
 }
 
-function workerUrl(kind: GpuKind) {
+function isGpuKind(value: string): value is GpuKind {
+  return validKinds.includes(value as GpuKind);
+}
+
+function workerUrl(kind: GpuKind): WorkerLookup | null {
   const byKind: Record<GpuKind, string[]> = {
     video: ["STUDIO_GPU_VIDEO_URL", "STUDIO_GPU_GENERAL_URL"],
     image: ["STUDIO_GPU_IMAGE_URL", "STUDIO_GPU_GENERAL_URL"],
@@ -46,8 +52,7 @@ function workerUrl(kind: GpuKind) {
 }
 
 function workers() {
-  const kinds: GpuKind[] = ["video", "image", "audio", "voice", "vision", "general"];
-  return kinds.map(kind => {
+  return validKinds.map(kind => {
     const found = workerUrl(kind);
     return {
       id: `gpu-${kind}`,
@@ -87,13 +92,14 @@ router.get("/gpu/jobs/:id", (req, res) => {
 });
 
 router.post("/gpu/jobs", async (req, res) => {
-  const kind = String(req.body?.kind ?? "video") as GpuKind;
+  const rawKind = String(req.body?.kind ?? "video");
   const prompt = String(req.body?.prompt ?? req.body?.text ?? "").trim();
-  if (!["video", "image", "audio", "voice", "vision", "general"].includes(kind)) {
+  if (!isGpuKind(rawKind)) {
     return res.status(400).json({ ok: false, error: "invalid_gpu_kind" });
   }
   if (!prompt) return res.status(400).json({ ok: false, error: "prompt_required" });
 
+  const kind = rawKind;
   const job: GpuJob = { id: randomUUID(), kind, prompt, status: "queued", createdAt: now(), updatedAt: now() };
   jobs.set(job.id, job);
 
@@ -116,16 +122,16 @@ router.post("/gpu/jobs", async (req, res) => {
       body: JSON.stringify({ jobId: job.id, kind, prompt, input: req.body?.input ?? {}, source: "tams" }),
       signal: AbortSignal.timeout(180_000),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok) {
       job.status = "failed";
-      job.error = String(data?.error || data?.detail || `worker_http_${response.status}`);
+      job.error = String(data.error || data.detail || `worker_http_${response.status}`);
       job.updatedAt = now();
       return res.status(502).json({ ok: false, job });
     }
-    const url = typeof data?.url === "string" ? data.url : typeof data?.artifactUrl === "string" ? data.artifactUrl : undefined;
+    const url = typeof data.url === "string" ? data.url : typeof data.artifactUrl === "string" ? data.artifactUrl : undefined;
     job.status = "success";
-    job.url = url;
+    if (url) job.url = url;
     job.updatedAt = now();
     return res.json({ ok: true, job, result: data });
   } catch (error) {
