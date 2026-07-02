@@ -29,7 +29,7 @@ function evaluate(input: string) {
   const risk = domain === "health" || (domain === "admin_finance" && includesAny(input, ["urgent", "deadline", "échéance", "facture"])) ? "high"
     : domain === "family" || domain === "work_stability" || matches.length > 1 ? "medium"
     : "low";
-  const action = includesAny(input, ["missing_config", "gmail", "calendar"])
+  const action = includesAny(input, ["missing_config", "gmail", "calendar", "calendrier", "email"])
     ? "return_missing_config_without_fake_data"
     : includesAny(input, ["recovery"])
       ? "dry_run_before_approval"
