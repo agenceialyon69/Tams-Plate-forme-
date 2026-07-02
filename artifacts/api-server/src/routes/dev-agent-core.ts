@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { runDevAgentCore, type DevAgentCoreInput } from "../lib/dev-agent-core";
+import { runDevAgentCore, type DevAgentCoreInput } from "../lib/dev-agent-core.js";
 
 const router = Router();
 

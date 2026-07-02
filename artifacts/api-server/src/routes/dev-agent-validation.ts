@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { devAgentValidationPlan } from "../lib/dev-agent-validation-plan";
+import { devAgentValidationPlan } from "../lib/dev-agent-validation-plan.js";
 
 const router = Router();
 
