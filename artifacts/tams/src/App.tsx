@@ -14,6 +14,7 @@ const Vie = lazy(() => import("@/pages/vie"));
 const Studio = lazy(() => import("@/pages/studio"));
 const Systeme = lazy(() => import("@/pages/systeme"));
 const Capabilities = lazy(() => import("@/pages/capabilities"));
+const DevAgentPro = lazy(() => import("@/pages/dev-agent-pro"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function LoadingFallback() {
@@ -49,6 +50,7 @@ function Router() {
           <Route path="/studio" component={Studio} />
           <Route path="/systeme" component={Systeme} />
           <Route path="/capabilities" component={Capabilities} />
+          <Route path="/dev-agent-pro" component={DevAgentPro} />
           <Route component={NotFound} />
         </Switch>
       </ErrorBoundary>
@@ -60,7 +62,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}> 
           {/* dvh = dynamic viewport height — correct on iOS Safari with keyboard */}
           <div className="flex overflow-hidden bg-background" style={{ height: "100dvh" }}>
             <Sidebar />
