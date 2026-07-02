@@ -113,3 +113,111 @@ test("Dev Agent Pro exposes core controls", async ({ page }) => {
   await expect(page.getByText("Sous-agents")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
+
+
+test("Studio executes real action paths and never creates ghost results", async ({ page }) => {
+  const createdAssets: Array<Record<string, unknown>> = [];
+  const pageErrors: string[] = [];
+  page.on("pageerror", error => pageErrors.push(error.message));
+
+  await page.route("**/api/**", async route => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+
+    if (request.method() === "GET" && pathname === "/api/assets") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(createdAssets) });
+      return;
+    }
+    if (request.method() === "GET" && pathname === "/api/studio/status") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "partial", capabilities: { video: { status: "available", provider: "ffmpeg" }, audio: { status: "missing_config", provider: "none" } } }),
+      });
+      return;
+    }
+    if (request.method() === "POST" && pathname === "/api/capabilities/execute") {
+      const payload = request.postDataJSON() as { capabilityId: string };
+      if (payload.capabilityId === "video.generate") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            capabilityId: "video.generate",
+            status: "success",
+            mode: "real",
+            title: "Vidéo MP4 générée",
+            result: "MP4 réel par diaporama FFmpeg.",
+            providerUsed: "ffmpeg",
+            artifact: { type: "file", url: "/api/studio/video/e2e.mp4" },
+            limitations: ["Pas de génération vidéo IA native."],
+          }),
+        });
+        return;
+      }
+      if (payload.capabilityId === "audio.music.generate") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            status: "missing_config",
+            mode: "disabled",
+            title: "MusicGen non configuré",
+            result: "Configurer HF_TOKEN ou MUSICGEN_WORKER_URL.",
+            providerUsed: "none",
+            artifact: { type: "none" },
+            limitations: ["Aucun fichier audio généré."],
+          }),
+        });
+        return;
+      }
+    }
+    if (request.method() === "POST" && pathname === "/api/assets") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const asset = { id: createdAssets.length + 7000, createdAt: new Date().toISOString(), ...payload };
+      createdAssets.unshift(asset);
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ data: asset }) });
+      return;
+    }
+    if (pathname === "/api/studio/video/e2e.mp4") {
+      await route.fulfill({ status: 200, contentType: "video/mp4", body: "" });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/studio", { waitUntil: "networkidle" });
+  await expect(page.getByText("Studio opérationnel", { exact: true })).toBeVisible();
+  await expect(page.getByText("API : partial", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /Lancer video/ }).click();
+  await expect(page.getByText("Vidéo MP4 générée", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Provider :/).locator("strong")).toHaveText("ffmpeg");
+  await expect(page.getByRole("link", { name: "Ouvrir l’artefact réel" })).toBeVisible();
+  expect(createdAssets).toHaveLength(1);
+
+  await page.getByRole("button", { name: "Audio", exact: true }).click();
+  await page.getByRole("button", { name: /Lancer audio/ }).click();
+  await expect(page.getByText("MusicGen non configuré", { exact: true })).toBeVisible();
+  await expect(page.getByText("Aucun asset ajouté.", { exact: true })).toBeVisible();
+  expect(createdAssets).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test("Capabilities displays provider status before execution", async ({ page }) => {
+  await page.route("**/api/capabilities/status", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      status: "partial",
+      capabilities: {
+        image: { status: "external_unverified", provider: "pollinations" },
+        video: { status: "available", provider: "ffmpeg" },
+        audio: { status: "missing_config", provider: "none" },
+      },
+    }),
+  }));
+  await page.goto("/capabilities", { waitUntil: "networkidle" });
+  await expect(page.getByText("Statut providers : partial", { exact: true })).toBeVisible();
+  await expect(page.getByText("audio : missing_config · none", { exact: true })).toBeVisible();
+});
