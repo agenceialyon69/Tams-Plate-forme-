@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const routes = ["/chat", "/studio", "/capabilities", "/agents", "/systeme"];
+const routes = ["/chat", "/studio", "/capabilities", "/agents", "/systeme", "/vie"];
 
 for (const route of routes) {
   test(`${route} page loads`, async ({ page }) => {
@@ -60,5 +60,45 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   expect(bodyText).toContain("CAPTIONS");
   expect(bodyText).toContain("CTA");
   expect(bodyText.toLowerCase()).toContain("aucun fichier vidéo");
+  expect(pageErrors).toEqual([]);
+});
+
+
+test("Life OS final exposes cockpit, safeguards and honest integrations", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", error => pageErrors.push(error.message));
+
+  await page.goto("/vie", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Centre de commandement personnel" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Risk Radar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Coach" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Automatisations" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Historique" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Emails" }).click();
+  await expect(page.getByText("missing_config", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Aucun faux email/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Agenda" }).click();
+  await expect(page.getByText("missing_config", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Aucun faux événement/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Automatisations" }).click();
+  await expect(page.getByText("Daily Life Briefing", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tester en dry-run" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Mémoire" }).click();
+  await page.getByPlaceholder(/Capture une contrainte/).fill("J'ai une facture urgente demain.");
+  await page.getByRole("button", { name: "Prévisualiser sans persister" }).click();
+  await expect(page.getByText(/admin_finance/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Coach" }).click();
+  await page.getByPlaceholder(/Décris une situation réelle/).fill("Je suis fatigué mais je veux lancer trois projets.");
+  await page.getByRole("button", { name: "Red Team" }).click();
+  await expect(page.getByRole("heading", { name: "Réponse structurée" })).toBeVisible();
+  await expect(page.getByText("Faits connus", { exact: true })).toBeVisible();
+  await expect(page.getByText("Suppositions", { exact: true })).toBeVisible();
+  await expect(page.getByText("Limites", { exact: true })).toBeVisible();
+
   expect(pageErrors).toEqual([]);
 });
