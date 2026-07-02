@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, Film, Music, Loader2, AlertTriangle, CheckCircle2, ExternalLink, Trash2 } from "lucide-react";
+import { Image, Film, Music, Loader2, AlertTriangle, CheckCircle2, ExternalLink, Trash2, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
@@ -19,6 +19,15 @@ type StudioResult = {
   degraded?: boolean;
   error?: string;
   createdAt: string;
+};
+
+type SelfTestState = {
+  status: "idle" | "running" | "success" | "error";
+  message?: string;
+  videoUrl?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  raw?: unknown;
 };
 
 const STORAGE_KEY = "tams-studio-real-results-v2";
@@ -56,6 +65,16 @@ async function postJson(path: string, body: Record<string, unknown>) {
   return data as Record<string, unknown>;
 }
 
+async function getJson(path: string) {
+  const response = await fetch(`${API_BASE}${path}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = data?.detail || data?.error || `HTTP ${response.status}`;
+    throw new Error(String(detail));
+  }
+  return data as Record<string, unknown>;
+}
+
 function renderMedia(result: StudioResult) {
   const url = absoluteUrl(result.url);
   if (!url) return null;
@@ -74,10 +93,29 @@ export default function Studio() {
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<StudioResult[]>(loadResults);
   const [activeError, setActiveError] = useState<string | null>(null);
+  const [selfTest, setSelfTest] = useState<SelfTestState>({ status: "idle" });
 
   useEffect(() => saveResults(results), [results]);
 
   const currentResults = useMemo(() => results.filter(r => r.type === mode), [results, mode]);
+
+  async function runSelfTest() {
+    setSelfTest({ status: "running", message: "Self-test réel en cours..." });
+    try {
+      const data = await getJson("/api/_diagnostics/studio-selftest");
+      const playable = data.playable as Record<string, unknown> | undefined;
+      setSelfTest({
+        status: "success",
+        message: data.verdict === "pass" ? "Studio backend PASS : médias réels générés." : `Studio backend ${String(data.verdict)}`,
+        videoUrl: typeof playable?.videoUrl === "string" ? playable.videoUrl : undefined,
+        audioUrl: typeof playable?.audioUrl === "string" ? playable.audioUrl : undefined,
+        imageUrl: typeof playable?.imageUrl === "string" ? playable.imageUrl : undefined,
+        raw: data,
+      });
+    } catch (error) {
+      setSelfTest({ status: "error", message: error instanceof Error ? error.message : "Self-test échoué" });
+    }
+  }
 
   async function generate() {
     const cleanPrompt = prompt.trim();
@@ -149,6 +187,24 @@ export default function Studio() {
           <p className="text-sm text-muted-foreground">
             Cette version appelle directement les endpoints réels. Vidéo = MP4 généré côté serveur. Audio = fichier jouable. Image = image réelle ou erreur claire.
           </p>
+          <button
+            onClick={runSelfTest}
+            disabled={selfTest.status === "running"}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5 disabled:opacity-50"
+          >
+            {selfTest.status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+            Tester le Studio réel
+          </button>
+          {selfTest.status !== "idle" && (
+            <div className={cn("rounded-2xl border p-3 text-sm", selfTest.status === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : selfTest.status === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-blue-500/30 bg-blue-500/10 text-blue-200")}>
+              <p>{selfTest.message}</p>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                {selfTest.videoUrl && <a className="text-primary hover:underline" href={absoluteUrl(selfTest.videoUrl)} target="_blank" rel="noreferrer">Ouvrir vidéo self-test</a>}
+                {selfTest.audioUrl && <a className="text-primary hover:underline" href={absoluteUrl(selfTest.audioUrl)} target="_blank" rel="noreferrer">Ouvrir audio self-test</a>}
+                {selfTest.imageUrl && <a className="text-primary hover:underline" href={absoluteUrl(selfTest.imageUrl)} target="_blank" rel="noreferrer">Ouvrir image self-test</a>}
+              </div>
+            </div>
+          )}
         </header>
 
         <section className="rounded-3xl border border-white/10 bg-card p-5 space-y-4">
