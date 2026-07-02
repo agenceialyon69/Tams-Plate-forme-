@@ -65,12 +65,10 @@ function optionStringArray(req: { body?: { options?: unknown } }, key: string): 
 function imageUrlsFromRequest(req: { body?: { options?: unknown } }, input: string): string[] {
   const explicit = optionStringArray(req, "images").filter(url => /^https?:\/\//.test(url));
   if (explicit.length > 0) return explicit.slice(0, 8);
-  const base = encodeURIComponent(input);
-  return [
-    `https://image.pollinations.ai/prompt/${base}%20scene%201%20vertical%209:16%20natural%20ugc?nologo=true&safe=true&width=720&height=1280`,
-    `https://image.pollinations.ai/prompt/${base}%20scene%202%20close%20up%20product%20realistic?nologo=true&safe=true&width=720&height=1280`,
-    `https://image.pollinations.ai/prompt/${base}%20scene%203%20lifestyle%20real%20light?nologo=true&safe=true&width=720&height=1280`,
-  ];
+  // Sans images explicites, le moteur utilise des frames locales déterministes.
+  // Cela garantit un vrai MP4 sans prétendre avoir généré des visuels IA.
+  void input;
+  return [];
 }
 
 function requireEnv(name: string): string | null {
@@ -257,8 +255,8 @@ router.post("/capabilities/execute", async (req, res, next) => {
           secondsPerImage: Number(getOptions(req).secondsPerImage) || 2.5,
           musicUrl: optionString(req, "musicUrl"),
         });
-        const result = [`Vidéo MP4 générée via FFmpeg.`, `URL: ${video.url}`, `Durée: ${video.durationSec}s`, `Images: ${video.images}`, `Musique: ${video.withMusic ? "oui" : "non"}`].join("\n");
-        return res.json(actionResponse({ capabilityId, status: "success", mode: "real", title: capabilityId === "video.generate" ? "Vidéo générée" : "Montage vidéo généré", result, artifact: { type: "file", url: video.url, content: result, data: video }, limitations: ["Génération réelle FFmpeg sous forme de slideshow/assemblage, pas text-to-video IA type Runway.", "Stockage temporaire : le fichier peut disparaître après redéploiement."], nextActions: ["Télécharger/tester le MP4", "Brancher stockage persistant S3/R2 pour production"], providerUsed: "ffmpeg" }));
+        const result = [`Vidéo MP4 générée via FFmpeg.`, `URL: ${video.url}`, `Durée: ${video.durationSec}s`, `Images: ${video.images}`, `Source visuelle: ${video.source === "local_fallback" ? "frames locales de fallback" : "images fournies"}`, `Musique: ${video.withMusic ? "oui" : "non"}`].join("\n");
+        return res.json(actionResponse({ capabilityId, status: "success", mode: "real", title: capabilityId === "video.generate" ? "Vidéo générée" : "Montage vidéo généré", result, artifact: { type: "file", url: video.url, content: result, data: video }, limitations: [video.source === "local_fallback" ? "Fallback local réel : frames graphiques simples, pas visuels produit IA." : "Images fournies assemblées par FFmpeg.", "Génération réelle FFmpeg sous forme de slideshow/assemblage, pas text-to-video IA type Runway.", "Stockage temporaire : le fichier peut disparaître après redéploiement."], nextActions: ["Télécharger/tester le MP4", "Brancher stockage persistant S3/R2 pour production"], providerUsed: "ffmpeg" }));
       }
       case "audio.music.generate": {
         const music = await generateMusic(input);

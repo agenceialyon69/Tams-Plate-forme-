@@ -45,10 +45,19 @@ jobs:
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:4000/api/healthz >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:4000/api/version | grep -q '"version"'
+          curl -sf http://127.0.0.1:4000/api/studio/status | grep -q '"resultsPolicy":"real_artifacts_only"'
+          curl -sf http://127.0.0.1:4000/api/capabilities/status | grep -q '"external_unverified"'
           capabilities=$(curl -sf http://127.0.0.1:4000/api/registry/capabilities)
           echo "$capabilities" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s).capabilities;for(const id of ["video.generate","search.web","audio.music.generate","voice.transcribe","audio.synthesize","automation.workflow"]){const x=c.find(v=>v.id===id);if(!x||x.status!=="available")process.exit(1)}})'
           search=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"capabilityId":"search.web","input":"TAMS"}' http://127.0.0.1:4000/api/capabilities/execute)
           echo "$search" | grep -q '"status":"success"'
+          video=$(curl -sf --max-time 180 -X POST -H 'Content-Type: application/json' -d '{"capabilityId":"video.generate","input":"CI vertical video fallback","options":{"secondsPerImage":1}}' http://127.0.0.1:4000/api/capabilities/execute)
+          video_url=$(echo "$video" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(x.status!=="success"||x.mode!=="real"||x.providerUsed!=="ffmpeg"||!x.artifact?.url)process.exit(1);console.log(x.artifact.url)})')
+          curl -sf "http://127.0.0.1:4000$video_url" -o /tmp/tams-ci-video.mp4
+          test -s /tmp/tams-ci-video.mp4
+          audio=$(curl -s --max-time 30 -X POST -H 'Content-Type: application/json' -d '{"capabilityId":"audio.music.generate","input":"CI audio truth check"}' http://127.0.0.1:4000/api/capabilities/execute)
+          echo "$audio" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!["success","missing_config"].includes(x.status))process.exit(1);if(x.status==="success"&&!x.artifact?.url)process.exit(1);if(x.status==="missing_config"&&x.artifact?.url)process.exit(1)})'
           curl -sf http://127.0.0.1:4000/api/system/recovery/status | grep -q 'append_only_v1'
           curl -sf -X POST -H 'Content-Type: application/json' -d '{"version":"1.0","data":{"tasks":[{"title":"Test recovery"}],"projects":[],"memories":[],"decisions":[]}}' http://127.0.0.1:4000/api/system/recovery/validate | grep -q '"ok":true'
           curl -sf -X POST -H 'Content-Type: application/json' -d '{"mode":"dry_run","payload":{"version":"1.0","data":{"tasks":[{"title":"Test recovery"}],"projects":[],"memories":[],"decisions":[]}}}' http://127.0.0.1:4000/api/system/recovery/import | grep -q '"mode":"dry_run"'
