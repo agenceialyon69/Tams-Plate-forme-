@@ -142,3 +142,19 @@ Les briques majeures sont branchées, mais il reste des limites réelles : workf
 ## Règle pour les prochains agents
 
 Ne pas reconstruire ce qui est déjà branché. Les prochaines missions doivent partir de ce registre et traiter uniquement : production Railway, usage réel, erreurs observées, UX, workflows métier et validation de bout en bout.
+
+
+## PR #78 — Life OS final platform v1 (ouverte, CI verte)
+
+- Permission System : registre, check, approval temporaire et audit.
+- Job Queue : statuts, progression, logs, retry-ready, timeout/cancel, résultats et fallback mémoire.
+- Deep History : événements, timeline, détails et tendances.
+- Memory Graph v2 : nœuds, relations, recherche et contexte sourcé.
+- Gmail/Calendar : lecture privacy-first, `missing_config` sans données simulées.
+- Automations : dix modèles, dry-run, logs et jobs.
+- Coach final : faits, suppositions, risques, arbitrages, recommandation, sources et limites.
+- Ops : DB, jobs, providers, intégrations, checks synthétiques et contexte Railway sans secret.
+- UX `/vie` : dix sections, mobile, loading/error/empty/missing_config.
+- CI run 373 : builds, typecheck, Runtime, Mission 2, 15 scénarios, smoke API et Playwright PASS.
+
+Statut : PR non mergée lors de cette écriture. Production non revendiquée.
