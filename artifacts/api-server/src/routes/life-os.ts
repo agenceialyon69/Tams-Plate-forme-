@@ -18,6 +18,13 @@ const DOMAINS: Array<{ id: DomainId; label: string; weight: number; guardrail: s
   { id: "learning", label: "Apprentissage", weight: 0.75, guardrail: "Apprendre sans créer de surcharge." },
 ];
 
+const WORKFLOW_TEMPLATES = [
+  { id: "daily_health_check", priority: "health", title: "Check santé quotidien", outcome: "Détecter fatigue/douleur/stress avant surcharge." },
+  { id: "admin_risk_review", priority: "admin_finance", title: "Revue admin/finance", outcome: "Remonter amendes, factures, papiers, échéances." },
+  { id: "family_time_guard", priority: "family", title: "Garde-fou famille", outcome: "Empêcher que projets/travail mangent tout le temps familial." },
+  { id: "weekly_red_team_review", priority: "projects", title: "Red Team hebdo", outcome: "Stopper dispersion et décisions prises sous fatigue." },
+];
+
 const CaptureBody = z.object({ text: z.string().min(2).max(4000), source: z.string().max(64).optional(), persist: z.boolean().default(false) });
 const RedTeamBody = z.object({ decision: z.string().min(3).max(2000), context: z.string().max(4000).optional(), energy: z.number().min(0).max(100).optional(), urgency: z.number().min(0).max(100).optional() });
 
@@ -83,13 +90,12 @@ function buildRisks(signals: Awaited<ReturnType<typeof loadSignals>>): Array<{ i
 }
 
 function buildPlan(signals: Awaited<ReturnType<typeof loadSignals>>, risks: ReturnType<typeof buildRisks>) {
-  const plan = [
+  return [
     { order: 1, domain: "health", action: "Faire un check énergie/stress/douleur avant d'ajouter une tâche.", timeboxMinutes: 5 },
     { order: 2, domain: "admin_finance", action: signals.tasks.dueSoon > 0 ? "Traiter l'échéance la plus risquée aujourd'hui." : "Vérifier qu'aucune échéance admin/finance n'est oubliée.", timeboxMinutes: 20 },
     { order: 3, domain: "work_stability", action: "Protéger la stabilité professionnelle et éviter les décisions sous fatigue.", timeboxMinutes: 15 },
     { order: 4, domain: "projects", action: risks.some(r => r.id === "overload") ? "Ne faire qu'une micro-action projet réversible." : "Avancer une action projet à impact mesurable.", timeboxMinutes: 30 },
   ];
-  return plan;
 }
 
 async function buildCockpit() {
@@ -135,42 +141,12 @@ function classifyCapture(text: string) {
   return { domain, priority, suggestedTask };
 }
 
-router.get("/life-os/status", async (_req, res) => res.json(await buildCockpit()));
-router.get("/life-os/briefing", async (_req, res) => res.json({ ...(await buildCockpit()), title: "Briefing Life OS v5" }));
-router.get("/life-os/v5/cockpit", async (_req, res) => res.json(await buildCockpit()));
-router.get("/life-os/v5/score", async (_req, res) => { const c = await buildCockpit(); return res.json({ ok: true, overallScore: c.overallScore, domains: c.domains, generatedAt: c.generatedAt }); });
-router.get("/life-os/v5/risk-radar", async (_req, res) => { const c = await buildCockpit(); return res.json({ ok: true, riskRadar: c.riskRadar, generatedAt: c.generatedAt }); });
-router.get("/life-os/v5/plan", async (_req, res) => { const c = await buildCockpit(); return res.json({ ok: true, nextActions: c.nextActions, doctrine: c.doctrine, generatedAt: c.generatedAt }); });
-router.get("/life-os/workflows", async (_req, res) => res.json({ ok: true, version: "v5_templates", templates: [
-  { id: "daily_health_check", priority: "health", title: "Check santé quotidien", outcome: "Détecter fatigue/douleur/stress avant surcharge." },
-  { id: "admin_risk_review", priority: "admin_finance", title: "Revue admin/finance", outcome: "Remonter amendes, factures, papiers, échéances." },
-  { id: "family_time_guard", priority: "family", title: "Garde-fou famille", outcome: "Empêcher que projets/travail mangent tout le temps familial." },
-  { id: "weekly_red_team_review", priority: "projects", title: "Red Team hebdo", outcome: "Stopper dispersion et décisions prises sous fatigue." },
-] }));
-router.get("/life-os/v5/workflows", async (_req, res) => res.redirect(307, "/api/life-os/workflows"));
-
-router.post("/life-os/v5/capture", async (req, res) => {
-  const parsed = CaptureBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ ok: false, error: "Invalid input", details: parsed.error.issues });
-  const { text, source, persist } = parsed.data;
-  const classification = classifyCapture(text);
-  const result: any = { ok: true, mode: persist ? "persisted" : "preview", text, source: source ?? "manual", classification, nextActions: [classification.suggestedTask, "Relier cette capture à une tâche, décision ou mémoire."] };
-  if (persist) {
-    const [memory] = await db.insert(memoriesTable).values({ title: `Capture Life OS — ${classification.domain}`, type: "note" as any, content: text, tags: ["life-os", classification.domain], relatedIds: [] } as any).returning({ id: memoriesTable.id });
-    const [task] = await db.insert(tasksTable).values({ title: classification.suggestedTask, description: text, status: "todo" as any, priority: classification.priority as any, projectId: null, dueDate: null } as any).returning({ id: tasksTable.id });
-    result.persisted = { memoryId: memory?.id ?? null, taskId: task?.id ?? null };
-  }
-  return res.json(result);
-});
-
-router.post("/life-os/red-team", async (req, res) => {
-  const parsed = RedTeamBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ ok: false, error: "Invalid input", details: parsed.error.issues });
-  const { decision, context, energy = 50, urgency = 50 } = parsed.data;
+async function redTeamPayload(body: z.infer<typeof RedTeamBody>) {
+  const { decision, context, energy = 50, urgency = 50 } = body;
   const cockpit = await buildCockpit();
   const risk = cockpit.riskRadar[0];
   const block = energy < 35 || risk.level === "high";
-  return res.json({
+  return {
     ok: true,
     version: "life_os_v5_red_team",
     decision,
@@ -189,8 +165,39 @@ router.post("/life-os/red-team", async (req, res) => {
       "Prévoir un point de revue dans 24h ou après preuve réelle.",
       "Stopper si santé/famille/admin/revenu deviennent fragiles.",
     ],
-  });
+  };
+}
+
+router.get("/life-os/status", async (_req, res) => res.json(await buildCockpit()));
+router.get("/life-os/briefing", async (_req, res) => res.json({ ...(await buildCockpit()), title: "Briefing Life OS v5" }));
+router.get("/life-os/v5/cockpit", async (_req, res) => res.json(await buildCockpit()));
+router.get("/life-os/v5/score", async (_req, res) => { const c = await buildCockpit(); return res.json({ ok: true, overallScore: c.overallScore, domains: c.domains, generatedAt: c.generatedAt }); });
+router.get("/life-os/v5/risk-radar", async (_req, res) => { const c = await buildCockpit(); return res.json({ ok: true, riskRadar: c.riskRadar, generatedAt: c.generatedAt }); });
+router.get("/life-os/v5/plan", async (_req, res) => { const c = await buildCockpit(); return res.json({ ok: true, nextActions: c.nextActions, doctrine: c.doctrine, generatedAt: c.generatedAt }); });
+router.get("/life-os/workflows", async (_req, res) => res.json({ ok: true, version: "v5_templates", templates: WORKFLOW_TEMPLATES }));
+router.get("/life-os/v5/workflows", async (_req, res) => res.json({ ok: true, version: "v5_templates", templates: WORKFLOW_TEMPLATES }));
+
+router.post("/life-os/v5/capture", async (req, res) => {
+  const parsed = CaptureBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, error: "Invalid input", details: parsed.error.issues });
+  const { text, source, persist } = parsed.data;
+  const classification = classifyCapture(text);
+  const result: any = { ok: true, mode: persist ? "persisted" : "preview", text, source: source ?? "manual", classification, nextActions: [classification.suggestedTask, "Relier cette capture à une tâche, décision ou mémoire."] };
+  if (persist) {
+    const [memory] = await db.insert(memoriesTable).values({ title: `Capture Life OS — ${classification.domain}`, type: "note" as any, content: text, tags: ["life-os", classification.domain], relatedIds: [] } as any).returning({ id: memoriesTable.id });
+    const [task] = await db.insert(tasksTable).values({ title: classification.suggestedTask, description: text, status: "todo" as any, priority: classification.priority as any, projectId: null, dueDate: null } as any).returning({ id: tasksTable.id });
+    result.persisted = { memoryId: memory?.id ?? null, taskId: task?.id ?? null };
+  }
+  return res.json(result);
 });
-router.post("/life-os/v5/red-team", async (req, res, next) => { req.url = "/life-os/red-team"; next(); });
+
+async function handleRedTeam(req: any, res: any) {
+  const parsed = RedTeamBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, error: "Invalid input", details: parsed.error.issues });
+  return res.json(await redTeamPayload(parsed.data));
+}
+
+router.post("/life-os/red-team", handleRedTeam);
+router.post("/life-os/v5/red-team", handleRedTeam);
 
 export default router;
