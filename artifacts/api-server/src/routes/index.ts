@@ -31,21 +31,16 @@ import kernelRouter from "./kernel.js";
 import devRuntimeRouter from "./dev-runtime.js";
 import devAgentCoreRouter from "./dev-agent-core.js";
 import devAgentValidationRouter from "./dev-agent-validation.js";
+import ciOperatorRouter from "./dev-agent-ci.js";
 import capabilityRegistryRouter from "./capability-registry.js";
 import capabilityActionsMediaDevopsRouter from "./capability-actions-media-devops.js";
 import capabilityActionsMemoryRouter from "./capability-actions-memory.js";
 import capabilityActionsRouter from "./capability-actions.js";
 import chatCapabilitiesRouter from "./chat-capabilities.js";
-
 const router: IRouter = Router();
-
-// Auth routes - public (no auth required)
 router.use(authRouter);
-
-// Health routes - public
 router.use(healthRouter);
 router.use(versionRouter);
-
 router.use(briefingRouter);
 router.use("/conversations", aiRateLimit);
 router.use(conversationsRouter);
@@ -77,11 +72,11 @@ router.use(kernelRouter);
 router.use(devRuntimeRouter);
 router.use(devAgentCoreRouter);
 router.use(devAgentValidationRouter);
+router.use(ciOperatorRouter);
 router.use(capabilityActionsMediaDevopsRouter);
 router.use(capabilityActionsMemoryRouter);
 router.use(capabilityActionsRouter);
 router.use(capabilityRegistryRouter);
 router.use(chatCapabilitiesRouter);
 router.use(defaultRateLimit);
-
 export default router;
