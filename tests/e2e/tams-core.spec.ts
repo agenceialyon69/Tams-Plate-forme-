@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const routes = ["/chat", "/studio", "/capabilities", "/agents", "/systeme", "/vie"];
+const routes = ["/chat", "/studio", "/capabilities", "/agents", "/systeme", "/vie", "/dev-agent-pro"];
 
 for (const route of routes) {
   test(`${route} page loads`, async ({ page }) => {
@@ -100,5 +100,16 @@ test("Life OS final exposes cockpit, safeguards and honest integrations", async 
   await expect(page.getByText("Suppositions", { exact: true })).toBeVisible();
   await expect(page.getByText("Limites", { exact: true })).toBeVisible();
 
+  expect(pageErrors).toEqual([]);
+});
+
+test("Dev Agent Pro exposes core controls", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", error => pageErrors.push(error.message));
+  await page.goto("/dev-agent-pro", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Agent développeur contrôlé" })).toBeVisible();
+  await expect(page.getByText("Sandbox terminal")).toBeVisible();
+  await expect(page.getByText("pluginRegistry")).toBeVisible();
+  await expect(page.getByText("Sous-agents")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
