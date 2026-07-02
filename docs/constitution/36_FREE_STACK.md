@@ -1,58 +1,94 @@
 # 36 — Free-Stack Standard (OBLIGATOIRE — zéro payant)
 
-> Règle absolue : **aucune dépendance payante obligatoire.** Le système doit
-> rester pleinement fonctionnel avec une stack 100 % gratuite et
-> auto-hébergeable. Tout fournisseur cloud est **optionnel** et activé par
-> feature-flag — jamais requis.
+> Règle absolue : **aucune dépendance payante obligatoire.** Le système doit rester fonctionnel avec une stack gratuite, freemium ou auto-hébergeable. Tout fournisseur cloud avancé doit rester optionnel, jamais requis pour démarrer.
 
 ## Critères d'acceptation d'un outil
-Pour chaque besoin, l'outil retenu doit être : **gratuit**, sans abonnement
-obligatoire, sans carte bancaire, sans crédits mensuels imposés, et de préférence
-**open source / auto-hébergeable**. En cas de choix multiple : le plus pérenne.
 
-## Stack autorisée (par point fort)
-| Besoin | Outil(s) gratuits | Rôle |
-|---|---|---|
-| LLM local | **Ollama** (Qwen 3, DeepSeek, Llama, Mistral) | raisonnement, chat, agents — auto-hébergé |
-| LLM cloud gratuit | **Groq**, **Gemini** (quota gratuit), **OpenRouter** (modèles `:free` uniquement) | accélérateurs optionnels |
-| Transcription | **Whisper / Faster-Whisper** (auto-hébergé) | voix → texte |
-| Recherche web | **SearXNG** (auto-hébergé) | recherche, grounding |
-| Base de données | **PostgreSQL** (+ **Supabase Free** possible) | persistance |
-| Mémoire vectorielle | **pgvector** (dans Postgres) | Memory Graph / RAG, sans service externe |
-| Automatisation | **n8n Community** | workflows |
-| Média | **FFmpeg** | vidéo/audio/images (montage, encodage) |
-| Observabilité | **OpenTelemetry**, **Prometheus**, **Grafana** | métriques, traces, dashboards |
+Pour chaque besoin, l'outil retenu doit être : gratuit ou utilisable avec un palier gratuit, sans abonnement obligatoire, sans carte bancaire obligatoire si possible, et de préférence open source / auto-hébergeable. En cas de choix multiple : le plus pérenne et le plus contrôlable.
+
+## Stack autorisée
+
+| Besoin | Outil(s) gratuits | Rôle | État |
+|---|---|---|---|
+| LLM local | Ollama | raisonnement, chat, agents | prévu/local |
+| LLM cloud gratuit/freemium | Groq, Gemini, OpenRouter free, Hugging Face | accélérateurs optionnels | branché selon config |
+| Image | Pollinations | image gratuite sans clé | branché |
+| Vidéo | FFmpeg | MP4 réel slideshow / encodage | branché |
+| Vidéo avancée | Remotion worker | rendu avancé optionnel | optionnel |
+| Musique | Hugging Face MusicGen ou worker MusicGen | audio génératif | bridge branché |
+| Transcription | Whisper/Faster-Whisper worker | voix → texte | bridge branché |
+| Voix | Piper/TTS/Edge TTS worker | texte → voix | bridge branché |
+| Recherche web | DuckDuckGo, Tavily optionnel | recherche / grounding | branché |
+| Automatisation | n8n Community webhook | workflows | bridge branché |
+| Base de données | PostgreSQL / Supabase Free | persistance | branché |
+| Mémoire vectorielle | pgvector | Memory Graph / RAG | branché |
+| Observabilité | système interne + futur OpenTelemetry/Prometheus/Grafana | métriques, traces, dashboards | partiel |
+| CI/E2E | GitHub Actions + Playwright | validation automatique | branché |
 
 ## Interdit
-- ❌ Toute API à **paiement obligatoire** (ex. OpenAI payant, services « pay-as-you-go » sans palier gratuit réel).
-- ❌ Coder en dur une dépendance cloud requise pour qu'une fonctionnalité marche.
-- ❌ Le **SDK `openai`** comme dépendance : on utilise un client **OpenAI-compatible par `fetch`** pointé vers un fournisseur gratuit (Ollama/Groq/Gemini/OpenRouter free).
 
-## AI Router (Pilier 8) — implication
-Le routeur choisit automatiquement le meilleur modèle **gratuit** selon la tâche.
-L'utilisateur ne choisit pas. Ordre de repli type : Ollama (local) → Groq →
-Gemini free → OpenRouter free. Si aucun n'est configuré, dégrader proprement
-(réponse déterministe + message clair), jamais d'erreur opaque.
+- Toute API à paiement obligatoire comme dépendance dure.
+- Coder en dur une dépendance cloud requise pour qu'une fonctionnalité critique marche.
+- Faire croire qu'une capacité est opérationnelle si elle n'a qu'un plan ou un bridge non configuré.
+- Réintroduire le SDK OpenAI comme dépendance centrale obligatoire.
+
+## AI Router
+
+Le routeur choisit automatiquement le meilleur modèle gratuit/freemium selon la tâche. L'utilisateur ne doit pas gérer les modèles. Si aucun fournisseur n'est configuré, la dégradation doit être claire et non opaque.
 
 ### Implémenté : `artifacts/api-server/src/lib/ai.ts`
-Routeur free-first multi-fournisseurs, OpenAI-compatible par `fetch`, avec
-**fallback en chaîne** (le premier fournisseur qui répond gagne). Sélection du
-modèle gratuit **par tâche** (`chat` | `fast` | `reasoning` | `json`). Le `model`
-passé par l'appelant est un simple indice — remplacé par le modèle adapté au
-fournisseur retenu.
 
-**Variables d'environnement** (toutes optionnelles ; activer celles voulues) :
+Routeur free-first multi-fournisseurs, OpenAI-compatible par `fetch`, avec fallback en chaîne. Sélection du modèle par tâche (`chat`, `fast`, `reasoning`, `json`).
 
-| Var | Fournisseur | Notes |
-|---|---|---|
-| `AI_BASE_URL` (+ `AI_API_KEY`, `AI_MODEL`) | override explicite | Ollama distant, passerelle perso… respecte `AI_MODEL` |
-| `OLLAMA_BASE_URL` (+ `OLLAMA_MODEL`, `OLLAMA_MODEL_FAST`, `OLLAMA_MODEL_REASONING`) | Ollama local | inclus seulement si défini (évite timeouts sur Railway) |
-| `GROQ_API_KEY` | Groq | quota gratuit, très rapide |
-| `GEMINI_API_KEY` | Gemini | quota gratuit (endpoint OpenAI-compatible) |
-| `OPENROUTER_API_KEY` (+ `OPENROUTER_REFERER`) | OpenRouter | modèles `:free` **uniquement** |
+## Provider bridges ajoutés
 
-Rétro-compat : `AI_GATEWAY_URL`, `REPLIT_AI_API_KEY`.
+### `video.generate`
 
-**Diagnostic** : `GET /api/system/ai` → `{ configured, providers[], primary, hint }`.
-Si aucun fournisseur n'est configuré, `hint` explique quoi définir (jamais
-d'échec silencieux — Pilier 7).
+- Chemin réel actuel : FFmpeg slideshow.
+- Peut produire un MP4 réel.
+- Remotion reste une amélioration optionnelle, pas la base obligatoire.
+
+### `search.web`
+
+- Chemin gratuit : DuckDuckGo Instant Answer.
+- Chemin enrichi optionnel : Tavily si configuré.
+
+### `automation.workflow`
+
+- Chemin réel : webhook n8n.
+- Sans webhook configuré : la capacité doit répondre configuration manquante, pas faux succès.
+
+### `audio.music.generate`
+
+- Chemin gratuit/freemium : Hugging Face MusicGen si configuré.
+- Chemin stable : worker MusicGen externe.
+- Pas de MusicGen GPU local directement sur Railway.
+
+### `voice.transcribe`
+
+- Chemin réel : worker Whisper/STT.
+- Nécessite une URL audio et un worker.
+
+### `audio.synthesize`
+
+- Chemin réel : worker TTS/Piper/Edge TTS.
+- Nécessite un worker configuré.
+
+## Diagnostic
+
+- `GET /api/registry/status` : stratégie providers/capacités.
+- `GET /api/registry/capabilities` : vérité des capacités.
+- `GET /api/registry/providers` : vérité des providers.
+- `GET /api/system/ai` : statut IA.
+- `GET /api/system/validate` : VIS.
+- `GET /api/system/selftest` : test fonctionnel réel.
+
+## Règle Red Team
+
+La Constitution préfère un système honnête, limité et stable à une plateforme qui affiche des boutons spectaculaires mais faux. Une capacité peut être :
+
+- `success` si elle fonctionne réellement ;
+- `missing_config` si le handler existe mais la config manque ;
+- `planned` si rien n'est encore branché ;
+- `read_only` si elle observe sans modifier ;
+- `plan_only` si elle produit seulement un plan.
