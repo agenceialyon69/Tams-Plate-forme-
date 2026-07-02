@@ -1,0 +1,19 @@
+{
+  "name": "ltx-video-default",
+  "description": "LTX Video generation for longer videos",
+  "model": "ltx-video-2b-v2",
+  "inputs": {
+    "prompt": "",
+    "negative_prompt": "blurry, low quality",
+    "width": 720,
+    "height": 1280,
+    "frames": 240,
+    "fps": 24,
+    "guidance_scale": 3.0
+  },
+  "requirements": [
+    "pip install diffusers transformers accelerate",
+    "Download: models/ltx-video/"
+  ],
+  "note": "Requires ~16GB VRAM for longer videos"
+}

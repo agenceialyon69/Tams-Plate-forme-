@@ -1,0 +1,19 @@
+{
+  "name": "animatediff-default",
+  "description": "AnimateDiff motion generation workflow",
+  "model": "animatediff_v3",
+  "inputs": {
+    "prompt": "",
+    "negative_prompt": "blurry, low quality, distorted, ugly",
+    "width": 720,
+    "height": 1280,
+    "frames": 96,
+    "fps": 24,
+    "motion_scale": 1.0
+  },
+  "requirements": [
+    "pip install diffusers transformers accelerate safetensors",
+    "Download: models/animatediff/"
+  ],
+  "note": "Requires ~8GB VRAM minimum for 720x1280 @ 24fps"
+}

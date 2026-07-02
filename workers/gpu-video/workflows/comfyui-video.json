@@ -1,0 +1,31 @@
+{
+  "name": "comfyui-video-default",
+  "description": "Default ComfyUI video generation workflow",
+  "inputs": {
+    "prompt": "",
+    "negative_prompt": "blurry, low quality, distorted",
+    "width": 720,
+    "height": 1280,
+    "frames": 96,
+    "fps": 24
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 20,
+        "cfg": 7.5,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": ["4", 0],
+        "positive": ["6", 0],
+        "negative": ["7", 0],
+        "latent_image": ["5", 0]
+      }
+    }
+  ],
+  "note": "This is a template. Import into ComfyUI and customize. Requires AnimateDiff or similar nodes installed."
+}
