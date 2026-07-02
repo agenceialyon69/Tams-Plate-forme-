@@ -2,7 +2,7 @@
 
 ## Verdict actuel
 
-**WARN — CI et E2E à confirmer sur la PR.**
+**WARN — implémentation validée par CI; intégrations OAuth/workers en missing_config.**
 
 ## Priorité produit
 
@@ -50,11 +50,15 @@ Les endpoints Life OS v5 existants sont conservés.
 
 `/vie` dispose de dix sections mobiles, états loading/error/empty/missing_config, capture preview, dry-run d'automation et coach structuré.
 
-## Validation attendue
+## Validation obtenue
 
-- typecheck
-- builds frontend/API
-- tests Runtime et Mission 2
-- 15 scénarios Life OS
-- smoke des endpoints
-- E2E `/vie`
+CI GitHub Actions run 373 : **PASS**.
+
+- typecheck : PASS
+- builds frontend/API : PASS
+- tests Runtime et Mission 2 : PASS
+- 15 scénarios Life OS : PASS
+- smoke des endpoints : PASS
+- E2E `/vie` : PASS
+
+Le verdict global reste WARN tant que Gmail, Calendar, n8n et les workers optionnels ne sont pas configurés et vérifiés en production.
