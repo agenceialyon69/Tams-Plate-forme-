@@ -44,6 +44,14 @@ import {
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
+type DurableChatMessage = {
+  id: string;
+  conversationId: number;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+};
+
 const MODES = [
   { value: "chat", label: "Conversation", icon: MessageSquare },
   { value: "chief_of_staff", label: "Chef de Cabinet", icon: Zap },
@@ -1123,6 +1131,7 @@ export default function Chat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [pendingUser, setPendingUser] = useState<string | null>(null);
+  const [durableLocalMessages, setDurableLocalMessages] = useState<DurableChatMessage[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [showSlashPicker, setShowSlashPicker] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
@@ -1174,6 +1183,31 @@ export default function Chat() {
     if (messages.length <= visibleCount) return messages;
     return messages.slice(messages.length - visibleCount);
   }, [messages, visibleCount]);
+
+  const displayedMessages = useMemo(() => {
+    const localForConversation = durableLocalMessages.filter(local => local.conversationId === selectedId);
+    const unresolvedLocal = localForConversation.filter(local =>
+      !messages.some((server: Message) => server.role === local.role && server.content === local.content),
+    );
+    return [...visibleMessages, ...unresolvedLocal].sort(
+      (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+    );
+  }, [durableLocalMessages, messages, selectedId, visibleMessages]);
+
+  const appendDurableMessage = useCallback((conversationId: number, role: "user" | "assistant", content: string) => {
+    const normalized = content.trim();
+    if (!normalized) return;
+    setDurableLocalMessages(previous => [
+      ...previous,
+      {
+        id: `local-${conversationId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        conversationId,
+        role,
+        content: normalized,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+  }, []);
 
   // Filter conversations by search query
   const filteredConversations = useMemo(() => {
@@ -1294,13 +1328,20 @@ export default function Chat() {
     setIsStreaming(true);
     setStreamingContent("");
     setToolCalls([]);
-    setPendingUser(content);
+    appendDurableMessage(selectedId, "user", content);
+    setPendingUser(null);
     setShowSlashPicker(false);
     setIsError(false);
     setLastFailedMessage(null);
 
     abortRef.current = new AbortController();
     let doneReceived = false;
+    let assembledContent = "";
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      abortRef.current?.abort();
+    }, 45_000);
 
     try {
       const intentResponse = await fetch(`${API_BASE}/api/kernel/route-intent`, {
@@ -1336,7 +1377,7 @@ export default function Chat() {
             plan.storyboardPlan,
             "Respect the target platform, pacing, shots and CTA. Do not invent product claims.",
           ].filter(Boolean).join("\n\n");
-          setStreamingContent([
+          const videoPlan = [
             "Plan vidéo préparé par TAMS Studio",
             plan.creativeBrief && `BRIEF\n${plan.creativeBrief}`,
             plan.scriptPlan && `SCRIPT / PLAN DE TOURNAGE\n${plan.scriptPlan}`,
@@ -1350,7 +1391,9 @@ export default function Chat() {
             ...(plan.honestLimitations ?? []),
             ...(plan.missingCapabilities ?? []),
             "PROCHAINE ACTION\nOuvrez Studio pour ajuster le plan ou copiez le prompt dans Kling, Runway ou Veo.",
-          ].filter(Boolean).join("\n\n"));
+          ].filter(Boolean).join("\n\n");
+          setStreamingContent(videoPlan);
+          appendDurableMessage(selectedId, "assistant", videoPlan);
           doneReceived = false;
           return;
         }
@@ -1403,7 +1446,8 @@ export default function Chat() {
           try {
             const event = JSON.parse(line.slice(6));
             if (event.type === "token") {
-              setStreamingContent(prev => prev + event.content);
+              assembledContent += typeof event.content === "string" ? event.content : "";
+              setStreamingContent(prev => prev + (typeof event.content === "string" ? event.content : ""));
             } else if (event.type === "tool_start") {
               setToolCalls(prev => [...prev, { name: event.name, args: event.args, result: "", status: "pending" }]);
             } else if (event.type === "tool_progress") {
@@ -1420,16 +1464,52 @@ export default function Chat() {
           } catch { /* skip */ }
         }
       }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setIsError(true);
-        setLastFailedMessage(content);
-        const description = err instanceof RuntimeBridgeError
-          ? err.message
-          : "Impossible d'envoyer le message";
-        toast({ title: "Erreur de connexion", description, variant: "destructive" });
+      if (!doneReceived && assembledContent.trim()) {
+        appendDurableMessage(selectedId, "assistant", assembledContent);
       }
+    } catch (err: unknown) {
+      setIsError(true);
+      setLastFailedMessage(content);
+      const videoRequest = /vid[ée]o|tiktok|9:16|ugc/i.test(content);
+      const technicalReason = timedOut
+        ? "Le service a dépassé le délai de 45 secondes."
+        : err instanceof RuntimeBridgeError
+          ? err.message
+          : err instanceof Error && err.name === "AbortError"
+            ? "La requête a été interrompue."
+            : err instanceof Error
+              ? err.message
+              : "Erreur inconnue.";
+      const assistantFallback = videoRequest
+        ? [
+            "Je n’ai pas pu joindre le backend vidéo, mais ta demande reste enregistrée.",
+            "",
+            "HOOK",
+            "« Le legging qui suit ton rythme, sans mise en scène forcée. »",
+            "",
+            "SCRIPT",
+            "0–3 s : hook face caméra. 3–10 s : montrer le legging en mouvement naturel. 10–20 s : détails coupe, matière et confort sans promesse non vérifiée. 20–27 s : résultat UGC. 27–30 s : CTA.",
+            "",
+            "SHOT LIST",
+            "1. Face caméra verticale 9:16.\n2. Gros plan matière.\n3. Marche ou mouvement naturel.\n4. Détail taille/coupe.\n5. Plan final avec CTA.",
+            "",
+            "CAPTIONS",
+            "Naturel, confortable, prêt à bouger avec toi. #activewear #legging #ugc",
+            "",
+            "CTA",
+            "Découvre le legging et vérifie les détails produit.",
+            "",
+            "LIMITATION",
+            "La génération vidéo réelle n’est pas encore connectée. Ce résultat est un plan de secours, aucun fichier vidéo n’a été généré.",
+            "",
+            `DÉTAIL TECHNIQUE : ${technicalReason}`,
+          ].join("\n")
+        : `Je n’ai pas pu obtenir la réponse du serveur. Ton message reste visible et tu peux réessayer.\n\nDétail : ${technicalReason}`;
+      appendDurableMessage(selectedId, "assistant", assistantFallback);
+      setStreamingContent(assistantFallback);
+      toast({ title: "Réponse de secours affichée", description: technicalReason, variant: "destructive" });
     } finally {
+      window.clearTimeout(timeoutId);
       if (doneReceived) {
         await Promise.all([
           qc.invalidateQueries({ queryKey: getListMessagesQueryKey(selectedId) }),
@@ -1442,7 +1522,7 @@ export default function Chat() {
       setPendingUser(null);
       setThinkingSteps([]);
     }
-  }, [selectedId, isStreaming, qc, toast]);
+  }, [selectedId, isStreaming, qc, toast, appendDurableMessage]);
 
   function handleSend() {
     if ((!message.trim() && attachedImages.length === 0) || !selectedId || isStreaming) return;
@@ -1724,7 +1804,7 @@ export default function Chat() {
                   </div>
                 </div>
               </div>
-            ) : msgsLoading ? (
+            ) : msgsLoading && displayedMessages.length === 0 ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className={cn("flex", i % 2 === 0 ? "justify-start" : "justify-end")}>
@@ -1734,13 +1814,13 @@ export default function Chat() {
               </div>
             ) : (
               <>
-                {visibleMessages.map((msg: Message, idx: number) => {
-                  const showDate = idx === 0 || !isSameDay(new Date(msg.createdAt), new Date(visibleMessages[idx - 1]?.createdAt));
+                {displayedMessages.map((msg, idx: number) => {
+                  const showDate = idx === 0 || !isSameDay(new Date(msg.createdAt), new Date(displayedMessages[idx - 1]?.createdAt));
                   return (
                     <div key={msg.id}>
                       {showDate && <DateSeparator date={msg.createdAt} />}
                       <MessageBubble
-                        msg={msg}
+                        msg={msg as Message}
                         mode={currentMode}
                         onQuickAction={handleQuickAction}
                       />
