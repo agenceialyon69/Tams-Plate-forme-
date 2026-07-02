@@ -3,7 +3,7 @@
 > **Lire avant de commencer un lot.** Mettre à jour après chaque lot.
 > Source de vérité unique de l'avancement. Branche de livraison : `main`.
 
-_Dernière mise à jour : 2026-07-02 — après PR #72, #73 et #74._
+_Dernière mise à jour : 2026-07-02 — PR #78 validée par CI, non mergée à cet instant._
 
 ## Règles de travail
 
@@ -101,3 +101,25 @@ _Dernière mise à jour : 2026-07-02 — après PR #72, #73 et #74._
 - **Objectif final : non terminé.** La prochaine étape est la preuve par usage réel en production.
 
 Voir aussi : `37_IMPLEMENTATION_LEDGER_2026-07-02.md`.
+
+
+---
+
+## 🧪 PR #78 — Life OS final platform v1 (ouverte, CI verte)
+
+Branche : `feat/platform-life-os-final-v1`.
+
+Validé par CI run 373 :
+
+- Permission System avec audit et blocage high/critical.
+- Job Queue non bloquante, logs, erreurs, annulation et fallback mémoire.
+- Deep History et timeline.
+- Memory Graph v2.
+- Gmail/Calendar privacy-first avec `missing_config` honnête.
+- Automations safe/local en dry-run.
+- Coach contextuel structuré et doctrine de priorité stricte.
+- Ops/monitoring sans secret.
+- Cockpit `/vie` final et E2E navigateur.
+- 15 scénarios Life OS PASS.
+
+État de livraison : **prêt pour revue**, pas encore présent sur `main` tant que PR #78 n'est pas mergée.
