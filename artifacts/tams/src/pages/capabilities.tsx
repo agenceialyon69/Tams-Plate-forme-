@@ -17,6 +17,7 @@ type RunResult = {
 
 const actions = [
   ["dev.agent.core", "Dev Agent Core", "Claude Code-like v1 : repo, patch preview, permissions, validation"],
+  ["dev.agent.validation", "Validation Runner", "Sandbox worker, CI, e2e readiness, scheduler status"],
   ["text.generate", "Texte", "Description produit"],
   ["studio.script.generate", "Script Studio", "Script vidéo"],
   ["studio.storyboard.generate", "Storyboard", "Plan scène par scène"],
@@ -37,6 +38,7 @@ const actions = [
 
 function defaultInput(id: string): string {
   if (id === "dev.agent.core") return "Analyse TAMS comme Claude Code : repo intelligence, patch preview, permission layer, validation plan, GitHub PR loop.";
+  if (id === "dev.agent.validation") return "Prépare la validation sandbox complète : typecheck, build, tests, smoke, e2e readiness, scheduler.";
   if (id === "voice.transcribe") return "Colle ici une URL audio publique.";
   if (id === "audio.music.generate") return "Musique courte moderne sportive premium, énergie TikTok, sans paroles.";
   if (id === "audio.synthesize") return "Cette tenue est pensée pour bouger librement toute la journée.";
