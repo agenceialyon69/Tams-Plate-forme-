@@ -19,7 +19,7 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   const pageErrors: string[] = [];
   page.on("pageerror", error => pageErrors.push(error.message));
 
-  await page.route("**/api/conversations", async route => {
+  await page.route(/\/api\/conversations(?:\?.*)?$/, async route => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
@@ -39,7 +39,7 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
       ]),
     });
   });
-  await page.route("**/api/conversations/9001/messages", route =>
+  await page.route(/\/api\/conversations\/9001\/messages(?:\?.*)?$/, route =>
     route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
   );
   await page.route("**/api/kernel/route-intent", route =>
