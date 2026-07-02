@@ -45,7 +45,10 @@ import capabilityActionsMediaDevopsRouter from "./capability-actions-media-devop
 import capabilityActionsMemoryRouter from "./capability-actions-memory.js";
 import capabilityActionsRouter from "./capability-actions.js";
 import chatCapabilitiesRouter from "./chat-capabilities.js";
+import n8nWebhookRouter from "./n8n-webhook.js";
+
 const router: IRouter = Router();
+
 router.use(authRouter);
 router.use(healthRouter);
 router.use(versionRouter);
@@ -94,5 +97,7 @@ router.use(capabilityActionsMemoryRouter);
 router.use(capabilityActionsRouter);
 router.use(capabilityRegistryRouter);
 router.use(chatCapabilitiesRouter);
+router.use(n8nWebhookRouter);
 router.use(defaultRateLimit);
+
 export default router;
