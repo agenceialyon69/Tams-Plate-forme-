@@ -19,6 +19,7 @@ const actions = [
   ["dev.agent.core", "Dev Agent Core", "Claude Code-like v1 : repo, patch preview, permissions, validation"],
   ["dev.agent.validation", "Validation Runner", "Sandbox worker, CI, e2e readiness, scheduler status"],
   ["dev.agent.ci", "CI Operator", "Runs, logs, rerun, PR handoff, scheduler guard"],
+  ["dev.agent.scheduler", "Dev Agent Scheduler", "Statut opt-in, intervalle gardé et dispatch tams-dev"],
   ["text.generate", "Texte", "Description produit"],
   ["studio.script.generate", "Script Studio", "Script vidéo"],
   ["studio.storyboard.generate", "Storyboard", "Plan scène par scène"],
