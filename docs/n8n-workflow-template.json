@@ -1,0 +1,256 @@
+{
+  "name": "TAMS Console Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "auto",
+      "credentials": {
+        "telegramApi": {
+          "id": "USE_EXISTING_CREDENTIAL",
+          "name": "Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser la commande Telegram\nconst input = $input.first();\nconst message = input.json.message || {};\nconst text = message.text || '';\nconst chatId = message.chat?.id;\nconst username = message.from?.username || 'unknown';\n\n// Extraire commande et prompt\nconst parts = text.trim().split(/\\s+/);\nconst command = (parts[0] || '').toLowerCase();\nconst prompt = parts.slice(1).join(' ');\n\n// Commandes valides\nconst validCommands = ['/status', '/studio_test', '/video', '/audio', '/image', '/gpu'];\nconst isValid = validCommands.includes(command);\n\nreturn {
+  chatId,
+  username,
+  command: isValid ? command : 'unknown',\n  prompt: prompt || '',\n  originalText: text,
+  timestamp: new Date().toISOString(),
+  isValid,
+};"
+      },
+      "id": "parse-command",
+      "name": "Parser Commande",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": {}, "conditions": [{ "leftValue": "={{ $json.command }}", "rightValue": "/status", "operator": "equal" }] }, "output": 0 },
+            { "conditions": { "options": {}, "conditions": [{ "leftValue": "={{ $json.command }}", "rightValue": "/studio_test", "operator": "equal" }] }, "output": 1 },
+            { "conditions": { "options": {}, "conditions": [{ "leftValue": "={{ $json.command }}", "rightValue": "/video", "operator": "equal" }] }, "output": 2 },
+            { "conditions": { "options": {}, "conditions": [{ "leftValue": "={{ $json.command }}", "rightValue": "/audio", "operator": "equal" }] }, "output": 3 },
+            { "conditions": { "options": {}, "conditions": [{ "leftValue": "={{ $json.command }}", "rightValue": "/image", "operator": "equal" }] }, "output": 4 },
+            { "conditions": { "options": {}, "conditions": [{ "leftValue": "={{ $json.command }}", "rightValue": "/gpu", "operator": "equal" }] }, "output": 5 }
+          ],
+          "fallbackOutput": 6
+        }
+      },
+      "id": "switch-commands",
+      "name": "Router Commande",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceapi-server-production-1334.up.railway.app/api/_diagnostics/production",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "http-status",
+      "name": "GET /status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceapi-server-production-1334.up.railway.app/api/_diagnostics/studio-selftest",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "http-studio-test",
+      "name": "GET /studio_test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 180]
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceapi-server-production-1334.up.railway.app/api/studio/generate-video",
+        "method": "POST",
+        "options": {},
+        "jsonBody": "={ \"text\": \"{{ $json.prompt || 'TAMS video generation' }}\", \"images\": [], \"secondsPerImage\": 2 }"
+      },
+      "id": "http-video",
+      "name": "POST /video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 260]
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceapi-server-production-1334.up.railway.app/api/studio/generate-music",
+        "method": "POST",
+        "options": {},
+        "jsonBody": "={ \"prompt\": \"{{ $json.prompt || 'calm ambient music' }}\" }"
+      },
+      "id": "http-audio",
+      "name": "POST /audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 340]
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceapi-server-production-1334.up.railway.app/api/studio/generate-image",
+        "method": "POST",
+        "options": {},
+        "jsonBody": "={ \"prompt\": \"{{ $json.prompt || 'beautiful landscape' }}\", \"width\": 1024, \"height\": 1024, \"style\": \"photorealistic\" }"
+      },
+      "id": "http-image",
+      "name": "POST /image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 420]
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceapi-server-production-1334.up.railway.app/api/gpu/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "http-gpu",
+      "name": "GET /gpu",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [910, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater la reponse pour Telegram et Google Sheets\nconst baseUrl = 'https://workspaceapi-server-production-1334.up.railway.app';\n\n// Recuperer les donnees du parser et de la reponse HTTP\nconst parserNode = $('Parser Commande').first();\nconst chatId = parserNode.json.chatId;\nconst username = parserNode.json.username;\nconst command = parserNode.json.command;\nconst prompt = parserNode.json.prompt;\n\nconst httpResult = $input.first().json;\n\n// Construire l'URL complete si URL relative\nlet mediaUrl = httpResult.url || httpResult.playable?.videoUrl || httpResult.playable?.audioUrl || httpResult.playable?.imageUrl || null;\nif (mediaUrl && !mediaUrl.startsWith('http')) {\n  mediaUrl = baseUrl + mediaUrl;\n}\n\n// Determiner statut\nconst status = httpResult.ok === true || httpResult.verdict === 'pass' ? 'success' : 'error';\nconst error = httpResult.error || httpResult.detail || '';\n\n// Construire message Telegram\nlet msg = '';\n\nif (status === 'success') {\n  if (command === '/status') {\n    msg = \\`✅ **Status TAMS**\\n\\nVerdict: ${httpResult.verdict}\\nRailway: ${httpResult.deployment?.railway ? 'Oui' : 'Non'}\\nDatabase: ${httpResult.env?.databaseConfigured ? 'Configuré' : 'Non'}\\nGPU: ${httpResult.env?.gpuVideoConfigured ? 'Oui' : 'Non'}\\n\\`;\n  } else if (command === '/studio_test') {\n    msg = \\`🎬 **Studio Self-Test**\\n\\nVerdict: ${httpResult.verdict}\\n\\`;\n    if (httpResult.playable?.videoUrl) msg += \\`Video: ${baseUrl}${httpResult.playable.videoUrl}\\n\\`;\n    if (httpResult.playable?.audioUrl) msg += \\`Audio: ${baseUrl}${httpResult.playable.audioUrl}\\n\\`;\n    if (httpResult.playable?.imageUrl) msg += \\`Image: ${httpResult.playable.imageUrl}\\n\\`;\n  } else if (command === '/video' && mediaUrl) {\n    msg = \\`🎬 **Vidéo générée**\\n\\nURL: ${mediaUrl}\\nEngine: ${httpResult.engine || 'ffmpeg'}\\n${httpResult.degraded ? '\\n⚠️ Fallback local' : ''}\\`;\n  } else if (command === '/audio' && mediaUrl) {\n    msg = \\`🎵 **Audio généré**\\n\\nURL: ${mediaUrl}\\nEngine: ${httpResult.engine || 'musicgen'}\\`;\n  } else if (command === '/image' && mediaUrl) {\n    msg = \\`🖼️ **Image générée**\\n\\nURL: ${mediaUrl}\\`;\n  } else if (command === '/gpu') {\n    msg = \\`🖥️ **GPU Workers**\\n\\n\\`;\n    (httpResult.workers || []).forEach(w => {\n      const icon = w.status === 'connected' ? '✅' : '❌';\n      msg += \\`${icon} ${w.kind}: ${w.status}\\n\\`;\n    });\n  }
+} else {\n  msg = \\`❌ **Erreur**\\n\\nCommande: ${command}\\nErreur: ${error}\\`;\n}\n\n// Donnees Google Sheets\nconst sheetsRow = {\n  date: new Date().toISOString(),\n  chatId: String(chatId),\n  username,
+  commande: command,
+  prompt,
+  statut: status,
+  url: mediaUrl || '',\n  erreur: error\n};\n\nreturn { telegramMessage: msg, chatId, sheetsRow };"
+      },
+      "id": "format-response",
+      "name": "Formater Réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "telegram-reply",
+      "name": "Répondre Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1350, 250],
+      "credentials": {
+        "telegramApi": {
+          "id": "USE_EXISTING_CREDENTIAL",
+          "name": "Telegram API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": "Sheet1",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "date": "={{ $json.sheetsRow.date }}",
+            "chatId": "={{ $json.sheetsRow.chatId }}",
+            "username": "={{ $json.sheetsRow.username }}",
+            "commande": "={{ $json.sheetsRow.commande }}",
+            "prompt": "={{ $json.sheetsRow.prompt }}",
+            "statut": "={{ $json.sheetsRow.statut }}",
+            "url": "={{ $json.sheetsRow.url }}",
+            "erreur": "={{ $json.sheetsRow.erreur }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "google-sheets-log",
+      "name": "Logger Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1350, 350],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "USE_EXISTING_CREDENTIAL",
+          "name": "Google Sheets API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{"node": "Parser Commande", "type": "main", "index": 0}]]
+    },
+    "Parser Commande": {
+      "main": [[{"node": "Router Commande", "type": "main", "index": 0}]]
+    },
+    "Router Commande": {
+      "main": [
+        [{"node": "GET /status", "type": "main", "index": 0}],
+        [{"node": "GET /studio_test", "type": "main", "index": 0}],
+        [{"node": "POST /video", "type": "main", "index": 0}],
+        [{"node": "POST /audio", "type": "main", "index": 0}],
+        [{"node": "POST /image", "type": "main", "index": 0}],
+        [{"node": "GET /gpu", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "GET /status": {
+      "main": [[{"node": "Formater Réponse", "type": "main", "index": 0}]]
+    },
+    "GET /studio_test": {
+      "main": [[{"node": "Formater Réponse", "type": "main", "index": 0}]]
+    },
+    "POST /video": {
+      "main": [[{"node": "Formater Réponse", "type": "main", "index": 0}]]
+    },
+    "POST /audio": {
+      "main": [[{"node": "Formater Réponse", "type": "main", "index": 0}]]
+    },
+    "POST /image": {
+      "main": [[{"node": "Formater Réponse", "type": "main", "index": 0}]]
+    },
+    "GET /gpu": {
+      "main": [[{"node": "Formater Réponse", "type": "main", "index": 0}]]
+    },
+    "Formater Réponse": {
+      "main": [
+        [{"node": "Répondre Telegram", "type": "main", "index": 0}],
+        [{"node": "Logger Google Sheets", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-07-02T00:00:00.000Z",
+  "versionId": "1"
+}
