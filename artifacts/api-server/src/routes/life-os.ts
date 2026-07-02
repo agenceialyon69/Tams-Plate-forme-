@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { tasksTable, decisionsTable, memoriesTable, activityTable } from "@workspace/db";
 import { desc, sql } from "drizzle-orm";
 
@@ -52,6 +52,13 @@ async function loadSignals() {
   ]);
   const tasks = taskStats[0] ?? { total: 0, done: 0, active: 0, urgent: 0, dueSoon: 0 };
   const decisions = decisionStats[0] ?? { total: 0, open: 0, lowConfidence: 0 };
+  const platform = await pool.query(
+    `SELECT
+      (SELECT COUNT(*)::int FROM life_events) AS history_count,
+      (SELECT COUNT(*)::int FROM jobs WHERE status IN ('queued','running')) AS active_jobs,
+      (SELECT COUNT(*)::int FROM jobs WHERE status IN ('fail','timeout')) AS failed_jobs,
+      (SELECT COUNT(*)::int FROM life_automations WHERE enabled=true) AS enabled_automations`,
+  ).then(result => result.rows[0]).catch(() => ({ history_count: 0, active_jobs: 0, failed_jobs: 0, enabled_automations: 0 }));
   return {
     tasks: { total: Number(tasks.total ?? 0), done: Number(tasks.done ?? 0), active: Number(tasks.active ?? 0), urgent: Number(tasks.urgent ?? 0), dueSoon: Number(tasks.dueSoon ?? 0) },
     decisions: { total: Number(decisions.total ?? 0), open: Number(decisions.open ?? 0), lowConfidence: Number(decisions.lowConfidence ?? 0) },
@@ -59,6 +66,12 @@ async function loadSignals() {
     activity: Number(activity[0]?.count ?? 0),
     recentTasks: (recentTasks as any[]).map(t => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, dueDate: t.dueDate ?? null })),
     recentActivity: (recentActivity as any[]).map(a => ({ type: a.type, title: a.title, createdAt: a.createdAt })),
+    platform: {
+      historyCount: Number(platform.history_count ?? 0),
+      activeJobs: Number(platform.active_jobs ?? 0),
+      failedJobs: Number(platform.failed_jobs ?? 0),
+      enabledAutomations: Number(platform.enabled_automations ?? 0),
+    },
   };
 }
 
