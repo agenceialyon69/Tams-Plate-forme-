@@ -3,7 +3,7 @@ import { Film, Loader2, Download, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? "";
 
 interface ImageAsset {
   id: number;
@@ -12,9 +12,8 @@ interface ImageAsset {
 }
 
 /**
- * Générateur de VIDÉO réelle (TikTok/Reels 9:16) — 100 % gratuit (FFmpeg côté
- * serveur). Sélectionne des images (produits Shopify importés, images générées),
- * ajoute un texte, et obtiens un mp4 vertical téléchargeable.
+ * Générateur de VIDÉO réelle (TikTok/Reels 9:16) — gratuit via FFmpeg côté serveur.
+ * Fonctionne avec images sélectionnées OU texte seul.
  */
 export function ProductVideoMaker() {
   const { toast } = useToast();
@@ -25,7 +24,6 @@ export function ProductVideoMaker() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  // Musique de fond optionnelle (générée IA, gratuit avec HF_TOKEN).
   const [musicPrompt, setMusicPrompt] = useState("");
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicLoading, setMusicLoading] = useState(false);
@@ -44,7 +42,7 @@ export function ProductVideoMaker() {
         toast({ title: "Musique indisponible", description: data.hint || data.error, variant: "destructive" });
       } else {
         setMusicUrl(`${API_BASE}${data.url}`);
-        toast({ title: "Musique prête 🎵", description: "Elle sera ajoutée à la vidéo." });
+        toast({ title: data.degraded ? "Audio local prêt" : "Musique prête", description: data.hint || "Elle sera ajoutée à la vidéo." });
       }
     } catch {
       toast({ title: "Musique échouée", variant: "destructive" });
@@ -70,7 +68,11 @@ export function ProductVideoMaker() {
   }
 
   async function generate() {
-    if (selected.length === 0 || generating) return;
+    if (generating) return;
+    if (selected.length === 0 && !text.trim()) {
+      toast({ title: "Ajoute un texte ou sélectionne une image", variant: "destructive" });
+      return;
+    }
     setGenerating(true);
     setVideoUrl(null);
     try {
@@ -84,7 +86,7 @@ export function ProductVideoMaker() {
         toast({ title: "Génération échouée", description: data.detail || data.error || `HTTP ${res.status}`, variant: "destructive" });
       } else {
         setVideoUrl(`${API_BASE}${data.url}`);
-        toast({ title: "Vidéo générée 🎬", description: `${data.images} images · ${data.durationSec}s · 9:16` });
+        toast({ title: data.degraded ? "Vidéo texte générée" : "Vidéo générée", description: data.note || `${data.images} images · ${data.durationSec}s · 9:16` });
       }
     } catch {
       toast({ title: "Génération échouée", description: "Vérifie ta connexion.", variant: "destructive" });
@@ -93,6 +95,8 @@ export function ProductVideoMaker() {
     }
   }
 
+  const canGenerate = !generating && (selected.length > 0 || text.trim().length > 0);
+
   return (
     <div className="bg-gradient-to-br from-violet-500/[0.07] to-fuchsia-500/[0.07] border border-violet-500/20 rounded-2xl p-5 space-y-4">
       <div className="flex items-center gap-2">
@@ -100,8 +104,8 @@ export function ProductVideoMaker() {
           <Film className="w-4 h-4 text-violet-400" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Vidéo TikTok (9:16) — gratuite</h3>
-          <p className="text-[11px] text-muted-foreground">Sélectionne tes images produits → mp4 vertical</p>
+          <h3 className="text-sm font-semibold text-foreground">Vidéo TikTok (9:16) — opérationnelle</h3>
+          <p className="text-[11px] text-muted-foreground">Images produits ou texte seul → mp4 vertical téléchargeable</p>
         </div>
       </div>
 
@@ -109,7 +113,7 @@ export function ProductVideoMaker() {
         <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /></div>
       ) : assets.length === 0 ? (
         <p className="text-xs text-muted-foreground py-4 text-center">
-          Aucune image dans tes Assets. Génère des images (bouton Image) ou importe ta boutique Shopify (Système → Connecter Shopify).
+          Aucune image disponible. Vous pouvez quand même générer une vidéo texte avec le champ ci-dessous.
         </p>
       ) : (
         <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
@@ -132,11 +136,12 @@ export function ProductVideoMaker() {
         </div>
       )}
 
-      <input
+      <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Texte à afficher (ex: Nouvelle collection -20%)"
-        className="w-full bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-violet-500/40"
+        placeholder="Texte ou brief vidéo : ex. Pub TikTok activewear femme, hook naturel, bénéfice confort, CTA"
+        rows={3}
+        className="w-full bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-violet-500/40 resize-none"
         style={{ fontSize: "16px" }}
       />
 
@@ -145,12 +150,11 @@ export function ProductVideoMaker() {
         <input type="range" min={1} max={5} step={0.5} value={spi} onChange={(e) => setSpi(Number(e.target.value))} className="flex-1 accent-violet-500" />
       </div>
 
-      {/* Musique de fond optionnelle (IA, gratuit avec HF_TOKEN) */}
       <div className="flex gap-2 items-center">
         <input
           value={musicPrompt}
           onChange={(e) => setMusicPrompt(e.target.value)}
-          placeholder="Musique de fond (ex: électro énergique) — optionnel"
+          placeholder="Musique de fond optionnelle"
           className="flex-1 bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-violet-500/40"
           style={{ fontSize: "16px" }}
         />
@@ -159,16 +163,16 @@ export function ProductVideoMaker() {
           disabled={musicLoading || !musicPrompt.trim()}
           className="shrink-0 px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-xs font-medium disabled:opacity-40"
         >
-          {musicLoading ? "…" : musicUrl ? "✓ Musique" : "Générer"}
+          {musicLoading ? "…" : musicUrl ? "✓ Audio" : "Générer"}
         </button>
       </div>
 
       <button
         onClick={generate}
-        disabled={generating || selected.length === 0}
+        disabled={!canGenerate}
         className="w-full py-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-sm font-medium disabled:opacity-40 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
       >
-        {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Génération de la vidéo...</> : <><Film className="w-4 h-4" /> Générer la vidéo ({selected.length} image{selected.length > 1 ? "s" : ""})</>}
+        {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Génération de la vidéo...</> : <><Film className="w-4 h-4" /> Générer la vidéo</>}
       </button>
 
       {videoUrl && (

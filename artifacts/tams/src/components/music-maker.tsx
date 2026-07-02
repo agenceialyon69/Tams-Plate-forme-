@@ -2,22 +2,27 @@ import { useState } from "react";
 import { Music, Loader2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? "";
 
 /**
- * Génération de MUSIQUE réelle (MusicGen via Hugging Face, gratuit avec un token
- * HF_TOKEN). À partir d'une description, produit une piste audio téléchargeable.
+ * Génération audio opérationnelle.
+ * - Si HF_TOKEN est présent : tentative MusicGen.
+ * - Sinon : WAV local simple généré côté serveur, téléchargeable.
  */
 export function MusicMaker() {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [engine, setEngine] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
 
   async function generate() {
     if (!prompt.trim() || generating) return;
     setGenerating(true);
     setAudioUrl(null);
+    setEngine(null);
+    setHint(null);
     try {
       const res = await fetch(`${API_BASE}/api/studio/generate-music`, {
         method: "POST",
@@ -29,7 +34,9 @@ export function MusicMaker() {
         toast({ title: "Musique indisponible", description: data.hint || data.error || `HTTP ${res.status}`, variant: "destructive" });
       } else {
         setAudioUrl(`${API_BASE}${data.url}`);
-        toast({ title: "Musique générée 🎵" });
+        setEngine(data.engine || null);
+        setHint(data.hint || null);
+        toast({ title: data.degraded ? "Audio local généré" : "Musique générée", description: data.hint || undefined });
       }
     } catch {
       toast({ title: "Génération échouée", description: "Vérifie ta connexion.", variant: "destructive" });
@@ -45,8 +52,8 @@ export function MusicMaker() {
           <Music className="w-4 h-4 text-emerald-400" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Musique IA — gratuite (MusicGen)</h3>
-          <p className="text-[11px] text-muted-foreground">Décris l'ambiance → piste audio générée</p>
+          <h3 className="text-sm font-semibold text-foreground">Audio généré — opérationnel</h3>
+          <p className="text-[11px] text-muted-foreground">MusicGen si configuré, sinon WAV local téléchargeable</p>
         </div>
       </div>
 
@@ -64,14 +71,17 @@ export function MusicMaker() {
         disabled={generating || !prompt.trim()}
         className="w-full py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-sm font-medium disabled:opacity-40 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
       >
-        {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Génération (≈15-30s)...</> : <><Music className="w-4 h-4" /> Générer la musique</>}
+        {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Génération...</> : <><Music className="w-4 h-4" /> Générer l'audio</>}
       </button>
 
       {audioUrl && (
         <div className="space-y-2">
           <audio src={audioUrl} controls className="w-full" />
+          {(engine || hint) && (
+            <p className="text-xs text-muted-foreground">Moteur : {engine || "audio"}{hint ? ` · ${hint}` : ""}</p>
+          )}
           <a href={audioUrl} download className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-secondary text-foreground text-sm font-medium border border-border">
-            <Download className="w-4 h-4" /> Télécharger la musique
+            <Download className="w-4 h-4" /> Télécharger l'audio
           </a>
         </div>
       )}
