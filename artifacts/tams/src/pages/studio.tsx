@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, Film, Music, Loader2, AlertTriangle, CheckCircle2, ExternalLink, Trash2, Activity } from "lucide-react";
+import { Image, Film, Music, Loader2, AlertTriangle, CheckCircle2, ExternalLink, Trash2, Activity, Cpu, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
@@ -28,6 +28,21 @@ type SelfTestState = {
   audioUrl?: string;
   imageUrl?: string;
   raw?: unknown;
+};
+
+type WorkerStatus = {
+  id: string;
+  kind: string;
+  status: "connected" | "missing_config";
+  env: string | null;
+  endpointConfigured: boolean;
+  note: string;
+};
+
+type WorkersState = {
+  status: "idle" | "loading" | "loaded" | "error";
+  workers: WorkerStatus[];
+  n8n: { configured: boolean; status: string } | null;
 };
 
 const STORAGE_KEY = "tams-studio-real-results-v2";
@@ -94,8 +109,29 @@ export default function Studio() {
   const [results, setResults] = useState<StudioResult[]>(loadResults);
   const [activeError, setActiveError] = useState<string | null>(null);
   const [selfTest, setSelfTest] = useState<SelfTestState>({ status: "idle" });
+  const [workers, setWorkers] = useState<WorkersState>({ status: "idle", workers: [], n8n: null });
 
   useEffect(() => saveResults(results), [results]);
+
+  useEffect(() => {
+    async function loadWorkers() {
+      setWorkers(w => ({ ...w, status: "loading" }));
+      try {
+        const [gpuStatus, n8nStatus] = await Promise.all([
+          getJson("/api/gpu/status").catch(() => null),
+          getJson("/api/n8n/status").catch(() => null),
+        ]);
+        setWorkers({
+          status: "loaded",
+          workers: (gpuStatus?.workers as WorkerStatus[]) || [],
+          n8n: n8nStatus ? { configured: n8nStatus.configured as boolean, status: n8nStatus.status as string } : null,
+        });
+      } catch {
+        setWorkers(w => ({ ...w, status: "error" }));
+      }
+    }
+    loadWorkers();
+  }, []);
 
   const currentResults = useMemo(() => results.filter(r => r.type === mode), [results, mode]);
 
@@ -181,6 +217,43 @@ export default function Studio() {
   return (
     <div className="flex-1 overflow-y-auto bg-background pb-24">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {/* Workers Status Panel */}
+        {workers.status === "loaded" && (
+          <section className="rounded-3xl border border-white/10 bg-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Cpu className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">État des workers</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {workers.workers.map(w => (
+                <div key={w.id} className={cn("rounded-xl border p-3 text-sm", w.status === "connected" ? "border-emerald-500/30 bg-emerald-500/10" : "border-amber-500/30 bg-amber-500/10")}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {w.status === "connected" ? <Wifi className="h-4 w-4 text-emerald-400" /> : <WifiOff className="h-4 w-4 text-amber-400" />}
+                    <span className="font-medium capitalize">{w.kind}</span>
+                  </div>
+                  <p className={cn("text-xs", w.status === "connected" ? "text-emerald-300" : "text-amber-300")}>
+                    {w.status === "connected" ? "Connecté" : w.env ? `Set ${w.env}` : "Non configuré"}
+                  </p>
+                </div>
+              ))}
+              {workers.n8n && (
+                <div className={cn("rounded-xl border p-3 text-sm", workers.n8n.configured ? "border-emerald-500/30 bg-emerald-500/10" : "border-amber-500/30 bg-amber-500/10")}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {workers.n8n.configured ? <Wifi className="h-4 w-4 text-emerald-400" /> : <WifiOff className="h-4 w-4 text-amber-400" />}
+                    <span className="font-medium">n8n</span>
+                  </div>
+                  <p className={cn("text-xs", workers.n8n.configured ? "text-emerald-300" : "text-amber-300")}>
+                    {workers.n8n.configured ? "Connecté" : "N8N_WEBHOOK_URL"}
+                  </p>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Workers non configurés ? TAMS utilise les fallbacks gratuits (Pollinations, local WAV). Connectez des workers GPU pour des résultats premium.
+            </p>
+          </section>
+        )}
+
         <header className="rounded-3xl border border-white/10 bg-card p-5 space-y-3">
           <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold">Studio opérationnel</p>
           <h1 className="text-3xl font-semibold">Créer un vrai résultat</h1>
@@ -271,7 +344,7 @@ export default function Studio() {
 
           {currentResults.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-muted-foreground">
-              Aucun résultat {mode} pour l’instant. Lance une génération réelle ci-dessus.
+              Aucun résultat {mode} pour l'instant. Lance une génération réelle ci-dessus.
             </div>
           ) : (
             <div className="grid gap-4">
