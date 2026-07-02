@@ -10,7 +10,7 @@ import {
   rerunFailedJobs,
   runRepairLoop,
   type RunKind,
-} from "../lib/dev-agent-ci-operator";
+} from "../lib/dev-agent-ci-operator.js";
 
 const router = Router();
 
@@ -79,7 +79,7 @@ router.post("/dev-agent/ci/repair-loop", async (req, res) => {
   const runId = num(b.runId);
   if (!runId) return res.status(400).json({ ok: false, error: "runId requis" });
   const result = await runRepairLoop({ repo: str(b.repo), runId, rerun: b.rerun === true });
-  res.json(result);
+  return res.json(result);
 });
 
 router.post("/capabilities/execute", async (req, res, next) => {
