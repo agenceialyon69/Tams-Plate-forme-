@@ -58,7 +58,7 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   );
 
   await page.goto("/chat", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "E2E vidéo", exact: true }).click();
+  await page.getByRole("button", { name: /E2E vidéo/ }).click();
 
   const composer = page.getByPlaceholder(/Envoyer un message/);
   await composer.fill(prompt);
