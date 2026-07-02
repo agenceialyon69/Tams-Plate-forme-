@@ -1,4 +1,4 @@
-import { dispatchWorkflow } from "./dev-agent-ci-operator";
+import { dispatchWorkflow } from "./dev-agent-ci-operator.js";
 
 let started = false;
 let lastRunAt: string | null = null;
