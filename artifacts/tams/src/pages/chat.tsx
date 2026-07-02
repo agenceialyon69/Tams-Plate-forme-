@@ -1389,7 +1389,7 @@ export default function Chat() {
             "CTA\nDécouvre le legging et vérifie les détails produit avant de commander.",
             plan.productionSteps?.length ? `PLAN DE MONTAGE\n${plan.productionSteps.map(step => `${step.order ?? "-"}. ${step.name ?? "Étape"} — ${step.notes ?? ""}`).join("\n")}` : "",
             plan.exportTargets?.length ? `EXPORTS\n- ${plan.exportTargets.join("\n- ")}` : "",
-            "LIMITES\nLa génération vidéo réelle n’est pas encore connectée. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.",
+            "LIMITES\nLa génération vidéo réelle n’est pas encore connectée. Aucun fichier vidéo n’a été généré. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.",
             ...(plan.honestLimitations ?? []),
             ...(plan.missingCapabilities ?? []),
             "PROCHAINE ACTION\nOuvrez Studio pour ajuster le plan ou copiez le prompt dans Kling, Runway ou Veo.",
