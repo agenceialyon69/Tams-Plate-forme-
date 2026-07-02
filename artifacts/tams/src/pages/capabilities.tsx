@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
+type CapabilityStatus = { status: string; capabilities?: Record<string, { status: string; provider: string; limitation?: string }>; honestyNote?: string };
 
 type RunResult = {
   capabilityId: string;
@@ -25,9 +27,9 @@ const actions = [
   ["studio.storyboard.generate", "Storyboard", "Plan scène par scène"],
   ["studio.prompt.generate", "Prompt externe", "Kling / Runway / Veo"],
   ["image.generate", "Image", "Image via Pollinations"],
-  ["video.generate", "Vidéo réelle", "MP4 via FFmpeg"],
+  ["video.generate", "Vidéo", "MP4 si FFmpeg est réellement disponible"],
   ["video.edit", "Montage FFmpeg", "Assemblage vidéo réel"],
-  ["audio.music.generate", "Musique", "MusicGen via HF_TOKEN"],
+  ["audio.music.generate", "Musique", "MusicGen si HF_TOKEN ou worker est configuré"],
   ["audio.synthesize", "Voix off", "TTS via HF_TOKEN"],
   ["voice.transcribe", "Transcription", "URL audio vers texte"],
   ["automation.workflow", "n8n", "Webhook N8N_WEBHOOK_URL"],
@@ -64,6 +66,16 @@ export default function CapabilitiesPage() {
   const [results, setResults] = useState<Record<string, RunResult>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [running, setRunning] = useState<string | null>(null);
+  const [providerStatus, setProviderStatus] = useState<CapabilityStatus | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/capabilities/status`)
+      .then(async response => {
+        const data = await response.json() as CapabilityStatus;
+        if (response.ok) setProviderStatus(data);
+      })
+      .catch(() => setProviderStatus(null));
+  }, []);
 
   async function run(id: string) {
     const input = inputs[id] ?? defaultInput(id);
@@ -93,7 +105,13 @@ export default function CapabilitiesPage() {
           Capability Action Center
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">Capacités TAMS</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">Action UI / Exécutable maintenant via /api/capabilities/execute. Si un provider manque, TAMS affiche l’erreur au lieu de mentir.</p>
+        <p className="max-w-3xl text-sm text-muted-foreground">Chaque bouton appelle /api/capabilities/execute. Un handler déclaré ne vaut pas provider configuré : TAMS affiche missing_config au lieu d’un faux succès.</p>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full border border-border px-2 py-1">Statut providers : {providerStatus?.status ?? "non vérifié"}</span>
+          {providerStatus?.capabilities && Object.entries(providerStatus.capabilities).map(([id, item]) => (
+            <span key={id} className={`rounded-full border px-2 py-1 ${badge(item.status)}`}>{id} : {item.status} · {item.provider}</span>
+          ))}
+        </div>
       </header>
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {actions.map(([id, label, description]) => {
