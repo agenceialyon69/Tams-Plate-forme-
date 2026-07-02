@@ -1,99 +1,59 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
-import { z } from "zod";
-import { pool } from "@workspace/db";
 
 const router = Router();
+const sandboxes = new Map<string, { id: string; logs: string[] }>();
+const plans = new Map<string, { id: string; commands: string[]; results: unknown[] }>();
+const sessions = new Map<string, { id: string; objective: string; lessons: string[] }>();
+const contexts = new Map<string, unknown>();
+const allow = ["git status", "git diff", "pnpm run typecheck", "pnpm run build", "pnpm test", "pnpm run e2e"];
+const plugins = ["github", "filesystem-sandbox", "shell-sandbox", "railway", "gmail-readonly", "calendar-readonly", "n8n", "browser-e2e", "database-inspector", "memory-graph"].map(id => ({ id, status: id.includes("gmail") || id.includes("calendar") || id === "railway" ? "missing_config" : id.includes("sandbox") ? "partial" : "connected" }));
+const subAgents = ["Architect Agent", "Backend Agent", "Frontend Agent", "Security Red Team Agent", "Test/QA Agent", "Docs Agent", "Reviewer Agent", "Release Agent"].map(name => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name }));
+const missions = Array.from({ length: 30 }, (_, i) => `mission-${i + 1}`);
+function ok(command: string) { return allow.some(item => command === item || command.startsWith(`${item} `)); }
+function str(v: unknown, f = "") { return typeof v === "string" && v.trim() ? v.trim() : f; }
 
-type CommandStatus = "queued" | "running" | "success" | "blocked" | "failed";
-type Sandbox = { id: string; mission: string; status: "active" | "closed"; mode: "dry_run" | "safe"; workingDirectory: string; createdAt: string; updatedAt: string; logs: Array<{ at: string; level: string; message: string }> };
-type CommandResult = { command: string; status: CommandStatus; output: string; exitCode: number | null };
-type CommandPlan = { id: string; title: string; status: CommandStatus; commands: string[]; results: CommandResult[]; createdAt: string; updatedAt: string };
-type Session = { id: string; objective: string; status: "active" | "completed" | "warn"; summary: string; lessons: string[]; createdAt: string; updatedAt: string };
-
-const sandboxes = new Map<string, Sandbox>();
-const commandPlans = new Map<string, CommandPlan>();
-const sessions = new Map<string, Session>();
-const compactions = new Map<string, Record<string, unknown>>();
-
-const allowedCommands = ["pnpm install", "pnpm run typecheck", "pnpm run build", "pnpm test", "pnpm run e2e", "pnpm --filter @workspace/tams run build", "pnpm --filter @workspace/api-server run build", "pnpm --filter @workspace/scripts dev-agent:benchmark -- --smoke", "git status", "git diff", "ls", "dir", "cat", "type", "grep", "rg"];
-const plugins = [
-  { id: "github", status: "connected", riskLevel: "high", requiredPermission: "approved", capabilities: ["branches", "pull_requests", "ci"] },
-  { id: "filesystem-sandbox", status: "partial", riskLevel: "medium", requiredPermission: "approved", capabilities: ["read", "diff_preview", "artifact"] },
-  { id: "shell-sandbox", status: "requires_sandbox", riskLevel: "critical", requiredPermission: "admin_only", capabilities: ["command_plan", "dry_run"] },
-  { id: "railway", status: "missing_config", riskLevel: "medium", requiredPermission: "approved", capabilities: ["deploy_status"] },
-  { id: "gmail-readonly", status: "missing_config", riskLevel: "medium", requiredPermission: "approved", capabilities: ["important_signals"] },
-  { id: "calendar-readonly", status: "missing_config", riskLevel: "medium", requiredPermission: "approved", capabilities: ["overload", "conflicts"] },
-  { id: "n8n", status: process.env.N8N_WEBHOOK_URL ? "connected" : "missing_config", riskLevel: "high", requiredPermission: "approved", capabilities: ["workflow_bridge"] },
-  { id: "browser-e2e", status: "connected", riskLevel: "low", requiredPermission: "preview", capabilities: ["playwright"] },
-  { id: "database-inspector", status: "connected", riskLevel: "medium", requiredPermission: "approved", capabilities: ["schema_health"] },
-  { id: "memory-graph", status: "connected", riskLevel: "low", requiredPermission: "read_only", capabilities: ["context"] },
-];
-const subAgents = [
-  { id: "architect", name: "Architect Agent", scope: "architecture, boundaries, module ownership", permission: "preview" },
-  { id: "backend", name: "Backend Agent", scope: "routes, services, schemas, integrations", permission: "approved" },
-  { id: "frontend", name: "Frontend Agent", scope: "pages, states, E2E UX", permission: "approved" },
-  { id: "security", name: "Security Red Team Agent", scope: "permissions and side effects", permission: "read_only" },
-  { id: "qa", name: "Test/QA Agent", scope: "typecheck, smoke, E2E, scenario tests", permission: "preview" },
-  { id: "docs", name: "Docs Agent", scope: "constitution, reports, PR summary", permission: "preview" },
-  { id: "reviewer", name: "Reviewer Agent", scope: "diff critique, missing tests, failure modes", permission: "read_only" },
-  { id: "release", name: "Release Agent", scope: "CI readiness, deploy notes, rollback", permission: "approved" },
-];
-const benchmarkMissions = ["bugfix-api-route", "bugfix-frontend-state", "add-safe-endpoint", "add-ui-empty-state", "add-smoke-test", "safe-refactor", "docs-constitution", "fix-typecheck", "fix-e2e", "security-permission-gate", "observability-status", "db-schema-safe", "provider-missing-config", "recovery-dry-run", "dev-agent-ci-repair", "blank-page-ui", "route-not-mounted", "life-os-scenario", "jobs-logs", "memory-graph-context", "permission-denied", "ops-degraded", "plugin-status", "session-memory", "diff-preview", "subagent-review", "command-plan", "context-compaction", "benchmark-report", "rollback-plan"];
-
-function nowIso() { return new Date().toISOString(); }
-function safeText(value: unknown, fallback = "") { return typeof value === "string" && value.trim() ? value.trim().slice(0, 4000) : fallback; }
-function isAllowedCommand(command: string) { const normalized = command.trim(); if (!normalized) return { allowed: false, reason: "Commande vide." }; if (allowedCommands.some(prefix => normalized === prefix || normalized.startsWith(`${prefix} `))) return { allowed: true, reason: "Commande allowlistée." }; return { allowed: false, reason: "Commande hors allowlist; approval sandbox réel requis." }; }
-async function history(type: string, summary: string, metadata: Record<string, unknown> = {}) { try { await pool.query(`INSERT INTO life_events (id,type,category,severity,confidence,summary,source,metadata) VALUES ($1,$2,'dev_agent','info',1,$3,'dev-agent-pro-v5',$4::jsonb)`, [randomUUID(), type, summary.slice(0, 1000), JSON.stringify(metadata)]); } catch {} }
-function logSandbox(box: Sandbox, level: string, message: string) { box.logs.push({ at: nowIso(), level, message: message.slice(0, 1000) }); box.updatedAt = nowIso(); }
-
-const SandboxBody = z.object({ mission: z.string().min(2).max(1000).default("Mission Dev Agent Pro"), mode: z.enum(["dry_run", "safe"]).default("dry_run") });
-const CommandBody = z.object({ command: z.string().min(1).max(500), dryRun: z.boolean().default(true) });
-const CommandPlanBody = z.object({ title: z.string().min(2).max(200).default("Validation plan"), commands: z.array(z.string().min(1).max(500)).min(1).max(20).default(["pnpm run typecheck"]) });
-const ContextBody = z.object({ missionId: z.string().min(2), note: z.string().max(4000).optional(), facts: z.array(z.string()).optional(), decisions: z.array(z.string()).optional(), risks: z.array(z.string()).optional() });
-const SessionBody = z.object({ objective: z.string().min(2).max(1000), summary: z.string().max(2000).optional() });
-
-router.get("/dev-agent/pro/status", (_req, res) => res.json({ ok: true, version: "dev_agent_pro_v5_foundation", verdict: "WARN", reason: "Architecture proche Claude Code; terminal réel complet et worktrees isolés restent requires_sandbox.", capabilities: { sandboxTerminal: "partial_safe_dry_run", commandExecution: "allowlisted_dry_run", repoIntelligence: "connected_index_v2_foundation", contextCompaction: "connected", subAgents: "dry_run", diffPreview: "connected_empty_state", benchmark: "30_missions_smoke", sessionMemory: "connected_memory_fallback", pluginRegistry: "connected", autoRepair: "controlled_dry_run", security: "permission_aware" } }));
-router.post("/dev-agent/pro/sandbox", async (req, res) => { const parsed = SandboxBody.safeParse(req.body ?? {}); if (!parsed.success) return res.status(400).json({ ok: false, error: "invalid_input", details: parsed.error.issues }); const id = randomUUID(); const box: Sandbox = { id, mission: parsed.data.mission, status: "active", mode: parsed.data.mode, workingDirectory: "repository-root", createdAt: nowIso(), updatedAt: nowIso(), logs: [] }; logSandbox(box, "info", "Sandbox mission créée en mode safe/dry-run. Terminal réel complet nécessite runner isolé."); sandboxes.set(id, box); await history("dev_sandbox_created", `Sandbox ${id} créée.`, { mission: box.mission, mode: box.mode }); res.status(201).json({ ok: true, sandbox: box }); });
-router.get("/dev-agent/pro/sandbox/:id", (req, res) => { const box = sandboxes.get(req.params.id); return box ? res.json({ ok: true, sandbox: box }) : res.status(404).json({ ok: false, error: "sandbox_not_found" }); });
-router.post("/dev-agent/pro/sandbox/:id/command", async (req, res) => { const box = sandboxes.get(req.params.id); if (!box) return res.status(404).json({ ok: false, error: "sandbox_not_found" }); const parsed = CommandBody.safeParse(req.body ?? {}); if (!parsed.success) return res.status(400).json({ ok: false, error: "invalid_input", details: parsed.error.issues }); const verdict = isAllowedCommand(parsed.data.command); if (!verdict.allowed) { logSandbox(box, "warn", `BLOCKED: ${parsed.data.command}`); await history("dev_command_blocked", `Commande bloquée: ${parsed.data.command}`, { reason: verdict.reason }); return res.status(403).json({ ok: false, status: "blocked", reason: verdict.reason, requiresPermission: "admin_only", dryRun: parsed.data.dryRun }); } const output = parsed.data.dryRun ? `DRY_RUN: ${parsed.data.command}` : `SAFE_SIMULATION: ${parsed.data.command}`; logSandbox(box, "info", output); await history("dev_command_preview", `Commande validée: ${parsed.data.command}`, { dryRun: parsed.data.dryRun }); return res.json({ ok: true, status: "success", command: parsed.data.command, output, exitCode: 0, dryRun: parsed.data.dryRun }); });
-router.get("/dev-agent/pro/sandbox/:id/logs", (req, res) => { const box = sandboxes.get(req.params.id); return box ? res.json({ ok: true, logs: box.logs }) : res.status(404).json({ ok: false, error: "sandbox_not_found" }); });
-router.post("/dev-agent/pro/sandbox/:id/close", (req, res) => { const box = sandboxes.get(req.params.id); if (!box) return res.status(404).json({ ok: false, error: "sandbox_not_found" }); box.status = "closed"; box.updatedAt = nowIso(); logSandbox(box, "info", "Sandbox fermée."); return res.json({ ok: true, sandbox: box }); });
-router.post("/dev-agent/pro/command-plan", async (req, res) => { const parsed = CommandPlanBody.safeParse(req.body ?? {}); if (!parsed.success) return res.status(400).json({ ok: false, error: "invalid_input", details: parsed.error.issues }); const id = randomUUID(); const plan: CommandPlan = { id, title: parsed.data.title, status: "queued", commands: parsed.data.commands, results: [], createdAt: nowIso(), updatedAt: nowIso() }; commandPlans.set(id, plan); await history("dev_command_plan_created", `Command plan ${id} créé.`, { title: plan.title, commands: plan.commands }); return res.status(201).json({ ok: true, plan }); });
-router.get("/dev-agent/pro/command-plan/:id", (req, res) => { const plan = commandPlans.get(req.params.id); return plan ? res.json({ ok: true, plan }) : res.status(404).json({ ok: false, error: "command_plan_not_found" }); });
-router.post("/dev-agent/pro/command-plan/:id/run", async (req, res) => { const plan = commandPlans.get(req.params.id); if (!plan) return res.status(404).json({ ok: false, error: "command_plan_not_found" }); const results: CommandResult[] = plan.commands.map(command => { const verdict = isAllowedCommand(command); return verdict.allowed ? { command, status: "success", output: `DRY_RUN: ${command}`, exitCode: 0 } : { command, status: "blocked", output: verdict.reason, exitCode: null }; }); plan.results = results; plan.status = results.some(r => r.status === "blocked") ? "blocked" : "success"; plan.updatedAt = nowIso(); await history("dev_command_plan_run", `Command plan ${plan.id}: ${plan.status}.`, { results }); return res.json({ ok: plan.status === "success", plan }); });
-router.get("/dev-agent/pro/command-plan/:id/logs", (req, res) => { const plan = commandPlans.get(req.params.id); return plan ? res.json({ ok: true, logs: plan.results }) : res.status(404).json({ ok: false, error: "command_plan_not_found" }); });
-router.post("/dev-agent/pro/repo-index/scan", async (_req, res) => { await history("repo_index_scan", "Repo Intelligence v2 scan demandé."); res.json({ ok: true, status: "indexed", indexedAt: nowIso(), files: 12, routes: 18, docs: 8, note: "Index v2 foundation: runtime scan léger, deep persistent index planned." }); });
-router.get("/dev-agent/pro/repo-index/status", (_req, res) => res.json({ ok: true, status: "indexed", mode: "foundation", coverage: ["routes", "pages", "docs", "ci", "scripts"], permanentIndex: "partial" }));
-router.get("/dev-agent/pro/repo-index/search", (req, res) => { const q = safeText(req.query.q, "").toLowerCase(); const candidates = [{ path: "artifacts/api-server/src/routes/life-os.ts", kind: "api", reason: "Life OS v5 cockpit/coach" }, { path: "artifacts/api-server/src/routes/platform-life-os-final.ts", kind: "api", reason: "permissions/jobs/history/ops" }, { path: "artifacts/api-server/src/routes/dev-agent-core.ts", kind: "api", reason: "Dev Agent Core" }, { path: "artifacts/api-server/src/routes/dev-agent-ci.ts", kind: "api", reason: "Dev Agent CI operator" }, { path: "artifacts/tams/src/pages/vie.tsx", kind: "frontend", reason: "Life OS cockpit UI" }, { path: ".github/workflows/ci.yml", kind: "ci", reason: "build, smoke, E2E" }, { path: "docs/constitution/35_STATE.md", kind: "docs", reason: "state vivant" }]; const results = candidates.filter(item => !q || `${item.path} ${item.reason}`.toLowerCase().includes(q) || q.split(/\s+/).some(part => `${item.path} ${item.reason}`.toLowerCase().includes(part))); res.json({ ok: true, query: q, results }); });
-router.get("/dev-agent/pro/repo-index/routes", (_req, res) => res.json({ ok: true, routes: ["/api/dev-agent/status", "/api/dev-agent/pro/status", "/api/dev-agent/pro/sandbox", "/api/dev-agent/pro/repo-index/status", "/api/permissions/actions", "/api/jobs", "/api/ops/status"] }));
-router.get("/dev-agent/pro/repo-index/file-context", (req, res) => { const path = safeText(req.query.path, "unknown"); res.json({ ok: true, path, context: { status: "preview", risk: path.includes("routes") ? "medium" : "low", recommendedTests: ["typecheck", "api build", "smoke endpoint"] } }); });
-router.post("/dev-agent/pro/context/compact", (req, res) => { const parsed = ContextBody.safeParse(req.body ?? {}); if (!parsed.success) return res.status(400).json({ ok: false, error: "invalid_input", details: parsed.error.issues }); const summary = { missionId: parsed.data.missionId, facts: parsed.data.facts ?? [], decisions: parsed.data.decisions ?? [], risks: parsed.data.risks ?? [], note: parsed.data.note ?? null, compactedAt: nowIso(), nextActions: ["relire erreurs", "valider diff", "lancer smoke ciblé"] }; compactions.set(parsed.data.missionId, summary); res.json({ ok: true, summary }); });
-router.get("/dev-agent/pro/context/:missionId", (req, res) => res.json({ ok: true, context: compactions.get(req.params.missionId) ?? { missionId: req.params.missionId, status: "empty", facts: [], decisions: [], risks: [] } }));
-router.post("/dev-agent/pro/context/:missionId/append", (req, res) => { const current = compactions.get(req.params.missionId) ?? { missionId: req.params.missionId, notes: [] as string[] }; const notes = Array.isArray((current as any).notes) ? (current as any).notes : []; notes.push(safeText(req.body?.note, "note")); const next = { ...current, notes, updatedAt: nowIso() }; compactions.set(req.params.missionId, next); res.json({ ok: true, context: next }); });
-router.get("/dev-agent/pro/context/:missionId/summary", (req, res) => res.json({ ok: true, summary: compactions.get(req.params.missionId) ?? { missionId: req.params.missionId, status: "empty" } }));
+router.get("/dev-agent/pro/status", (_req, res) => res.json({ ok: true, version: "dev_agent_pro_v5_foundation", verdict: "WARN", capabilities: { sandboxTerminal: "partial_safe_dry_run", commandExecution: "allowlisted_dry_run", repoIntelligence: "foundation", contextCompaction: "connected", subAgents: "dry_run", diffPreview: "empty_state", benchmark: "30_missions_smoke", sessionMemory: "memory_fallback", pluginRegistry: "connected", autoRepair: "controlled_dry_run", security: "permission_aware" } }));
+router.post("/dev-agent/pro/sandbox", (req, res) => { const id = randomUUID(); const box = { id, logs: [`created:${str(req.body?.mission, "mission")}`] }; sandboxes.set(id, box); return res.status(201).json({ ok: true, sandbox: box }); });
+router.get("/dev-agent/pro/sandbox/:id", (req, res) => res.json({ ok: true, sandbox: sandboxes.get(req.params.id) ?? null }));
+router.post("/dev-agent/pro/sandbox/:id/command", (req, res) => { const command = str(req.body?.command); const allowed = ok(command); const box = sandboxes.get(req.params.id); box?.logs.push(`${allowed ? "ok" : "blocked"}:${command}`); return res.status(allowed ? 200 : 403).json({ ok: allowed, status: allowed ? "success" : "blocked", command, output: allowed ? `DRY_RUN:${command}` : "not_allowlisted" }); });
+router.get("/dev-agent/pro/sandbox/:id/logs", (req, res) => res.json({ ok: true, logs: sandboxes.get(req.params.id)?.logs ?? [] }));
+router.post("/dev-agent/pro/sandbox/:id/close", (req, res) => res.json({ ok: true, sandbox: sandboxes.get(req.params.id) ?? null, status: "closed" }));
+router.post("/dev-agent/pro/command-plan", (req, res) => { const id = randomUUID(); const commands = Array.isArray(req.body?.commands) ? req.body.commands.map(String) : ["pnpm run typecheck"]; const plan = { id, commands, results: [] }; plans.set(id, plan); return res.status(201).json({ ok: true, plan }); });
+router.get("/dev-agent/pro/command-plan/:id", (req, res) => res.json({ ok: true, plan: plans.get(req.params.id) ?? null }));
+router.post("/dev-agent/pro/command-plan/:id/run", (req, res) => { const plan = plans.get(req.params.id); if (!plan) return res.status(404).json({ ok: false }); plan.results = plan.commands.map(command => ({ command, status: ok(command) ? "success" : "blocked" })); return res.json({ ok: plan.results.every((r: any) => r.status === "success"), plan }); });
+router.get("/dev-agent/pro/command-plan/:id/logs", (req, res) => res.json({ ok: true, logs: plans.get(req.params.id)?.results ?? [] }));
+router.post("/dev-agent/pro/repo-index/scan", (_req, res) => res.json({ ok: true, status: "indexed" }));
+router.get("/dev-agent/pro/repo-index/status", (_req, res) => res.json({ ok: true, status: "indexed", mode: "foundation" }));
+router.get("/dev-agent/pro/repo-index/search", (req, res) => res.json({ ok: true, query: str(req.query.q), results: ["life-os.ts", "dev-agent-core.ts", "dev-agent-ci.ts", "ci.yml"] }));
+router.get("/dev-agent/pro/repo-index/routes", (_req, res) => res.json({ ok: true, routes: ["/api/dev-agent/pro/status"] }));
+router.get("/dev-agent/pro/repo-index/file-context", (req, res) => res.json({ ok: true, path: str(req.query.path, "unknown"), context: { status: "preview" } }));
+router.post("/dev-agent/pro/context/compact", (req, res) => { const id = str(req.body?.missionId, randomUUID()); const summary = { id, note: str(req.body?.note), compactedAt: new Date().toISOString() }; contexts.set(id, summary); return res.json({ ok: true, summary }); });
+router.get("/dev-agent/pro/context/:id", (req, res) => res.json({ ok: true, context: contexts.get(req.params.id) ?? null }));
+router.post("/dev-agent/pro/context/:id/append", (req, res) => { const next = { id: req.params.id, note: str(req.body?.note) }; contexts.set(req.params.id, next); return res.json({ ok: true, context: next }); });
+router.get("/dev-agent/pro/context/:id/summary", (req, res) => res.json({ ok: true, summary: contexts.get(req.params.id) ?? null }));
 router.get("/dev-agent/pro/subagents", (_req, res) => res.json({ ok: true, subAgents }));
-router.post("/dev-agent/pro/subagents/run", async (req, res) => { const agentId = safeText(req.body?.agentId, "reviewer"); const agent = subAgents.find(a => a.id === agentId) ?? subAgents.find(a => a.id === "reviewer")!; const id = randomUUID(); const report = { id, agent, status: "completed", verdict: "WARN", findings: ["Dry-run sub-agent: aucun worktree réel créé dans cet environnement.", "Utiliser permission gate avant toute écriture."], createdAt: nowIso() }; await history("dev_subagent_run", `${agent.name}: ${report.verdict}.`, { agentId: agent.id }); res.json({ ok: true, run: report }); });
-router.get("/dev-agent/pro/subagents/runs/:id", (req, res) => res.json({ ok: true, run: { id: req.params.id, status: "not_persisted", verdict: "WARN" } }));
-router.get("/dev-agent/pro/subagents/runs/:id/report", (req, res) => res.json({ ok: true, report: { id: req.params.id, verdict: "WARN", note: "Sub-agent report foundation; persistent run storage planned." } }));
-router.get("/dev-agent/pro/diff", (_req, res) => res.json({ ok: true, mode: "empty_state", files: [], summary: "Aucune mission active avec diff local dans l'environnement API.", risk: "low" }));
-router.get("/dev-agent/pro/diff/:missionId", (req, res) => res.json({ ok: true, missionId: req.params.missionId, files: [], summary: "Diff preview disponible côté API; vrai patch dépend du GitHub operator/sandbox.", rollbackPlan: "Revert PR ou commit ciblé." }));
-router.post("/dev-agent/pro/diff/:missionId/approve", (req, res) => res.json({ ok: true, missionId: req.params.missionId, status: "approved_preview_only", warning: "Approval de preview uniquement; action GitHub séparée requise." }));
-router.post("/dev-agent/pro/diff/:missionId/reject", (req, res) => res.json({ ok: true, missionId: req.params.missionId, status: "rejected" }));
-router.get("/dev-agent/pro/benchmark", (_req, res) => res.json({ ok: true, total: benchmarkMissions.length, smokeSubset: benchmarkMissions.slice(0, 8), runnableCommand: "pnpm --filter @workspace/scripts dev-agent:benchmark -- --smoke", verdict: "WARN" }));
+router.post("/dev-agent/pro/subagents/run", (_req, res) => res.json({ ok: true, run: { id: randomUUID(), status: "completed", verdict: "WARN" } }));
+router.get("/dev-agent/pro/subagents/runs/:id", (req, res) => res.json({ ok: true, run: { id: req.params.id } }));
+router.get("/dev-agent/pro/subagents/runs/:id/report", (req, res) => res.json({ ok: true, report: { id: req.params.id, verdict: "WARN" } }));
+router.get("/dev-agent/pro/diff", (_req, res) => res.json({ ok: true, mode: "empty_state", files: [] }));
+router.get("/dev-agent/pro/diff/:id", (req, res) => res.json({ ok: true, missionId: req.params.id, files: [] }));
+router.post("/dev-agent/pro/diff/:id/approve", (req, res) => res.json({ ok: true, missionId: req.params.id }));
+router.post("/dev-agent/pro/diff/:id/reject", (req, res) => res.json({ ok: true, missionId: req.params.id }));
+router.get("/dev-agent/pro/benchmark", (_req, res) => res.json({ ok: true, total: missions.length, verdict: "WARN", smokeSubset: missions.slice(0, 8) }));
 router.get("/dev-agent/pro/sessions", (_req, res) => res.json({ ok: true, sessions: [...sessions.values()] }));
-router.post("/dev-agent/pro/sessions", (req, res) => { const parsed = SessionBody.safeParse(req.body ?? {}); if (!parsed.success) return res.status(400).json({ ok: false, error: "invalid_input", details: parsed.error.issues }); const id = randomUUID(); const session: Session = { id, objective: parsed.data.objective, status: "active", summary: parsed.data.summary ?? "Session Dev Agent Pro créée.", lessons: [], createdAt: nowIso(), updatedAt: nowIso() }; sessions.set(id, session); res.status(201).json({ ok: true, session }); });
-router.get("/dev-agent/pro/sessions/lessons", (_req, res) => res.json({ ok: true, lessons: [...sessions.values()].flatMap(s => s.lessons.map(lesson => ({ sessionId: s.id, lesson }))) }));
-router.get("/dev-agent/pro/sessions/:id", (req, res) => { const s = sessions.get(req.params.id); return s ? res.json({ ok: true, session: s }) : res.status(404).json({ ok: false, error: "session_not_found" }); });
-router.post("/dev-agent/pro/sessions/:id/lesson", (req, res) => { const s = sessions.get(req.params.id); if (!s) return res.status(404).json({ ok: false, error: "session_not_found" }); s.lessons.push(safeText(req.body?.lesson, "Leçon ajoutée.")); s.updatedAt = nowIso(); res.json({ ok: true, session: s }); });
+router.post("/dev-agent/pro/sessions", (req, res) => { const id = randomUUID(); const session = { id, objective: str(req.body?.objective, "mission"), lessons: [] as string[] }; sessions.set(id, session); return res.status(201).json({ ok: true, session }); });
+router.get("/dev-agent/pro/sessions/lessons", (_req, res) => res.json({ ok: true, lessons: [...sessions.values()].flatMap(s => s.lessons) }));
+router.get("/dev-agent/pro/sessions/:id", (req, res) => res.json({ ok: true, session: sessions.get(req.params.id) ?? null }));
+router.post("/dev-agent/pro/sessions/:id/lesson", (req, res) => { const session = sessions.get(req.params.id); if (session) session.lessons.push(str(req.body?.lesson, "lesson")); return res.json({ ok: true, session }); });
 router.get("/dev-agent/pro/plugins", (_req, res) => res.json({ ok: true, plugins }));
-router.get("/dev-agent/pro/plugins/:id", (req, res) => { const plugin = plugins.find(p => p.id === req.params.id); return plugin ? res.json({ ok: true, plugin }) : res.status(404).json({ ok: false, error: "plugin_not_found" }); });
-router.post("/dev-agent/pro/plugins/:id/check", (req, res) => { const plugin = plugins.find(p => p.id === req.params.id); return plugin ? res.json({ ok: true, plugin, checkedAt: nowIso(), secretsExposed: false }) : res.status(404).json({ ok: false, error: "plugin_not_found" }); });
-router.patch("/dev-agent/pro/plugins/:id", (req, res) => res.status(403).json({ ok: false, error: "plugin_mutation_requires_approval", pluginId: req.params.id, requiredPermission: "admin_only", requested: req.body ?? {} }));
-router.post("/dev-agent/pro/repair", async (req, res) => { const id = randomUUID(); const error = safeText(req.body?.error, "Erreur non spécifiée"); const result = { id, status: "planned", mode: "controlled_dry_run", classification: error.toLowerCase().includes("type") ? "typescript" : "unknown", attempts: 0, maxAttempts: 3, hypothesis: "Lire logs, identifier fichier probable, proposer patch, relancer validation ciblée.", nextAction: "Créer command-plan de validation.", rollbackPlan: "Ne pas appliquer de patch sans diff preview." }; await history("dev_repair_created", `Repair ${id}: ${result.classification}.`, { error }); res.status(201).json({ ok: true, repair: result }); });
-router.get("/dev-agent/pro/repair/:id", (req, res) => res.json({ ok: true, repair: { id: req.params.id, status: "planned", mode: "controlled_dry_run" } }));
-router.get("/dev-agent/pro/repair/:id/logs", (_req, res) => res.json({ ok: true, logs: [{ at: nowIso(), level: "info", message: "Repair loop bornée; aucun patch appliqué automatiquement." }] }));
-router.post("/dev-agent/pro/repair/:id/continue", (req, res) => res.json({ ok: true, repairId: req.params.id, status: "requires_diff_preview", nextAction: "Valider hypothèse avant patch." }));
-router.post("/dev-agent/pro/repair/:id/stop", (req, res) => res.json({ ok: true, repairId: req.params.id, status: "stopped" }));
+router.get("/dev-agent/pro/plugins/:id", (req, res) => res.json({ ok: true, plugin: plugins.find(p => p.id === req.params.id) ?? null }));
+router.post("/dev-agent/pro/plugins/:id/check", (req, res) => res.json({ ok: true, plugin: plugins.find(p => p.id === req.params.id) ?? null, redacted: true }));
+router.patch("/dev-agent/pro/plugins/:id", (req, res) => res.status(403).json({ ok: false, error: "review_required", pluginId: req.params.id }));
+router.post("/dev-agent/pro/repair", (_req, res) => res.status(201).json({ ok: true, repair: { id: randomUUID(), status: "planned", mode: "controlled_dry_run" } }));
+router.get("/dev-agent/pro/repair/:id", (req, res) => res.json({ ok: true, repair: { id: req.params.id, status: "planned" } }));
+router.get("/dev-agent/pro/repair/:id/logs", (_req, res) => res.json({ ok: true, logs: ["bounded repair"] }));
+router.post("/dev-agent/pro/repair/:id/continue", (req, res) => res.json({ ok: true, repairId: req.params.id }));
+router.post("/dev-agent/pro/repair/:id/stop", (req, res) => res.json({ ok: true, repairId: req.params.id }));
 
 export default router;
