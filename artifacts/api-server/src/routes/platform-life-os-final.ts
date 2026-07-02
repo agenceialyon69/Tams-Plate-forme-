@@ -458,7 +458,7 @@ router.get("/life-os/automations/:id/logs", async (req, res) => {
 const CoachBody = z.object({ prompt: z.string().min(2).max(4000), energy: z.number().min(0).max(100).optional(), urgency: z.number().min(0).max(100).optional(), context: z.record(z.string(), z.unknown()).optional() });
 async function coachPayload(body: z.infer<typeof CoachBody>, redTeam = false) {
   const events = await rows(`SELECT id,type,category,severity,confidence,summary,source,created_at AS "createdAt" FROM life_events ORDER BY created_at DESC LIMIT 15`).catch(() => []);
-  const jobs = await rows(`SELECT id,type,status,last_error AS "lastError" FROM jobs ORDER BY created_at DESC LIMIT 10`).catch(() => []);
+  const jobs: Array<Record<string, any>> = await rows(`SELECT id,type,status,last_error AS "lastError" FROM jobs ORDER BY created_at DESC LIMIT 10`).catch((): Array<Record<string, any>> => []);
   const integrations = integrationStatuses();
   const energy = body.energy ?? 50;
   const healthSignal = /douleur|santé|fatigue|stress|sommeil/i.test(body.prompt);
