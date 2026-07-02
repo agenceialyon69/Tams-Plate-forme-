@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { schedulerStatus, startDevAgentScheduler } from "../lib/dev-agent-scheduler";
+import { schedulerStatus, startDevAgentScheduler } from "../lib/dev-agent-scheduler.js";
 
 const router = Router();
 startDevAgentScheduler();
