@@ -17,7 +17,7 @@ jobs:
   sandbox-validation:
     name: Safe worker sandbox
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -48,10 +48,10 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
       - name: Build frontend
-        if: ${{ inputs.run_kind == 'full_validation' }}
+        if: ${{ inputs.run_kind == 'full_validation' || inputs.run_kind == 'e2e_playwright' }}
         run: BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/tams run build
       - name: Build API
-        if: ${{ inputs.run_kind == 'full_validation' }}
+        if: ${{ inputs.run_kind == 'full_validation' || inputs.run_kind == 'e2e_playwright' }}
         run: pnpm --filter @workspace/api-server run build
       - name: Runtime tests
         if: ${{ inputs.run_kind == 'full_validation' }}
@@ -59,6 +59,14 @@ jobs:
       - name: Runtime scenario
         if: ${{ inputs.run_kind == 'full_validation' }}
         run: pnpm --filter @workspace/scripts dev-runtime:scenario
+      - name: Install browser
+        if: ${{ inputs.run_kind == 'e2e_playwright' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Start app for e2e
+        if: ${{ inputs.run_kind == 'e2e_playwright' }}
+        run: |
+          NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs > /tmp/tams-e2e.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4000/api/healthz >/dev/null && break; sleep 1; done
       - name: Browser E2E operator
         if: ${{ inputs.run_kind == 'e2e_playwright' }}
-        run: node -e "console.log('playwright_worker_ready')"
+        run: E2E_BASE_URL=http://127.0.0.1:4000 pnpm run e2e
