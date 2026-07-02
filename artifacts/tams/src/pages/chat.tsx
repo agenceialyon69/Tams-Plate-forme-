@@ -1284,7 +1284,7 @@ export default function Chat() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [visibleMessages, streamingContent, pendingUser, toolCalls, thinkingSteps]);
+  }, [displayedMessages, streamingContent, pendingUser, toolCalls, thinkingSteps]);
 
   // Detect slash commands
   useEffect(() => {
@@ -1409,13 +1409,13 @@ export default function Chat() {
           getAccessToken: getRuntimeAccessToken,
           fetchImpl: fetch,
         });
-        setStreamingContent(
-          [
-            `TAMS Development Runtime — ${task.report.verdict}`,
-            `Task: ${task.id}`,
-            task.report.summary,
-          ].join("\n\n"),
-        );
+        const runtimeContent = [
+          `TAMS Development Runtime — ${task.report.verdict}`,
+          `Task: ${task.id}`,
+          task.report.summary,
+        ].join("\n\n");
+        setStreamingContent(runtimeContent);
+        appendDurableMessage(selectedId, "assistant", runtimeContent);
         doneReceived = true;
         return;
       }
@@ -1464,8 +1464,10 @@ export default function Chat() {
           } catch { /* skip */ }
         }
       }
-      if (!doneReceived && assembledContent.trim()) {
+      if (assembledContent.trim()) {
         appendDurableMessage(selectedId, "assistant", assembledContent);
+      } else if (!doneReceived) {
+        throw new Error("Réponse vide du serveur");
       }
     } catch (err: unknown) {
       setIsError(true);
