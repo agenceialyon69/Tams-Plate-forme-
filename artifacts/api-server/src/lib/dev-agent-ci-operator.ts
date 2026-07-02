@@ -22,11 +22,25 @@ function split(repo: string): { owner: string; name: string } {
 }
 
 function redact(text: string): string {
-  return text
-    .replace(/ghp_[A-Za-z0-9_]+/g, "[redacted]")
+  let safe = text
+    .replace(/gh[pousr]_[A-Za-z0-9_]+/g, "[redacted]")
     .replace(/github_pat_[A-Za-z0-9_]+/g, "[redacted]")
     .replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]")
-    .slice(0, 50000);
+    .replace(/(authorization\\s*[:=]\\s*(?:bearer|token)\\s+)[^\\s"']+/gi, "$1[redacted]");
+  const secretNames = [
+    "GITHUB_TOKEN", "API_AUTH_TOKEN", "JWT_SECRET", "GROQ_API_KEY",
+    "GEMINI_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY", "OPENROUTE_API_KEY", "RAILWAY_TOKEN",
+  ];
+  for (const name of secretNames) {
+    const value = process.env[name];
+    if (value && value.length >= 8) safe = safe.split(value).join("[redacted]");
+  }
+  return safe.slice(0, 50000);
+}
+
+function maxRepairSeconds(): number {
+  const configured = Number(process.env.TAMS_DEV_AGENT_MAX_REPAIR_SECONDS || 120);
+  return Number.isFinite(configured) ? Math.min(300, Math.max(30, configured)) : 120;
 }
 
 function list(value: unknown): unknown[] {
@@ -68,7 +82,7 @@ export function ciOperatorStatus() {
     schedulerEnabled: process.env.TAMS_DEV_AGENT_SCHEDULER === "true",
     repo: process.env.GITHUB_REPO || DEFAULT_REPO,
     workflow: WORKFLOW,
-    maxRepairSeconds: Number(process.env.TAMS_DEV_AGENT_MAX_REPAIR_SECONDS || 120),
+    maxRepairSeconds: maxRepairSeconds(),
   };
 }
 
@@ -126,6 +140,7 @@ export async function rerunFailedJobs(input: { repo?: string; runId: number }) {
 
 export async function createPullRequest(input: { repo?: string; head: string; base?: string; title: string; body?: string }) {
   requireWrite("TAMS_DEV_AGENT_PR_WRITE");
+  if (input.head === "main" || input.head === "master") throw new Error("branche head protégée : utilisez tams-dev ou une branche dédiée");
   const repo = repoName(input.repo);
   const { owner, name } = split(repo);
   const pr = await github(`/repos/${owner}/${name}/pulls`, {
@@ -151,7 +166,7 @@ export async function runRepairLoop(input: { repo?: string; runId: number; rerun
     if (!jobId) continue;
     const entry = await readJobLogs({ repo: input.repo, jobId });
     logs.push({ jobId, excerpt: entry.log.slice(-12000) });
-    if ((Date.now() - startedAt) / 1000 > Number(process.env.TAMS_DEV_AGENT_MAX_REPAIR_SECONDS || 120)) break;
+    if ((Date.now() - startedAt) / 1000 > maxRepairSeconds()) break;
   }
   const rerun = input.rerun === true && failed.length > 0 ? await rerunFailedJobs({ repo: input.repo, runId: input.runId }) : null;
   return {
