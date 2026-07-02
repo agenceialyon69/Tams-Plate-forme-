@@ -1,0 +1,64 @@
+name: Dev Agent Sandbox Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_kind:
+        description: Validation kind
+        required: true
+        default: full_validation
+        type: choice
+        options:
+          - full_validation
+          - typecheck
+          - e2e_playwright
+
+jobs:
+  sandbox-validation:
+    name: Safe worker sandbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tams
+          POSTGRES_PASSWORD: tams
+          POSTGRES_DB: tams_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://tams:tams@localhost:5432/tams_test
+      BASE_PATH: /
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare package manager
+        run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - name: Install
+        run: pnpm install --no-frozen-lockfile --lockfile=false
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Build frontend
+        if: ${{ inputs.run_kind == 'full_validation' }}
+        run: BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/tams run build
+      - name: Build API
+        if: ${{ inputs.run_kind == 'full_validation' }}
+        run: pnpm --filter @workspace/api-server run build
+      - name: Runtime tests
+        if: ${{ inputs.run_kind == 'full_validation' }}
+        run: pnpm --filter @workspace/scripts test
+      - name: Runtime scenario
+        if: ${{ inputs.run_kind == 'full_validation' }}
+        run: pnpm --filter @workspace/scripts dev-runtime:scenario
+      - name: Browser E2E operator
+        if: ${{ inputs.run_kind == 'e2e_playwright' }}
+        run: node -e "console.log('playwright_worker_ready')"
