@@ -120,6 +120,12 @@ jobs:
           check http://127.0.0.1:4000/api/tasks 200
           check http://127.0.0.1:4000/api/workflows 200
           check http://127.0.0.1:4000/api/system/validate 200
+          check http://127.0.0.1:4000/api/system/selftest 200
+          check http://127.0.0.1:4000/api/system/export 200
+          check http://127.0.0.1:4000/api/dev-agent/status 200
+          check http://127.0.0.1:4000/api/dev-agent/validation/status 200
+          check http://127.0.0.1:4000/api/dev-agent/ci/status 200
+          check http://127.0.0.1:4000/api/dev-agent/scheduler/status 200
           readiness_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4000/api/system/readiness)
           { [ "$readiness_code" = "200" ] || [ "$readiness_code" = "503" ]; } && echo "✅ readiness $readiness_code" || { echo "❌ readiness $readiness_code"; fail=1; }
           check http://127.0.0.1:4000/api/registry/status 200
@@ -136,6 +142,11 @@ jobs:
           echo "$studio" | grep -q '"storyboardPlan"' || { echo "❌ Studio sans storyboard"; fail=1; }
           echo "$studio" | grep -qi 'planned\|not yet connected' || { echo "❌ Studio sans limitation honnête"; fail=1; }
           echo "$studio" | grep -q 'example.com' && { echo "❌ Studio retourne un faux lien"; fail=1; } || echo "✅ Studio sans faux lien"
+          for devcap in dev.agent.core dev.agent.validation dev.agent.ci dev.agent.scheduler; do
+            dev_action=$(curl -sf -X POST -H 'Content-Type: application/json' -d "{\"capabilityId\":\"$devcap\",\"input\":\"status\",\"options\":{}}" http://127.0.0.1:4000/api/capabilities/execute)
+            echo "$dev_action" | grep -q "\"capabilityId\":\"$devcap\"" || { echo "❌ Action Bus $devcap"; fail=1; }
+            echo "$dev_action" | grep -Eq '"mode":"(read_only|real)"' || { echo "❌ mode Action Bus $devcap"; fail=1; }
+          done
           action=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"capabilityId":"studio.script.generate","input":"Vidéo TikTok activewear"}' http://127.0.0.1:4000/api/capabilities/execute)
           echo "$action" | grep -q '"status":"success"' || { echo "❌ Action Bus studio script non success"; fail=1; }
           echo "$action" | grep -qi 'SCRIPT' || { echo "❌ Action Bus script absent"; fail=1; }
