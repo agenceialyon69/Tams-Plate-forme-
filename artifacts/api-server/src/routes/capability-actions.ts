@@ -2,6 +2,7 @@ import { Router } from "express";
 import { aiChat, aiConfigured, aiProviders } from "../lib/ai";
 import { orchestrate } from "../lib/agents";
 import { StudioOrchestrator } from "../lib/studio/studio-orchestrator";
+import { generateSlideshowVideo } from "../lib/video";
 
 const router = Router();
 const studioOrchestrator = new StudioOrchestrator();
@@ -108,7 +109,7 @@ function promptForExternalVideo(input: string): string {
     "Scène 3 : détail matière/confort, cadrage proche, gestes humains.",
     "Scène 4 : résultat/usage quotidien, ton crédible.",
     "Style : smartphone, naturel, crédible, pas d'effet IA visible, pas de texte mensonger.",
-    "Limite TAMS : ce prompt prépare la vidéo dans un outil externe ; TAMS ne génère pas encore le fichier vidéo final.",
+    "Limite TAMS : ce prompt prépare la vidéo dans un outil externe ; TAMS ne génère pas encore le fichier vidéo final IA.",
   ].join("\n");
 }
 
@@ -125,39 +126,124 @@ function planned(capabilityId: string, title: string, reason: string): Capabilit
   });
 }
 
+function missingConfig(capabilityId: string, title: string, vars: string[]): CapabilityResponse {
+  return response({
+    capabilityId,
+    status: "missing_config",
+    mode: "disabled",
+    title,
+    result: `Connecteur présent, mais configuration manquante : ${vars.join(", ")}.`,
+    limitations: ["Le handler backend est branché, mais aucun provider opérationnel n’est configuré pour cette capacité."],
+    nextActions: vars.map(v => `Ajouter ${v} dans Railway si cette capacité doit fonctionner en production.`),
+    providerUsed: "none",
+  });
+}
+
+function optionString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function optionStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function pollinationsImageUrl(prompt: string, seed: string): string {
+  const encoded = encodeURIComponent(`${prompt}, vertical TikTok 9:16, natural UGC product shot, seed ${seed}`);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=720&height=1280&nologo=true&safe=true`;
+}
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = 30_000): Promise<unknown> {
+  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+  try { return JSON.parse(text); } catch { return { text }; }
+}
+
+async function runDuckDuckGoSearch(query: string): Promise<{ text: string; data: unknown }> {
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+  const data = await fetchJsonWithTimeout(url, { method: "GET" }, 12_000) as {
+    AbstractText?: string;
+    AbstractURL?: string;
+    Heading?: string;
+    RelatedTopics?: Array<{ Text?: string; FirstURL?: string }>;
+  };
+  const related = (data.RelatedTopics ?? []).filter(item => item.Text).slice(0, 5);
+  const lines = [
+    `RECHERCHE WEB — DuckDuckGo`,
+    data.Heading ? `Sujet : ${data.Heading}` : "Sujet : résultat direct non garanti",
+    data.AbstractText ? `Résumé : ${data.AbstractText}` : "Résumé : aucun instant answer complet. Utilise les pistes ci-dessous.",
+    data.AbstractURL ? `Source principale : ${data.AbstractURL}` : "",
+    related.length ? "Pistes" : "",
+    ...related.map((item, index) => `${index + 1}. ${item.Text}${item.FirstURL ? ` — ${item.FirstURL}` : ""}`),
+  ].filter(Boolean).join("\n");
+  return { text: lines, data };
+}
+
+async function runTavilySearch(query: string): Promise<{ text: string; data: unknown } | null> {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) return null;
+  const data = await fetchJsonWithTimeout("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ query, search_depth: "basic", max_results: 5, include_answer: true }),
+  }, 20_000) as { answer?: string; results?: Array<{ title?: string; url?: string; content?: string }> };
+  const lines = [
+    "RECHERCHE WEB — Tavily",
+    data.answer ? `Réponse : ${data.answer}` : "Réponse synthétique indisponible.",
+    ...(data.results ?? []).slice(0, 5).map((item, index) => `${index + 1}. ${item.title ?? "Source"} — ${item.url ?? "URL absente"}\n${item.content ?? ""}`),
+  ];
+  return { text: lines.join("\n"), data };
+}
+
+async function callJsonWorker(url: string, payload: unknown, timeoutMs = 120_000): Promise<unknown> {
+  return fetchJsonWithTimeout(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }, timeoutMs);
+}
+
+async function callHuggingFace(model: string, payload: unknown, timeoutMs = 120_000): Promise<{ contentType: string; base64?: string; json?: unknown }> {
+  const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY;
+  if (!token) throw new Error("HF_TOKEN absent");
+  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const contentType = res.headers.get("content-type") || "application/octet-stream";
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (!res.ok) throw new Error(`HF ${res.status}: ${buf.toString("utf8").slice(0, 200)}`);
+  if (contentType.includes("application/json")) {
+    try { return { contentType, json: JSON.parse(buf.toString("utf8")) }; } catch { return { contentType, json: { raw: buf.toString("utf8") } }; }
+  }
+  return { contentType, base64: buf.toString("base64") };
+}
+
 router.post("/capabilities/execute", async (req, res) => {
   const capabilityId = typeof req.body?.capabilityId === "string" ? req.body.capabilityId : "";
   const input = cleanInput(req.body?.input);
-  const targetLanguage = typeof req.body?.options?.targetLanguage === "string" ? req.body.options.targetLanguage : "français";
+  const options = (req.body?.options ?? {}) as Record<string, unknown>;
+  const targetLanguage = typeof options.targetLanguage === "string" ? options.targetLanguage : "français";
 
   try {
     switch (capabilityId) {
       case "text.generate": {
         const ai = await runAiInstruction("Tu génères du texte utile, concret, sans promesse fausse. Réponds en français.", input);
-        if (!ai) {
-          return res.json(response({
-            capabilityId,
-            status: "missing_config",
-            mode: "disabled",
-            title: "Génération texte non configurée",
-            result: "Aucun provider IA n’est configuré. Ajoute GROQ_API_KEY, GEMINI_API_KEY, HF_TOKEN ou OPENROUTER_API_KEY côté serveur.",
-            limitations: ["Pas de clé IA disponible côté backend."],
-            nextActions: ["Configurer au moins un provider IA dans Railway."],
-            providerUsed: "none",
-          }));
-        }
+        if (!ai) return res.json(missingConfig(capabilityId, "Génération texte non configurée", ["GROQ_API_KEY", "GEMINI_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"]));
         return res.json(response({ capabilityId, status: "success", mode: "real", title: "Texte généré", result: ai.text, artifact: { type: "text", content: ai.text }, limitations: [], nextActions: ["Copier le texte", "L’envoyer dans Studio pour le transformer en script"], providerUsed: ai.provider }));
       }
 
       case "text.analyze": {
         const ai = await runAiInstruction("Analyse ce texte en français avec : résumé, points clés, risques, actions recommandées.", input);
-        if (!ai) return res.json(response({ capabilityId, status: "missing_config", mode: "disabled", title: "Analyse non configurée", result: "Aucun provider IA configuré.", limitations: ["Provider IA manquant."], nextActions: ["Configurer Groq/Gemini/OpenRouter/HF."], providerUsed: "none" }));
+        if (!ai) return res.json(missingConfig(capabilityId, "Analyse non configurée", ["GROQ_API_KEY", "GEMINI_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"]));
         return res.json(response({ capabilityId, status: "success", mode: "real", title: "Analyse texte", result: ai.text, artifact: { type: "text", content: ai.text }, limitations: [], nextActions: ["Transformer les actions recommandées en tâches"], providerUsed: ai.provider }));
       }
 
       case "text.translate": {
         const ai = await runAiInstruction(`Traduis le texte en ${targetLanguage}. Garde le sens, le ton et la clarté.`, input);
-        if (!ai) return res.json(response({ capabilityId, status: "missing_config", mode: "disabled", title: "Traduction non configurée", result: "Aucun provider IA configuré.", limitations: ["Provider IA manquant."], nextActions: ["Configurer Groq/Gemini/OpenRouter/HF."], providerUsed: "none" }));
+        if (!ai) return res.json(missingConfig(capabilityId, "Traduction non configurée", ["GROQ_API_KEY", "GEMINI_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"]));
         return res.json(response({ capabilityId, status: "success", mode: "real", title: `Traduction en ${targetLanguage}`, result: ai.text, artifact: { type: "text", content: ai.text }, limitations: [], nextActions: ["Relire avant publication"], providerUsed: ai.provider }));
       }
 
@@ -182,18 +268,13 @@ router.post("/capabilities/execute", async (req, res) => {
           "studio.analyze": ["ANALYSE STUDIO", plan.creativeBrief, "", "Risques", ...plan.validationChecklist].join("\n"),
         };
         const result = map[capabilityId] ?? formatStudioPlan(input);
-        return res.json(response({ capabilityId, status: "success", mode: "real", title: "Résultat Studio", result, artifact: { type: "json", content: result, data: plan }, limitations: plan.honestLimitations, nextActions: ["Ouvrir Studio", "Valider le script", "Utiliser le prompt externe si vidéo réelle nécessaire"], providerUsed: "studio-orchestrator" }));
+        return res.json(response({ capabilityId, status: "success", mode: "real", title: "Résultat Studio", result, artifact: { type: "json", content: result, data: plan }, limitations: plan.honestLimitations, nextActions: ["Ouvrir Studio", "Valider le script", "Utiliser le prompt externe si vidéo IA nécessaire"], providerUsed: "studio-orchestrator" }));
       }
 
       case "studio.video.edit.plan":
       case "video.edit": {
-        const result = [
-          "PLAN DE MONTAGE VIDÉO — MODE PLAN ONLY",
-          formatStudioPlan(input),
-          "",
-          "IMPORTANT : aucun fichier vidéo n’est généré ici. FFmpeg est détectable côté serveur, mais le pipeline upload → montage → stockage → téléchargement n’est pas encore prouvé.",
-        ].join("\n");
-        return res.json(response({ capabilityId, status: "plan_only", mode: "plan_only", title: "Plan de montage vidéo", result, artifact: { type: "text", content: result }, limitations: ["Pas de fichier vidéo final produit par cette action."], nextActions: ["Brancher upload/storage avant d’activer le montage réel", "Utiliser ce plan dans CapCut/Premiere/FFmpeg manuel"], providerUsed: "studio-orchestrator" }));
+        const result = ["PLAN DE MONTAGE VIDÉO", formatStudioPlan(input), "", "FFmpeg est disponible pour encoder un fichier si des images URL sont fournies via video.generate."].join("\n");
+        return res.json(response({ capabilityId, status: "plan_only", mode: "plan_only", title: "Plan de montage vidéo", result, artifact: { type: "text", content: result }, limitations: ["Cette action planifie le montage ; video.generate produit le MP4."], nextActions: ["Fournir des images URL à video.generate", "Valider le script avant diffusion"], providerUsed: "studio-orchestrator" }));
       }
 
       case "image.generate": {
@@ -205,18 +286,75 @@ router.post("/capabilities/execute", async (req, res) => {
       case "image.analyze":
         return res.json(planned(capabilityId, "Analyse image non branchée", "Aucun workflow upload/image URL → analyse vision fiable n’est branché en production."));
 
-      case "video.generate":
-        return res.json(planned(capabilityId, "Génération vidéo non branchée", "La génération vidéo réelle reste planned. TAMS peut préparer script, storyboard et prompt externe, mais ne doit pas promettre un fichier vidéo."));
+      case "video.generate": {
+        const images = optionStringArray(options.images).slice(0, 6);
+        const generatedImages = images.length > 0 ? images : ["hero", "movement", "detail"].map(seed => pollinationsImageUrl(input, seed));
+        const text = optionString(options.text) ?? "TAMS — vidéo 9:16";
+        const result = await generateSlideshowVideo({ images: generatedImages, text, secondsPerImage: Number(options.secondsPerImage) || 2.5, musicUrl: optionString(options.musicUrl) });
+        const output = [
+          "VIDÉO GÉNÉRÉE — FFmpeg",
+          `URL: ${result.url}`,
+          `Durée: ${result.durationSec}s`,
+          `Images: ${result.images}`,
+          `Texte overlay: ${result.withText ? "oui" : "non"}`,
+          `Musique: ${result.withMusic ? "oui" : "non"}`,
+          "Limite honnête : génération MP4 réelle par diaporama FFmpeg, pas encore génération IA Remotion/Veo/Kling interne.",
+        ].join("\n");
+        return res.json(response({ capabilityId, status: "success", mode: "real", title: "Vidéo MP4 générée", result: output, artifact: { type: "file", url: result.url, content: output, data: result }, limitations: ["Vidéo réelle par FFmpeg/slideshow.", "Remotion IA avancé reste un futur worker, pas une promesse actuelle."], nextActions: ["Ouvrir/télécharger le MP4", "Relancer avec des images produit réelles pour un meilleur rendu"], providerUsed: "ffmpeg" }));
+      }
 
       case "studio.music.plan":
-        return res.json(response({ capabilityId, status: "plan_only", mode: "plan_only", title: "Direction musicale", result: [`Direction musicale pour : ${input}`, "Mood : énergique, moderne, crédible.", "Instruments : beat léger, basse douce, texture premium.", "Usage : TikTok/Reels, volume bas sous voix-off.", "Limite : MusicGen local GPU non branché sur Railway."].join("\n"), artifact: { type: "text" }, limitations: ["Plan uniquement, aucun fichier audio généré."], nextActions: ["Choisir une musique libre de droits", "Brancher MusicGen local si génération réelle nécessaire"], providerUsed: "deterministic-planner" }));
+        return res.json(response({ capabilityId, status: "plan_only", mode: "plan_only", title: "Direction musicale", result: [`Direction musicale pour : ${input}`, "Mood : énergique, moderne, crédible.", "Instruments : beat léger, basse douce, texture premium.", "Usage : TikTok/Reels, volume bas sous voix-off.", "Limite : pour générer un fichier audio, utilise audio.music.generate avec HF_TOKEN ou MUSICGEN_WORKER_URL."].join("\n"), artifact: { type: "text" }, limitations: ["Plan uniquement dans cette action."], nextActions: ["Utiliser audio.music.generate", "Choisir une musique libre de droits si la génération échoue"], providerUsed: "deterministic-planner" }));
 
-      case "audio.music.generate":
-      case "voice.transcribe":
-      case "audio.synthesize":
-      case "automation.workflow":
-      case "search.web":
-        return res.json(planned(capabilityId, "Capacité non disponible", "Cette capacité nécessite un worker/provider qui n’est pas branché en production."));
+      case "audio.music.generate": {
+        const workerUrl = process.env.MUSICGEN_WORKER_URL;
+        if (workerUrl) {
+          const data = await callJsonWorker(workerUrl, { prompt: input, options }, 180_000);
+          const text = JSON.stringify(data, null, 2);
+          return res.json(response({ capabilityId, status: "success", mode: "real", title: "Musique générée via worker MusicGen", result: text, artifact: { type: "json", content: text, data }, limitations: ["Qualité/durée dépend du worker local."], nextActions: ["Télécharger l’audio depuis le worker si une URL est retournée"], providerUsed: "musicgen-worker" }));
+        }
+        if (process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY) {
+          const hf = await callHuggingFace("facebook/musicgen-small", { inputs: input, parameters: { duration: Number(options.durationSeconds) || 8 } }, 180_000);
+          const content = hf.base64 ? `data:${hf.contentType};base64,${hf.base64}` : JSON.stringify(hf.json, null, 2);
+          return res.json(response({ capabilityId, status: "success", mode: "real", title: "Musique générée via Hugging Face MusicGen", result: "Audio généré par Hugging Face MusicGen. Si le modèle est froid, relance la génération.", artifact: { type: "file", url: hf.base64 ? content : undefined, content, data: hf.json }, limitations: ["Hugging Face gratuit peut être lent/rate-limité.", "Railway n’exécute pas MusicGen local GPU."], nextActions: ["Écouter/télécharger le fichier si data URL retournée", "Brancher MUSICGEN_WORKER_URL pour une production stable"], providerUsed: "huggingface-musicgen" }));
+        }
+        return res.json(missingConfig(capabilityId, "MusicGen non configuré", ["HF_TOKEN", "MUSICGEN_WORKER_URL"]));
+      }
+
+      case "voice.transcribe": {
+        const audioUrl = optionString(options.audioUrl) ?? optionString(req.body?.audioUrl);
+        if (!audioUrl) return res.json(response({ capabilityId, status: "missing_config", mode: "disabled", title: "Audio manquant", result: "Le connecteur transcription est branché, mais il faut fournir options.audioUrl.", artifact: { type: "none" }, limitations: ["Aucun fichier audio fourni."], nextActions: ["Envoyer options.audioUrl", "Brancher WHISPER_WORKER_URL pour un worker local stable"], providerUsed: "none" }));
+        const workerUrl = process.env.WHISPER_WORKER_URL || process.env.STT_WORKER_URL;
+        if (workerUrl) {
+          const data = await callJsonWorker(workerUrl, { audioUrl, language: options.language ?? "fr" }, 180_000);
+          const text = JSON.stringify(data, null, 2);
+          return res.json(response({ capabilityId, status: "success", mode: "real", title: "Transcription via worker", result: text, artifact: { type: "json", content: text, data }, limitations: [], nextActions: ["Relire la transcription"], providerUsed: "whisper-worker" }));
+        }
+        return res.json(missingConfig(capabilityId, "Worker transcription non configuré", ["WHISPER_WORKER_URL", "STT_WORKER_URL"]));
+      }
+
+      case "audio.synthesize": {
+        const text = optionString(options.text) ?? input;
+        const workerUrl = process.env.PIPER_WORKER_URL || process.env.TTS_WORKER_URL || process.env.EDGE_TTS_WORKER_URL;
+        if (!workerUrl) return res.json(missingConfig(capabilityId, "Worker TTS non configuré", ["PIPER_WORKER_URL", "TTS_WORKER_URL", "EDGE_TTS_WORKER_URL"]));
+        const data = await callJsonWorker(workerUrl, { text, voice: options.voice ?? "fr", format: options.format ?? "wav" }, 120_000);
+        const output = JSON.stringify(data, null, 2);
+        return res.json(response({ capabilityId, status: "success", mode: "real", title: "Voix synthétisée", result: output, artifact: { type: "json", content: output, data }, limitations: ["Qualité dépend du worker TTS branché."], nextActions: ["Télécharger l’audio si une URL est retournée"], providerUsed: "tts-worker" }));
+      }
+
+      case "automation.workflow": {
+        const webhookUrl = process.env.N8N_WEBHOOK_URL;
+        if (!webhookUrl) return res.json(missingConfig(capabilityId, "n8n non configuré", ["N8N_WEBHOOK_URL"]));
+        const data = await callJsonWorker(webhookUrl, { input, options, source: "tams-capability-action" }, 60_000);
+        const output = JSON.stringify(data, null, 2);
+        return res.json(response({ capabilityId, status: "success", mode: "real", title: "Workflow n8n exécuté", result: output, artifact: { type: "json", content: output, data }, limitations: ["Le workflow exécuté dépend du webhook n8n configuré."], nextActions: ["Vérifier le run dans n8n", "Ajouter validation humaine pour actions sensibles"], providerUsed: "n8n-webhook" }));
+      }
+
+      case "search.web": {
+        const tavily = await runTavilySearch(input).catch(() => null);
+        const result = tavily ?? await runDuckDuckGoSearch(input);
+        return res.json(response({ capabilityId, status: "success", mode: "real", title: tavily ? "Recherche web Tavily" : "Recherche web DuckDuckGo", result: result.text, artifact: { type: "json", content: result.text, data: result.data }, limitations: [tavily ? "Tavily utilise une clé configurée." : "DuckDuckGo Instant Answer est gratuit mais peut retourner peu de résultats."], nextActions: ["Vérifier les sources importantes", "Relancer avec une requête plus précise si nécessaire"], providerUsed: tavily ? "tavily" : "duckduckgo" }));
+      }
 
       case "memory.query":
         return res.json(response({ capabilityId, status: "plan_only", mode: "plan_only", title: "Mémoire — mode plan", result: "La carte Mémoire est actionnable mais la recherche mémoire réelle n’est pas prouvée depuis ce bus. Le prochain branchement doit appeler le système de mémoire/pgvector avec une requête utilisateur et afficher les sources.", artifact: { type: "text" }, limitations: ["Aucune source mémoire réelle retournée par cette action pour éviter de mentir."], nextActions: ["Brancher le handler mémoire réel", "Afficher sources et horodatages"], providerUsed: "safe-memory-placeholder" }));
