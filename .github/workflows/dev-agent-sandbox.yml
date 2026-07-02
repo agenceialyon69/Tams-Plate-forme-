@@ -1,0 +1,31 @@
+name: Dev Agent Sandbox Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_kind:
+        description: Validation kind
+        required: true
+        default: full_validation
+        type: choice
+        options:
+          - full_validation
+          - typecheck
+          - e2e_playwright
+
+jobs:
+  sandbox-validation:
+    name: Safe worker sandbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare package manager
+        run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - name: Install
+        run: pnpm install --no-frozen-lockfile --lockfile=false
+      - name: Typecheck
+        run: pnpm run typecheck
