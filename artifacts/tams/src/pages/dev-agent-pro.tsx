@@ -39,7 +39,7 @@ export default function DevAgentPro() {
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold">Dev Agent Pro v5</p>
               <h1 className="text-3xl font-semibold">Agent développeur contrôlé</h1>
-              <p className="text-sm text-muted-foreground mt-1">Sandbox safe, repo intelligence, diff preview, benchmark, plugins et repair contrôlé.</p>
+              <p className="text-sm text-muted-foreground mt-1">Sandbox terminal safe, repo intelligence, diff preview, benchmark, plugins et repair contrôlé.</p>
             </div>
           </div>
           {status && <div className="mt-4 rounded-2xl bg-secondary/40 p-4 text-sm"><strong>Verdict {status.verdict}</strong> — {status.reason}</div>}
