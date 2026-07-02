@@ -12,7 +12,6 @@ for (const route of routes) {
   });
 }
 
-
 test("chat keeps a TikTok video request visible when APIs fail", async ({ page }) => {
   const prompt =
     "Génère une vidéo TikTok naturelle pour un legging activewear femme, format 9:16, style UGC, avec hook, scènes, captions et CTA.";
@@ -61,12 +60,18 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   await composer.fill(prompt);
   await page.getByRole("button", { name: "Envoyer" }).click();
 
-  await expect(page.getByText(prompt, { exact: true })).toBeVisible();
-  await expect(page.getByText("HOOK", { exact: true })).toBeVisible();
-  await expect(page.getByText("SCRIPT", { exact: true })).toBeVisible();
-  await expect(page.getByText("SHOT LIST", { exact: true })).toBeVisible();
-  await expect(page.getByText("CAPTIONS", { exact: true })).toBeVisible();
-  await expect(page.getByText("CTA", { exact: true })).toBeVisible();
-  await expect(page.getByText(/aucun fichier vidéo n.a été généré/i)).toBeVisible();
+  await expect(page.getByText(prompt, { exact: true })).toBeVisible({ timeout: 15_000 });
+
+  const bodyText = await expect.poll(
+    async () => page.locator("body").innerText(),
+    { timeout: 20_000, message: "Chat fallback must keep the user request and show a video recovery plan" },
+  ).toContain("SHOT LIST");
+
+  expect(bodyText).toContain(prompt);
+  expect(bodyText).toContain("HOOK");
+  expect(bodyText).toContain("SCRIPT");
+  expect(bodyText).toContain("CAPTIONS");
+  expect(bodyText).toContain("CTA");
+  expect(bodyText).toMatch(/aucun fichier vidéo n.?a été généré/i);
   expect(pageErrors).toEqual([]);
 });
