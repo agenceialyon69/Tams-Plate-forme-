@@ -19,43 +19,40 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   const pageErrors: string[] = [];
   page.on("pageerror", error => pageErrors.push(error.message));
 
-  await page.route(/\/api\/conversations(?:\?.*)?$/, async route => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
+  await page.route("**/*", async route => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+
+    if (request.method() === "GET" && pathname === "/api/conversations") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: 9001,
+            title: "E2E vidéo",
+            mode: "chat",
+            lastMessage: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+      });
       return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([
-        {
-          id: 9001,
-          title: "E2E vidéo",
-          mode: "chat",
-          lastMessage: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]),
-    });
+
+    if (request.method() === "GET" && pathname === "/api/conversations/9001/messages") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+      return;
+    }
+
+    if (request.method() === "POST" && pathname === "/api/kernel/route-intent") {
+      await route.abort("failed");
+      return;
+    }
+
+    await route.continue();
   });
-  await page.route(/\/api\/conversations\/9001\/messages(?:\?.*)?$/, route =>
-    route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
-  );
-  await page.route("**/api/kernel/route-intent", route =>
-    route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "kernel unavailable in E2E" }),
-    }),
-  );
-  await page.route("**/api/conversations/9001/stream", route =>
-    route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "stream unavailable in E2E" }),
-    }),
-  );
 
   await page.goto("/chat", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /E2E vidéo/ }).click();
