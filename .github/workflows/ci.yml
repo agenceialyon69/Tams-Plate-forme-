@@ -37,7 +37,7 @@ jobs:
           pnpm --filter @workspace/scripts test
           pnpm --filter @workspace/scripts dev-runtime:scenario
           pnpm --filter @workspace/scripts dev-runtime:mission2
-      - name: Smoke provider, recovery and Life OS bridges
+      - name: Smoke provider, recovery and Life OS v5 bridges
         run: |
           NODE_ENV=production PORT=4000 node ./artifacts/api-server/dist/index.mjs &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:4000/api/healthz >/dev/null && break; sleep 1; done
@@ -48,9 +48,12 @@ jobs:
           curl -sf http://127.0.0.1:4000/api/system/recovery/status | grep -q 'append_only_v1'
           curl -sf -X POST -H 'Content-Type: application/json' -d '{"version":"1.0","data":{"tasks":[{"title":"Test recovery"}],"projects":[],"memories":[],"decisions":[]}}' http://127.0.0.1:4000/api/system/recovery/validate | grep -q '"ok":true'
           curl -sf -X POST -H 'Content-Type: application/json' -d '{"mode":"dry_run","payload":{"version":"1.0","data":{"tasks":[{"title":"Test recovery"}],"projects":[],"memories":[],"decisions":[]}}}' http://127.0.0.1:4000/api/system/recovery/import | grep -q '"mode":"dry_run"'
-          curl -sf http://127.0.0.1:4000/api/life-os/status | grep -q 'personal_life_os_v1'
-          curl -sf http://127.0.0.1:4000/api/life-os/briefing | grep -q 'Briefing Life OS'
-          curl -sf -X POST -H 'Content-Type: application/json' -d '{"decision":"Dois-je prendre une grosse décision projet cette semaine ?"}' http://127.0.0.1:4000/api/life-os/red-team | grep -q 'redFlags'
+          curl -sf http://127.0.0.1:4000/api/life-os/status | grep -q 'life_os_v5_foundation'
+          curl -sf http://127.0.0.1:4000/api/life-os/v5/cockpit | grep -q 'Life\|life_os_v5_foundation'
+          curl -sf http://127.0.0.1:4000/api/life-os/v5/risk-radar | grep -q 'riskRadar'
+          curl -sf http://127.0.0.1:4000/api/life-os/v5/plan | grep -q 'nextActions'
+          curl -sf -X POST -H 'Content-Type: application/json' -d '{"text":"J’ai une facture urgente et je suis fatigué","persist":false}' http://127.0.0.1:4000/api/life-os/v5/capture | grep -q 'admin_finance\|health'
+          curl -sf -X POST -H 'Content-Type: application/json' -d '{"decision":"Dois-je prendre une grosse décision projet cette semaine ?","energy":40,"urgency":50}' http://127.0.0.1:4000/api/life-os/v5/red-team | grep -q 'redFlags'
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
