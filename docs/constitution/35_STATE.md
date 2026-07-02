@@ -1,94 +1,103 @@
 # 35 — STATE (état vivant : fait / en cours / reste)
 
 > **Lire avant de commencer un lot.** Mettre à jour après chaque lot.
-> Source de vérité unique de l'avancement. Branche : `main` (autodeploy Railway).
+> Source de vérité unique de l'avancement. Branche de livraison : `main`.
 
-_Dernière mise à jour : 2026-06-27 — LOT 11._
+_Dernière mise à jour : 2026-07-02 — après PR #72, #73 et #74._
 
-## Règles de travail (rappel)
-- **Une seule branche : `main`.** Tout le monde (outils, agents) travaille et
-  pousse sur `main`, qui est liée à Railway (autodeploy). Pas de branches
-  parallèles divergentes.
-- **Zéro payant** (voir `36_FREE_STACK.md`).
-- **Definition of Done** : build OK, TypeScript valide, app démarre, anciennes +
-  nouvelles fonctions marchent, Railway déploie, commit + push sur `main`, SHA affiché.
+## Règles de travail
 
----
-
-## ✅ Fait (vérifié sur `main`)
-
-- **Railway débloqué** : `pnpm-lock.yaml` régénéré (frozen install OK) ; builds
-  `api-server` (esbuild) + `tams` (vite) passent. (SHA `4a1d8ff`)
-- **api-server TypeScript valide** : corrigés tool-calls, enum mode, dates briefing. (SHA `beb4e55`)
-- **Zéro payant** : SDK `openai` **retiré** ; nouveau client `lib/ai.ts`
-  OpenAI-compatible par `fetch` routé vers des fournisseurs **gratuits**. (SHA `1825d9b`)
-- **Backend (routes présentes)** : health, briefing (Chief of Staff), conversations
-  (Chat OS), tasks/projects/contacts (Workspace), memories (Memory), decisions
-  (Decision OS), assets + studio-generate (Studio), dashboard, notifications, system.
-- **Frontend déployé** : `artifacts/tams` (accueil, chat, studio, systeme, travail).
-- **Frontend TypeScript valide** : bugs runtime corrigés, typecheck propre. (SHA `4624378`)
-- **P8 AI Router (free-first)** : `lib/ai.ts` routeur multi-fournisseurs avec
-  fallback en chaîne. Fournisseurs : `AI_BASE_URL` → Ollama → Groq → Gemini →
-  OpenRouter (`:free`). (SHA `27f364b`)
-- **P2 Chat OS (mobile)** : bulle utilisateur optimiste, bouton Stop, textarea
-  auto-grow. (SHA `4786b57`)
-- **P7 Studio — génération d'image réelle & gratuite** : Pollinations/Flux sans
-  clé API, enrichissement prompt optionnel. (SHA `1f2fedc`)
-- **P3 Agent System (backend)** : 11 agents spécialisés, Chief of Staff orchestre,
-  `GET /api/agents`, `POST /api/agents/:id/run`, `POST /api/agents/orchestrate`.
-  (SHA `c30c531`)
-- **P3 Agent System (frontend)** : page `/agents`, roster + composer, plan +
-  synthèse exécutive. (SHA `b73783b`)
-- **LOT 11 — Railway hardening + Red Team** (SHA en cours) :
-  - CORS `resolveOrigin()` : plus jamais `false` en production.
-  - nixpacks : pnpm épinglé `@10.26.1`, `typecheck:libs` ajouté avant build.
-  - `.env.example` : tous les vars documentés (ALLOWED_ORIGINS, FRONTEND_URL, IA).
-  - `logActivity` : type `ActivityType` complet (ajout `"agent"`).
-  - Audit Red Team complet : `37_RED_TEAM_AUDIT_2026-06-27.md` (score 87/100).
+- `main` reste la source de vérité.
+- Les branches temporaires servent uniquement aux PR, à la CI et aux validations contrôlées.
+- Zéro payant obligatoire : voir `36_FREE_STACK.md`.
+- Definition of Done : typecheck, builds, tests runtime, smoke endpoints, E2E si nécessaire, puis validation production.
+- Ne jamais prétendre qu'une capacité fonctionne si elle est seulement planifiée ou non configurée.
 
 ---
 
-## 🔧 En cours / à corriger en priorité
+## ✅ Fait et mergé
 
-1. **`dashboard/summary`** : charge toutes les lignes sans `COUNT(*)` → ajouter
-   des agrégats SQL pour les compteurs.
-2. **Streaming SSE timeout** : ajouter un timeout max (5 min) côté serveur pour
-   les connexions SSE abandonnées.
-3. **Deux frontends** (`tams` déployé vs `kore` non déployé) : `kore` est orphelin,
-   à supprimer dans un futur lot.
+### Socle historique
+
+- Railway débloqué et builds frontend/backend opérationnels.
+- Backend principal monté : health, briefing, conversations, tasks, projects, contacts, memories, decisions, assets, studio, dashboard, notifications, system.
+- Frontend `artifacts/tams` déployé avec Accueil, Chat, Agents, Travail, Vie, Studio, Système.
+- AI Router free-first sans dépendance payante obligatoire.
+- Studio image gratuite via Pollinations.
+- Agent System backend/frontend opérationnel.
+
+### Capability Action Bus
+
+- Bus `/api/capabilities/execute` ajouté.
+- Actions média et mémoire initiales branchées.
+- Workflows utilisateur corrigés.
+
+### Dev Agent / validation
+
+- Dev Agent Core v1 branché.
+- Validation Runner branché.
+- Workflow GitHub Actions sandbox ajouté.
+- CI Operator branché.
+- Playwright configuré pour les pages critiques.
+- Scheduler Dev Agent exposé.
+- VIS, selftest, readiness, workflows, version, registry et export protégé inclus dans les contrôles.
+- PR #72 mergée avec CI verte.
+
+### Fiabilité Chat vidéo
+
+- Le message utilisateur ne disparaît plus après erreur réseau/backend/stream.
+- Les réponses Studio, Runtime et SSE sont rendues durables côté UI.
+- Timeout et fallback assistant ajoutés.
+- Fallback TikTok avec hook, script, shot list, captions et CTA.
+- Honnêteté produit : pas de faux fichier vidéo IA annoncé.
+- PR #73 mergée avec CI verte.
+
+### Providers restants + Système
+
+- `video.generate` produit un MP4 réel via FFmpeg slideshow.
+- `search.web` branché avec DuckDuckGo gratuit et Tavily optionnel.
+- `automation.workflow` branché via n8n webhook.
+- `audio.music.generate` branché via Hugging Face MusicGen ou worker dédié.
+- `voice.transcribe` branché via worker transcription.
+- `audio.synthesize` branché via worker TTS.
+- Registry mis à jour : capacités disponibles séparées des configurations optionnelles.
+- `/api/system/metrics` ajouté.
+- Santé système alignée avec l'UI pour éviter un faux statut IA en erreur.
+- Version système corrigée : commit Git/Railway au lieu de `0.0.0`.
+- Selftest corrigé : un outil en erreur ne doit plus être affiché comme PASS.
+- PR #74 mergée avec CI verte.
 
 ---
 
-## 🗺️ Reste (par pilier — voir `04_10_PILLARS.md`)
+## 🔧 En cours / à vérifier
 
-- **P1 Chief of Staff** : indicateur de fraîcheur du briefing ; intégrer vie perso (P11).
-- **P2 Chat OS** : streaming complet, pièces jointes, modes avancés,
-  appels d'outils fiables, mémoire dans le contexte.
-- **P3 Agent System** : agents spécialisés plus riches, mémoire longue durée,
-  délégation inter-agents.
-- **P4 Memory Graph** : relations réelles via **pgvector**
-  (personnes/projets/docs/décisions…).
-- **P5 Decision OS** : options/risques/avis IA/Red Team/confiance améliorés.
-- **P6 Workspace** : fusion tâches/agenda/CRM/projets/notes/objectifs.
-- **P7 Studio** : vidéo/audio/doc via FFmpeg + free ; jamais de bouton « Créer »
-  qui échoue sans diagnostic.
-- **P8 AI Router** : choix automatique du meilleur modèle gratuit par tâche.
+1. Vérifier le redéploiement Railway après PR #74.
+2. Retester l'onglet Système en production : métriques, IA, version, selftest.
+3. Créer de vraies règles/workflows métier.
+4. Configurer les workers optionnels uniquement si nécessaire : n8n, musique, transcription, voix, rendu vidéo avancé.
+5. Tester l'import/restauration complète du système.
+
+---
+
+## 🗺️ Reste par pilier
+
+- **P1 Chief of Staff** : fraîcheur du briefing et intégration vie perso.
+- **P2 Chat OS** : mémoire plus riche, pièces jointes, modes avancés.
+- **P3 Agent System** : autonomie plus forte, délégation et mémoire longue durée.
+- **P4 Memory Graph** : relations plus utiles, pgvector mieux exploité.
+- **P5 Decision OS** : Red Team décisionnelle plus profonde et suivi post-décision.
+- **P6 Workspace** : agenda, CRM, projets, notes et objectifs à mieux fusionner.
+- **P7 Studio** : qualité vidéo/audio réelle à améliorer avec assets produit.
+- **P8 AI Router** : choix automatique par tâche, latence et fallback observables.
 - **P9 Mobile Premium** : safe areas, clavier, gestes, offline, fluidité native.
-- **P10 Platform OS** : observabilité (OpenTelemetry/Prometheus/Grafana), audit,
-  sauvegarde, récupération, export, santé.
-- **P11 Personal Life OS** : santé/famille/finances/admin/carrière/apprentissage.
-- **Tests** : vitest pour routes critiques (briefing, conversations, agents).
-- **Migration DB auto** : script Drizzle au démarrage pour éviter les mises à jour manuelles.
+- **P10 Platform OS** : observabilité avancée et recovery import.
+- **P11 Personal Life OS** : santé, famille, finances, admin, carrière, apprentissage.
 
 ---
 
-## 🧰 TAMS Development Runtime v1 (branche `tams-dev-runtime-v1`)
+## Verdict objectif
 
-- Repository Intelligence : index, recherche, packages, routes et dépendances simples.
-- Task Engine persistant : états contrôlés, logs, plan, résultat, rollback et retry max 3.
-- Tool Layer confinée au dépôt : fichiers, commandes allowlistées, statut/diff Git.
-- Validation : typecheck, builds Railway canoniques, tests et rapport PASS/FAIL.
-- Chat Control Plane programmatique : create/run/status/analyze/validate/logs/report.
-- Scénario `runtime-check` exécuté par la CI avec preuve de diff et smoke endpoints.
-- Aucun accès d’écriture/commande ajouté à l’API publique : sécurité fail-closed.
+- **Objectif V1 : validé.** TAMS possède maintenant un socle OS + Dev Agent contrôlé + providers branchés.
+- **Objectif final : non terminé.** La prochaine étape est la preuve par usage réel en production.
 
+Voir aussi : `37_IMPLEMENTATION_LEDGER_2026-07-02.md`.
