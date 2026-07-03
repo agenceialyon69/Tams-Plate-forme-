@@ -6,6 +6,7 @@ const router = Router();
 type GpuKind = "video" | "image" | "audio" | "voice" | "vision" | "general";
 type GpuJobStatus = "queued" | "running" | "success" | "failed" | "missing_config";
 type WorkerLookup = { key: string; url: string };
+type WorkerStatus = "connected" | "configured_unverified" | "failed" | "missing_config";
 
 type GpuJob = {
   id: string;
@@ -21,6 +22,7 @@ type GpuJob = {
 
 const jobs = new Map<string, GpuJob>();
 const validKinds: GpuKind[] = ["video", "image", "audio", "voice", "vision", "general"];
+const mediaKinds: GpuKind[] = ["video", "image", "audio", "voice"];
 
 function env(name: string) {
   const value = process.env[name];
@@ -51,34 +53,80 @@ function workerUrl(kind: GpuKind): WorkerLookup | null {
   return null;
 }
 
-function workers() {
-  return validKinds.map(kind => {
+function healthUrl(url: string) {
+  if (url.endsWith("/generate")) return url.replace(/\/generate$/, "/health");
+  return `${url.replace(/\/$/, "")}/health`;
+}
+
+async function verifyWorker(found: WorkerLookup | null) {
+  if (!found) {
+    return {
+      status: "missing_config" as WorkerStatus,
+      endpointConfigured: false,
+      env: null,
+      healthUrl: null,
+      note: "Set the matching STUDIO_GPU_*_URL variable to connect a real worker.",
+    };
+  }
+
+  const url = healthUrl(found.url);
+  try {
+    const response = await fetch(url, { method: "GET", signal: AbortSignal.timeout(5000) });
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (response.ok && data.ok !== false) {
+      return {
+        status: "connected" as WorkerStatus,
+        endpointConfigured: true,
+        env: found.key,
+        healthUrl: url,
+        note: "Worker /health responded successfully.",
+      };
+    }
+    return {
+      status: "failed" as WorkerStatus,
+      endpointConfigured: true,
+      env: found.key,
+      healthUrl: url,
+      note: `Worker /health returned HTTP ${response.status}.`,
+    };
+  } catch (error) {
+    return {
+      status: "configured_unverified" as WorkerStatus,
+      endpointConfigured: true,
+      env: found.key,
+      healthUrl: url,
+      note: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function workers() {
+  return Promise.all(validKinds.map(async kind => {
     const found = workerUrl(kind);
+    const verification = await verifyWorker(found);
     return {
       id: `gpu-${kind}`,
       kind,
-      status: found ? "connected" : "missing_config",
-      env: found?.key ?? null,
-      endpointConfigured: Boolean(found),
-      note: found ? "External GPU worker is configured." : "Set the matching STUDIO_GPU_*_URL variable to connect a real GPU worker.",
+      ...verification,
     };
-  });
+  }));
 }
 
-router.get("/gpu/status", (_req, res) => {
-  const list = workers();
+router.get("/gpu/status", async (_req, res) => {
+  const list = await workers();
   return res.json({
     ok: true,
     architecture: "api_orchestrator_plus_external_gpu_workers",
-    honestLimit: "The API server does not host GPU models. It routes work to external GPU workers when configured.",
+    honestLimit: "The API server does not host GPU models. It routes work to external workers when configured and verified.",
     connected: list.filter(w => w.status === "connected").length,
+    configured: list.filter(w => w.endpointConfigured).length,
     workers: list,
     jobCount: jobs.size,
   });
 });
 
-router.get("/gpu/workers", (_req, res) => {
-  return res.json({ ok: true, workers: workers() });
+router.get("/gpu/workers", async (_req, res) => {
+  return res.json({ ok: true, workers: await workers() });
 });
 
 router.get("/gpu/jobs", (_req, res) => {
@@ -106,7 +154,7 @@ router.post("/gpu/jobs", async (req, res) => {
   const worker = workerUrl(kind);
   if (!worker) {
     job.status = "missing_config";
-    job.error = `No GPU worker URL configured for ${kind}.`;
+    job.error = `No worker URL configured for ${kind}.`;
     job.updatedAt = now();
     return res.status(503).json({ ok: false, job, missingConfig: true, requiredEnv: `STUDIO_GPU_${kind.toUpperCase()}_URL or STUDIO_GPU_GENERAL_URL` });
   }
@@ -123,13 +171,21 @@ router.post("/gpu/jobs", async (req, res) => {
       signal: AbortSignal.timeout(180_000),
     });
     const data = await response.json().catch(() => ({})) as Record<string, unknown>;
-    if (!response.ok) {
+    if (!response.ok || data.ok === false) {
       job.status = "failed";
       job.error = String(data.error || data.detail || `worker_http_${response.status}`);
       job.updatedAt = now();
-      return res.status(502).json({ ok: false, job });
+      return res.status(response.ok ? 502 : response.status).json({ ok: false, job, result: data });
     }
+
     const url = typeof data.url === "string" ? data.url : typeof data.artifactUrl === "string" ? data.artifactUrl : undefined;
+    if (mediaKinds.includes(kind) && !url) {
+      job.status = "failed";
+      job.error = "Worker returned ok:true but no media URL. Refusing fake success.";
+      job.updatedAt = now();
+      return res.status(502).json({ ok: false, job, result: data });
+    }
+
     job.status = "success";
     if (url) job.url = url;
     job.updatedAt = now();
