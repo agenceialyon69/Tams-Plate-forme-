@@ -1,181 +1,201 @@
 /**
- * AI Router (Pilier 8) — free-first, multi-provider, OpenAI-compatible.
+ * AI Router — free-first, multi-provider, OpenAI-compatible.
  *
- * Constitution 36_FREE_STACK : ZÉRO payant. Aucun SDK propriétaire, aucun défaut
- * vers api.openai.com. Parle à n'importe quel endpoint OpenAI-compatible via
- * `fetch`, et choisit automatiquement le meilleur modèle GRATUIT par tâche, en
- * basculant d'un fournisseur à l'autre en cas d'échec (fallback en chaîne).
+ * Goal:
+ * - keep TAMS operational even when one provider fails or changes quota/model access;
+ * - avoid hard dependency on one paid model;
+ * - never expose secret values;
+ * - allow Railway env vars to update models without code changes.
  *
- * Ordre free-first (le premier disponible/qui répond gagne) :
- *   1. AI_BASE_URL          (override explicite : Ollama distant, passerelle perso…)
- *   2. Ollama local         (OLLAMA_BASE_URL, ex http://localhost:11434/v1) — vraiment gratuit
- *   3. Groq                 (GROQ_API_KEY) — quota gratuit, très rapide
- *   4. Gemini               (GEMINI_API_KEY) — quota gratuit
- *   5. OpenRouter           (OPENROUTER_API_KEY) — modèles `:free` uniquement
- *
- * Tâches (sélection du modèle par fournisseur) :
- *   chat      conversation générale / Chat OS
- *   fast      réponses courtes, peu coûteuses
- *   reasoning analyse, décisions, Red Team
- *   json      sortie structurée (response_format json)
- *
- * Le `model` passé par l'appelant est traité comme un indice : le routeur le
- * remplace par le modèle gratuit adapté au fournisseur retenu (sauf pour le
- * fournisseur "custom" AI_BASE_URL, qui respecte AI_MODEL si défini).
- *
- * Rétro-compat : AI_GATEWAY_URL, REPLIT_AI_API_KEY, AI_MODEL.
+ * Provider order:
+ *   1. AI_BASE_URL / AI_GATEWAY_URL   explicit custom gateway or remote Ollama/vLLM/LiteLLM
+ *   2. OLLAMA_BASE_URL                local/remote open-source runtime, only when explicitly configured
+ *   3. Gemini                         multimodal/general lane
+ *   4. Groq                           fast/voice/reasoning lane
+ *   5. OpenRouter                     free-model routing/fallback lane
+ *   6. Hugging Face                   open-source model sandbox/fallback
+ *   7. Mistral / DeepSeek / Qwen       direct optional providers
  */
 
 export type AiTask = "chat" | "fast" | "reasoning" | "json";
 
+export type AiProviderName =
+  | "custom"
+  | "ollama"
+  | "gemini"
+  | "groq"
+  | "openrouter"
+  | "huggingface"
+  | "mistral"
+  | "deepseek"
+  | "qwen";
+
 type Provider = {
-  name: string;
+  name: AiProviderName;
   baseUrl: string;
   apiKey: string;
-  /** modèle par tâche ; null = respecter le model de l'appelant (custom) */
+  /** model by task; null = respect caller model / AI_MODEL for custom gateway */
   models: Record<AiTask, string> | null;
+};
+
+export type AiProviderModelSummary = Partial<Record<AiTask, string>> & {
+  callerModel?: string;
 };
 
 function strip(u: string): string {
   return u.replace(/\/+$/, "");
 }
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+function env(name: string): string | undefined {
+  const value = process.env[name];
+  return value && value.trim().length > 0 ? value.trim() : undefined;
+}
 
-/** Construit la liste ordonnée des fournisseurs gratuits disponibles. */
+function firstEnv(names: string[]): string | undefined {
+  for (const name of names) {
+    const value = env(name);
+    if (value) return value;
+  }
+  return undefined;
+}
+
+function model(name: string, task: AiTask, fallback: string): string {
+  const upper = name.toUpperCase();
+  const taskUpper = task.toUpperCase();
+  return env(`${upper}_MODEL_${taskUpper}`) || env(`${upper}_MODEL`) || fallback;
+}
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
 function providers(): Provider[] {
   const list: Provider[] = [];
 
-  // 1. Override explicite (AI_BASE_URL / AI_GATEWAY_URL). Respecte AI_MODEL.
-  const custom = process.env.AI_BASE_URL || process.env.AI_GATEWAY_URL || "";
+  const custom = env("AI_BASE_URL") || env("AI_GATEWAY_URL");
   if (custom) {
     list.push({
       name: "custom",
       baseUrl: strip(custom),
-      apiKey: process.env.AI_API_KEY || process.env.REPLIT_AI_API_KEY || "",
+      apiKey: env("AI_API_KEY") || env("REPLIT_AI_API_KEY") || "",
       models: null,
     });
   }
 
-  // 2. Ollama local (uniquement si explicitement configuré : évite des timeouts
-  //    de 30s sur Railway où aucun Ollama ne tourne).
-  if (process.env.OLLAMA_BASE_URL) {
-    const ollamaModel = process.env.OLLAMA_MODEL || "qwen3";
+  const ollamaBaseUrl = env("OLLAMA_BASE_URL");
+  if (ollamaBaseUrl) {
     list.push({
       name: "ollama",
-      baseUrl: strip(process.env.OLLAMA_BASE_URL),
-      apiKey: "",
+      baseUrl: strip(ollamaBaseUrl),
+      apiKey: env("OLLAMA_API_KEY") || "",
       models: {
-        chat: ollamaModel,
-        fast: process.env.OLLAMA_MODEL_FAST || "llama3.2",
-        reasoning: process.env.OLLAMA_MODEL_REASONING || "deepseek-r1",
-        json: ollamaModel,
+        chat: model("OLLAMA", "chat", "qwen3"),
+        fast: model("OLLAMA", "fast", "llama3.2"),
+        reasoning: model("OLLAMA", "reasoning", "deepseek-r1"),
+        json: model("OLLAMA", "json", env("OLLAMA_MODEL") || "qwen3"),
       },
     });
   }
 
-  // 3. Groq — quota gratuit, latence très basse.
-  if (process.env.GROQ_API_KEY) {
-    list.push({
-      name: "groq",
-      baseUrl: "https://api.groq.com/openai/v1",
-      apiKey: process.env.GROQ_API_KEY,
-      models: {
-        chat: "llama-3.3-70b-versatile",
-        fast: "llama-3.1-8b-instant",
-        reasoning: "deepseek-r1-distill-llama-70b",
-        json: "llama-3.3-70b-versatile",
-      },
-    });
-  }
-
-  // 4. Gemini — quota gratuit (endpoint OpenAI-compatible).
-  if (process.env.GEMINI_API_KEY) {
+  const geminiApiKey = firstEnv(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
+  if (geminiApiKey) {
     list.push({
       name: "gemini",
-      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-      apiKey: process.env.GEMINI_API_KEY,
+      baseUrl: strip(env("GEMINI_OPENAI_BASE_URL") || "https://generativelanguage.googleapis.com/v1beta/openai"),
+      apiKey: geminiApiKey,
       models: {
-        chat: "gemini-2.5-flash",
-        fast: "gemini-2.0-flash",
-        reasoning: "gemini-2.5-flash",
-        json: "gemini-2.5-flash",
+        chat: model("GEMINI", "chat", "gemini-2.5-flash"),
+        fast: model("GEMINI", "fast", "gemini-2.0-flash"),
+        reasoning: model("GEMINI", "reasoning", "gemini-2.5-flash"),
+        json: model("GEMINI", "json", "gemini-2.5-flash"),
       },
     });
   }
 
-  // 4b. DeepSeek — raisonnement/code excellents (deepseek-reasoner = R1).
-  if (process.env.DEEPSEEK_API_KEY) {
+  const groqApiKey = env("GROQ_API_KEY");
+  if (groqApiKey) {
     list.push({
-      name: "deepseek",
-      baseUrl: "https://api.deepseek.com/v1",
-      apiKey: process.env.DEEPSEEK_API_KEY,
+      name: "groq",
+      baseUrl: strip(env("GROQ_BASE_URL") || "https://api.groq.com/openai/v1"),
+      apiKey: groqApiKey,
       models: {
-        chat: "deepseek-chat",
-        fast: "deepseek-chat",
-        reasoning: "deepseek-reasoner",
-        json: "deepseek-chat",
+        chat: model("GROQ", "chat", "llama-3.3-70b-versatile"),
+        fast: model("GROQ", "fast", "llama-3.1-8b-instant"),
+        reasoning: model("GROQ", "reasoning", "deepseek-r1-distill-llama-70b"),
+        json: model("GROQ", "json", "llama-3.3-70b-versatile"),
       },
     });
   }
 
-  // 4c. Qwen (DashScope, endpoint OpenAI-compatible) — généraliste + code.
-  if (process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY) {
-    list.push({
-      name: "qwen",
-      baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-      apiKey: (process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY)!,
-      models: {
-        chat: "qwen-plus",
-        fast: "qwen-turbo",
-        reasoning: "qwen-plus",
-        json: "qwen-plus",
-      },
-    });
-  }
-
-  // 4d. Mistral — rédaction/raisonnement (offre gratuite "small").
-  if (process.env.MISTRAL_API_KEY) {
-    list.push({
-      name: "mistral",
-      baseUrl: "https://api.mistral.ai/v1",
-      apiKey: process.env.MISTRAL_API_KEY,
-      models: {
-        chat: "mistral-small-latest",
-        fast: "open-mistral-7b",
-        reasoning: "mistral-small-latest",
-        json: "mistral-small-latest",
-      },
-    });
-  }
-
-  // 4e. Hugging Face (router OpenAI-compatible) — accès Qwen/DeepSeek/… via HF_TOKEN.
-  if (process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY) {
-    list.push({
-      name: "huggingface",
-      baseUrl: "https://router.huggingface.co/v1",
-      apiKey: (process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY)!,
-      models: {
-        chat: "Qwen/Qwen2.5-72B-Instruct",
-        fast: "Qwen/Qwen2.5-7B-Instruct",
-        reasoning: "deepseek-ai/DeepSeek-R1",
-        json: "Qwen/Qwen2.5-72B-Instruct",
-      },
-    });
-  }
-
-  // 5. OpenRouter — modèles `:free` uniquement (jamais de modèle payant).
-  const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.OPENROUTE_API_KEY;
+  const openRouterApiKey = firstEnv(["OPENROUTER_API_KEY", "OPENROUTE_API_KEY"]);
   if (openRouterApiKey) {
     list.push({
       name: "openrouter",
-      baseUrl: "https://openrouter.ai/api/v1",
+      baseUrl: strip(env("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1"),
       apiKey: openRouterApiKey,
       models: {
-        chat: "meta-llama/llama-3.3-70b-instruct:free",
-        fast: "meta-llama/llama-3.2-3b-instruct:free",
-        reasoning: "deepseek/deepseek-r1:free",
-        json: "meta-llama/llama-3.3-70b-instruct:free",
+        chat: model("OPENROUTER", "chat", "meta-llama/llama-3.3-70b-instruct:free"),
+        fast: model("OPENROUTER", "fast", "meta-llama/llama-3.2-3b-instruct:free"),
+        reasoning: model("OPENROUTER", "reasoning", "deepseek/deepseek-r1:free"),
+        json: model("OPENROUTER", "json", "meta-llama/llama-3.3-70b-instruct:free"),
+      },
+    });
+  }
+
+  const hfApiKey = firstEnv(["HF_TOKEN", "HUGGINGFACE_API_KEY"]);
+  if (hfApiKey) {
+    list.push({
+      name: "huggingface",
+      baseUrl: strip(env("HUGGINGFACE_BASE_URL") || "https://router.huggingface.co/v1"),
+      apiKey: hfApiKey,
+      models: {
+        chat: model("HUGGINGFACE", "chat", "Qwen/Qwen2.5-72B-Instruct"),
+        fast: model("HUGGINGFACE", "fast", "Qwen/Qwen2.5-7B-Instruct"),
+        reasoning: model("HUGGINGFACE", "reasoning", "deepseek-ai/DeepSeek-R1"),
+        json: model("HUGGINGFACE", "json", "Qwen/Qwen2.5-72B-Instruct"),
+      },
+    });
+  }
+
+  const mistralApiKey = env("MISTRAL_API_KEY");
+  if (mistralApiKey) {
+    list.push({
+      name: "mistral",
+      baseUrl: strip(env("MISTRAL_BASE_URL") || "https://api.mistral.ai/v1"),
+      apiKey: mistralApiKey,
+      models: {
+        chat: model("MISTRAL", "chat", "mistral-small-latest"),
+        fast: model("MISTRAL", "fast", "open-mistral-7b"),
+        reasoning: model("MISTRAL", "reasoning", "mistral-small-latest"),
+        json: model("MISTRAL", "json", "mistral-small-latest"),
+      },
+    });
+  }
+
+  const deepseekApiKey = env("DEEPSEEK_API_KEY");
+  if (deepseekApiKey) {
+    list.push({
+      name: "deepseek",
+      baseUrl: strip(env("DEEPSEEK_BASE_URL") || "https://api.deepseek.com/v1"),
+      apiKey: deepseekApiKey,
+      models: {
+        chat: model("DEEPSEEK", "chat", "deepseek-chat"),
+        fast: model("DEEPSEEK", "fast", "deepseek-chat"),
+        reasoning: model("DEEPSEEK", "reasoning", "deepseek-reasoner"),
+        json: model("DEEPSEEK", "json", "deepseek-chat"),
+      },
+    });
+  }
+
+  const qwenApiKey = firstEnv(["DASHSCOPE_API_KEY", "QWEN_API_KEY"]);
+  if (qwenApiKey) {
+    list.push({
+      name: "qwen",
+      baseUrl: strip(env("QWEN_BASE_URL") || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
+      apiKey: qwenApiKey,
+      models: {
+        chat: model("QWEN", "chat", "qwen-plus"),
+        fast: model("QWEN", "fast", "qwen-turbo"),
+        reasoning: model("QWEN", "reasoning", "qwen-plus"),
+        json: model("QWEN", "json", "qwen-plus"),
       },
     });
   }
@@ -183,46 +203,49 @@ function providers(): Provider[] {
   return list;
 }
 
-/** True si au moins un fournisseur gratuit est configuré. */
 export function aiConfigured(): boolean {
   return providers().length > 0;
 }
 
-/** Noms des fournisseurs actifs, dans l'ordre de priorité (diagnostic). */
 export function aiProviders(): string[] {
   return providers().map(p => p.name);
+}
+
+export function aiProviderModels(): Record<string, AiProviderModelSummary> {
+  const result: Record<string, AiProviderModelSummary> = {};
+  for (const provider of providers()) {
+    result[provider.name] = provider.models ?? { callerModel: env("AI_MODEL") || "caller_model" };
+  }
+  return result;
 }
 
 function headers(p: Provider): Record<string, string> {
   const h: Record<string, string> = { "Content-Type": "application/json" };
   if (p.apiKey) h.Authorization = `Bearer ${p.apiKey}`;
-  // OpenRouter recommande ces en-têtes (facultatifs, sans incidence ailleurs).
   if (p.name === "openrouter") {
-    h["HTTP-Referer"] = process.env.OPENROUTER_REFERER || "https://tams.app";
-    h["X-Title"] = "TAMS";
+    h["HTTP-Referer"] = env("OPENROUTER_REFERER") || "https://tams.app";
+    h["X-Title"] = env("OPENROUTER_APP_NAME") || "TAMS";
   }
   return h;
 }
 
-/** Modèle à utiliser pour ce fournisseur/cette tâche (sinon model appelant). */
 function modelFor(p: Provider, body: Record<string, unknown>, task: AiTask): string | undefined {
   if (p.name === "custom") {
-    return process.env.AI_MODEL || (body.model as string | undefined);
+    return env("AI_MODEL") || (body.model as string | undefined);
   }
-  return p.models![task];
+  return p.models?.[task];
 }
 
-/** Déduit la tâche depuis le corps si non précisée. */
 function inferTask(body: Record<string, unknown>): AiTask {
   const rf = body.response_format as { type?: string } | undefined;
   if (rf?.type === "json_object" || rf?.type === "json_schema") return "json";
   return "chat";
 }
 
-/**
- * Chat completion non-streamée, avec fallback en chaîne sur les fournisseurs
- * gratuits. Retourne la réponse JSON OpenAI-compatible.
- */
+async function readShortError(res: Response): Promise<string> {
+  return (await res.text().catch(() => "")).slice(0, 240);
+}
+
 export async function aiChat(
   body: Record<string, unknown>,
   task?: AiTask,
@@ -232,9 +255,6 @@ export async function aiChat(
   const t = task ?? inferTask(body);
 
   let lastErr: unknown;
-  // 2 passes : sur quota gratuit saturé (429) quand plusieurs agents appellent
-  // en parallèle, une courte pause puis une nouvelle tentative de la chaîne
-  // suffit le plus souvent (les limites gratuites se réinitialisent vite).
   for (let pass = 0; pass < 2; pass++) {
     for (const p of ps) {
       try {
@@ -242,31 +262,26 @@ export async function aiChat(
           method: "POST",
           headers: headers(p),
           body: JSON.stringify({ ...body, model: modelFor(p, body, t), stream: false }),
-          signal: AbortSignal.timeout(45_000),
+          signal: AbortSignal.timeout(Number(env("AI_TIMEOUT_MS") || 45_000)),
         });
         if (!res.ok) {
-          lastErr = new Error(`AI[${p.name}] ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
-          continue; // fournisseur suivant
+          lastErr = new Error(`AI[${p.name}] ${res.status}: ${await readShortError(res)}`);
+          continue;
         }
         return await res.json();
       } catch (err) {
-        lastErr = err; // timeout / réseau → fournisseur suivant
+        lastErr = err;
       }
     }
-    if (pass === 0) await sleep(700); // transitoire → petite pause avant 2e passe
+    if (pass === 0) await sleep(Number(env("AI_FALLBACK_RETRY_DELAY_MS") || 700));
   }
   throw lastErr instanceof Error ? lastErr : new Error("AI_ALL_PROVIDERS_FAILED");
 }
 
-/**
- * Chat completion streamée. Tente les fournisseurs dans l'ordre jusqu'à ce que
- * l'un accepte la requête, puis stream ses chunks SSE OpenAI-compatibles.
- * (Pas de bascule en cours de stream une fois démarré.)
- */
 export async function* aiChatStream(
   body: Record<string, unknown>,
   task?: AiTask,
-): AsyncGenerator<any> {
+): AsyncGenerator<any, void, unknown> {
   const ps = providers();
   if (ps.length === 0) throw new Error("AI_NOT_CONFIGURED");
   const t = task ?? inferTask(body);
@@ -279,10 +294,10 @@ export async function* aiChatStream(
         method: "POST",
         headers: headers(p),
         body: JSON.stringify({ ...body, model: modelFor(p, body, t), stream: true }),
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(Number(env("AI_STREAM_TIMEOUT_MS") || 120_000)),
       });
       if (!r.ok || !r.body) {
-        lastErr = new Error(`AI[${p.name}] ${r.status}`);
+        lastErr = new Error(`AI[${p.name}] ${r.status}: ${await readShortError(r)}`);
         continue;
       }
       res = r;
@@ -291,7 +306,7 @@ export async function* aiChatStream(
       lastErr = err;
     }
   }
-  if (!res || !res.body) {
+  if (!res?.body) {
     throw lastErr instanceof Error ? lastErr : new Error("AI_ALL_PROVIDERS_FAILED");
   }
 
@@ -300,7 +315,7 @@ export async function* aiChatStream(
   let buf = "";
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) return;
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split("\n");
     buf = lines.pop() ?? "";
@@ -312,7 +327,7 @@ export async function* aiChatStream(
       try {
         yield JSON.parse(data);
       } catch {
-        /* ignore les lignes keepalive partielles/non-JSON */
+        // Ignore keepalive / partial non-JSON chunks.
       }
     }
   }
