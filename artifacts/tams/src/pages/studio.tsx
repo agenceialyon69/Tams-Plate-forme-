@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, Film, Music, Loader2, AlertTriangle, CheckCircle2, ExternalLink, Trash2 } from "lucide-react";
+import { Image, Film, Music, Loader2, AlertTriangle, CheckCircle2, ExternalLink, Trash2, Activity, Cpu, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
@@ -19,6 +19,32 @@ type StudioResult = {
   degraded?: boolean;
   error?: string;
   createdAt: string;
+};
+
+type SelfTestState = {
+  status: "idle" | "running" | "success" | "error";
+  message?: string;
+  videoUrl?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  raw?: unknown;
+};
+
+type WorkerStatus = {
+  id: string;
+  kind: string;
+  status: "connected" | "missing_config" | "configured_unverified" | "failed";
+  env: string | null;
+  endpointConfigured: boolean;
+  note: string;
+  verified?: boolean;
+  latency?: number;
+};
+
+type WorkersState = {
+  status: "idle" | "loading" | "loaded" | "error";
+  workers: WorkerStatus[];
+  n8n: { configured: boolean; status: string; verified?: boolean; latency?: number } | null;
 };
 
 const STORAGE_KEY = "tams-studio-real-results-v2";
@@ -56,6 +82,16 @@ async function postJson(path: string, body: Record<string, unknown>) {
   return data as Record<string, unknown>;
 }
 
+async function getJson(path: string) {
+  const response = await fetch(`${API_BASE}${path}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = data?.detail || data?.error || `HTTP ${response.status}`;
+    throw new Error(String(detail));
+  }
+  return data as Record<string, unknown>;
+}
+
 function renderMedia(result: StudioResult) {
   const url = absoluteUrl(result.url);
   if (!url) return null;
@@ -68,16 +104,75 @@ function renderMedia(result: StudioResult) {
   return <audio controls src={url} className="w-full" />;
 }
 
+/** Get status icon and color based on truth */
+function getWorkerStatusDisplay(status: string, verified?: boolean) {
+  if (status === "connected" && verified === true) {
+    return { icon: Wifi, className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", label: "Connecté" };
+  }
+  if (status === "connected" || status === "configured_unverified") {
+    return { icon: WifiOff, className: "border-amber-500/30 bg-amber-500/10 text-amber-400", label: "Non vérifié" };
+  }
+  if (status === "failed") {
+    return { icon: WifiOff, className: "border-red-500/30 bg-red-500/10 text-red-400", label: "Échec" };
+  }
+  return { icon: WifiOff, className: "border-white/10 bg-white/5 text-muted-foreground", label: "Non configuré" };
+}
+
 export default function Studio() {
   const [mode, setMode] = useState<Mode>("video");
   const [prompt, setPrompt] = useState("génère une vidéo TikTok naturelle pour ma boutique activewear femme");
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<StudioResult[]>(loadResults);
   const [activeError, setActiveError] = useState<string | null>(null);
+  const [selfTest, setSelfTest] = useState<SelfTestState>({ status: "idle" });
+  const [workers, setWorkers] = useState<WorkersState>({ status: "idle", workers: [], n8n: null });
 
   useEffect(() => saveResults(results), [results]);
 
+  useEffect(() => {
+    async function loadWorkers() {
+      setWorkers(w => ({ ...w, status: "loading" }));
+      try {
+        const [gpuStatus, n8nStatus] = await Promise.all([
+          getJson("/api/gpu/status").catch(() => null),
+          getJson("/api/n8n/status").catch(() => null),
+        ]);
+        setWorkers({
+          status: "loaded",
+          workers: (gpuStatus?.workers as WorkerStatus[]) || [],
+          n8n: n8nStatus ? { 
+            configured: n8nStatus.configured as boolean, 
+            status: n8nStatus.status as string,
+            verified: n8nStatus.verified as boolean | undefined,
+            latency: n8nStatus.latency as number | undefined,
+          } : null,
+        });
+      } catch {
+        setWorkers(w => ({ ...w, status: "error" }));
+      }
+    }
+    loadWorkers();
+  }, []);
+
   const currentResults = useMemo(() => results.filter(r => r.type === mode), [results, mode]);
+
+  async function runSelfTest() {
+    setSelfTest({ status: "running", message: "Self-test réel en cours..." });
+    try {
+      const data = await getJson("/api/_diagnostics/studio-selftest");
+      const playable = data.playable as Record<string, unknown> | undefined;
+      setSelfTest({
+        status: data.verdict === "pass" ? "success" : "error",
+        message: data.verdict === "pass" ? "Studio backend PASS : médias réels générés." : `Studio backend ${String(data.verdict)}`,
+        videoUrl: typeof playable?.videoUrl === "string" ? playable.videoUrl : undefined,
+        audioUrl: typeof playable?.audioUrl === "string" ? playable.audioUrl : undefined,
+        imageUrl: typeof playable?.imageUrl === "string" ? playable.imageUrl : undefined,
+        raw: data,
+      });
+    } catch (error) {
+      setSelfTest({ status: "error", message: error instanceof Error ? error.message : "Self-test échoué" });
+    }
+  }
 
   async function generate() {
     const cleanPrompt = prompt.trim();
@@ -115,11 +210,17 @@ export default function Studio() {
       }
 
       const url = typeof data.url === "string" ? data.url : undefined;
+      
+      // If no URL returned and not ok, it's an error
+      if (!url && data.ok !== true) {
+        throw new Error(String(data.error || "Génération échouée"));
+      }
+      
       const final: StudioResult = {
         ...pending,
         status: "success",
         url,
-        engine: typeof data.engine === "string" ? data.engine : mode === "image" ? "image_provider" : undefined,
+        engine: typeof data.engine === "string" ? data.engine : undefined,
         degraded: Boolean(data.degraded),
         content: typeof data.note === "string" ? data.note : typeof data.hint === "string" ? data.hint : undefined,
       };
@@ -143,12 +244,78 @@ export default function Studio() {
   return (
     <div className="flex-1 overflow-y-auto bg-background pb-24">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {/* Workers Status Panel - HONEST */}
+        {workers.status === "loaded" && (
+          <section className="rounded-3xl border border-white/10 bg-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Cpu className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">État des workers</h2>
+              <span className="text-xs text-muted-foreground">(vérifiés)</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+              {workers.workers.map(w => {
+                const display = getWorkerStatusDisplay(w.status, w.verified);
+                const Icon = display.icon;
+                return (
+                  <div key={w.id} className={cn("rounded-xl border p-3 text-sm", display.className)}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium capitalize">{w.kind}</span>
+                    </div>
+                    <p className="text-xs">{display.label}</p>
+                    {w.status === "missing_config" && w.env && (
+                      <p className="text-[10px] mt-1 opacity-70">Set {w.env}</p>
+                    )}
+                  </div>
+                );
+              })}
+              {workers.n8n && (() => {
+                const display = getWorkerStatusDisplay(workers.n8n.status, workers.n8n.verified);
+                const Icon = display.icon;
+                return (
+                  <div className={cn("rounded-xl border p-3 text-sm", display.className)}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">n8n</span>
+                    </div>
+                    <p className="text-xs">{display.label}</p>
+                    {workers.n8n.latency && <p className="text-[10px] opacity-70">{workers.n8n.latency}ms</p>}
+                  </div>
+                );
+              })()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Workers sans configuration ? TAMS utilise les fallbacks gratuits (Pollinations, FFmpeg, WAV local).
+            </p>
+          </section>
+        )}
+
         <header className="rounded-3xl border border-white/10 bg-card p-5 space-y-3">
           <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold">Studio opérationnel</p>
           <h1 className="text-3xl font-semibold">Créer un vrai résultat</h1>
           <p className="text-sm text-muted-foreground">
-            Cette version appelle directement les endpoints réels. Vidéo = MP4 généré côté serveur. Audio = fichier jouable. Image = image réelle ou erreur claire.
+            Les boutons appellent les vrais endpoints. Vidéo = MP4 FFmpeg. Audio = WAV/HuggingFace. Image = Pollinations.
           </p>
+          <button
+            onClick={runSelfTest}
+            disabled={selfTest.status === "running"}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5 disabled:opacity-50"
+          >
+            {selfTest.status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+            Tester le Studio réel
+          </button>
+          {selfTest.status !== "idle" && (
+            <div className={cn("rounded-2xl border p-3 text-sm", selfTest.status === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : selfTest.status === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-blue-500/30 bg-blue-500/10 text-blue-200")}>
+              <p>{selfTest.message}</p>
+              {selfTest.status === "success" && (
+                <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                  {selfTest.videoUrl && <a className="text-primary hover:underline" href={absoluteUrl(selfTest.videoUrl)} target="_blank" rel="noreferrer">Vidéo self-test</a>}
+                  {selfTest.audioUrl && <a className="text-primary hover:underline" href={absoluteUrl(selfTest.audioUrl)} target="_blank" rel="noreferrer">Audio self-test</a>}
+                  {selfTest.imageUrl && <a className="text-primary hover:underline" href={selfTest.imageUrl} target="_blank" rel="noreferrer">Image self-test</a>}
+                </div>
+              )}
+            </div>
+          )}
         </header>
 
         <section className="rounded-3xl border border-white/10 bg-card p-5 space-y-4">
@@ -196,15 +363,15 @@ export default function Studio() {
             className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            {busy ? "Génération réelle en cours..." : `Générer ${modeLabel}`}
+            {busy ? "Génération en cours..." : `Générer ${modeLabel}`}
           </button>
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-card p-5 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">Résultats réels</h2>
-              <p className="text-sm text-muted-foreground">Aucune carte fantôme : chaque résultat vient d'un appel API ou affiche une erreur.</p>
+              <h2 className="text-xl font-semibold">Résultats</h2>
+              <p className="text-sm text-muted-foreground">URLs réelles ou erreurs claires - pas de faux résultats.</p>
             </div>
             {results.length > 0 && (
               <button onClick={clearResults} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
@@ -215,7 +382,7 @@ export default function Studio() {
 
           {currentResults.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-muted-foreground">
-              Aucun résultat {mode} pour l’instant. Lance une génération réelle ci-dessus.
+              Aucun résultat {mode} pour l'instant. Lance une génération ci-dessus.
             </div>
           ) : (
             <div className="grid gap-4">
@@ -233,10 +400,11 @@ export default function Studio() {
 
                     {result.status === "running" && <div className="text-sm text-muted-foreground">Génération en cours...</div>}
                     {result.status === "error" && <div className="text-sm text-red-200">{result.error}</div>}
-                    {result.status === "success" && renderMedia(result)}
+                    {result.status === "success" && url && renderMedia(result)}
+                    {result.status === "success" && !url && <div className="text-sm text-amber-300">Génération OK mais pas d'URL retournée</div>}
 
                     {result.content && <p className="rounded-xl bg-white/5 p-3 text-xs text-muted-foreground">{result.content}</p>}
-                    {result.degraded && <p className="text-xs text-amber-300">Fallback local utilisé : résultat réel mais qualité limitée.</p>}
+                    {result.degraded && <p className="text-xs text-amber-300">Fallback local : résultat réel mais qualité basique.</p>}
                     {url && <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline"><ExternalLink className="h-3 w-3" /> Ouvrir le fichier</a>}
                   </article>
                 );

@@ -1,0 +1,18 @@
+{
+  "name": "hunyuan-video-default",
+  "description": "Hunyuan Video for realistic motion",
+  "model": "hunyuanvideo",
+  "inputs": {
+    "prompt": "",
+    "negative_prompt": "",
+    "width": 720,
+    "height": 1280,
+    "frames": 96,
+    "fps": 24
+  },
+  "requirements": [
+    "pip install diffusers transformers accelerate safetensors",
+    "Download: models/hunyuan-video/"
+  ],
+  "note": "Requires ~24GB VRAM for best quality"
+}
