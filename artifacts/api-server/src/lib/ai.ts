@@ -38,6 +38,10 @@ type Provider = {
   models: Record<AiTask, string> | null;
 };
 
+export type AiProviderModelSummary = Partial<Record<AiTask, string>> & {
+  callerModel?: string;
+};
+
 function strip(u: string): string {
   return u.replace(/\/+$/, "");
 }
@@ -58,14 +62,10 @@ function firstEnv(names: string[]): string | undefined {
 function model(name: string, task: AiTask, fallback: string): string {
   const upper = name.toUpperCase();
   const taskUpper = task.toUpperCase();
-  return (
-    env(`${upper}_MODEL_${taskUpper}`)
-    || env(`${upper}_MODEL`)
-    || fallback
-  );
+  return env(`${upper}_MODEL_${taskUpper}`) || env(`${upper}_MODEL`) || fallback;
 }
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 function providers(): Provider[] {
   const list: Provider[] = [];
@@ -211,10 +211,12 @@ export function aiProviders(): string[] {
   return providers().map(p => p.name);
 }
 
-export function aiProviderModels(): Record<string, Partial<Record<AiTask, string>>> {
-  return Object.fromEntries(
-    providers().map(provider => [provider.name, provider.models ?? { custom: env("AI_MODEL") || "caller_model" }]),
-  );
+export function aiProviderModels(): Record<string, AiProviderModelSummary> {
+  const result: Record<string, AiProviderModelSummary> = {};
+  for (const provider of providers()) {
+    result[provider.name] = provider.models ?? { callerModel: env("AI_MODEL") || "caller_model" };
+  }
+  return result;
 }
 
 function headers(p: Provider): Record<string, string> {
@@ -231,7 +233,7 @@ function modelFor(p: Provider, body: Record<string, unknown>, task: AiTask): str
   if (p.name === "custom") {
     return env("AI_MODEL") || (body.model as string | undefined);
   }
-  return p.models![task];
+  return p.models?.[task];
 }
 
 function inferTask(body: Record<string, unknown>): AiTask {
@@ -279,7 +281,7 @@ export async function aiChat(
 export async function* aiChatStream(
   body: Record<string, unknown>,
   task?: AiTask,
-): AsyncGenerator<any> {
+): AsyncGenerator<any, void, unknown> {
   const ps = providers();
   if (ps.length === 0) throw new Error("AI_NOT_CONFIGURED");
   const t = task ?? inferTask(body);
@@ -304,7 +306,7 @@ export async function* aiChatStream(
       lastErr = err;
     }
   }
-  if (!res || !res.body) {
+  if (!res?.body) {
     throw lastErr instanceof Error ? lastErr : new Error("AI_ALL_PROVIDERS_FAILED");
   }
 
@@ -313,7 +315,7 @@ export async function* aiChatStream(
   let buf = "";
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) return;
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split("\n");
     buf = lines.pop() ?? "";
