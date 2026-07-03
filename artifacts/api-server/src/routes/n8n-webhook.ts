@@ -15,22 +15,16 @@ interface N8nPayload {
   source?: string;
 }
 
-/**
- * Actually test the webhook by sending a minimal probe
- * Returns: "ok" | "failed" | "timeout" | "error"
- */
+const mediaKinds = new Set(["video", "audio", "voice", "image"]);
+
 async function testWebhook(url: string): Promise<{ status: string; latency?: number; error?: string }> {
   try {
     const start = Date.now();
-    // Send a HEAD or minimal GET to test connectivity
-    // Many webhooks respond to GET with info
     const response = await fetch(url, {
       method: "GET",
       signal: AbortSignal.timeout(5000),
     });
     const latency = Date.now() - start;
-    
-    // 200-299 = OK, 401/403 = exists but needs auth, 405 = exists but needs POST
     if (response.ok || response.status === 401 || response.status === 403 || response.status === 405) {
       return { status: "ok", latency };
     }
@@ -45,8 +39,7 @@ async function testWebhook(url: string): Promise<{ status: string; latency?: num
 
 router.get("/n8n/status", async (_req, res) => {
   const url = n8nUrl();
-  
-  // No URL configured
+
   if (!url) {
     return res.json({
       ok: true,
@@ -56,10 +49,9 @@ router.get("/n8n/status", async (_req, res) => {
       note: "Set N8N_WEBHOOK_URL to enable n8n automation.",
     });
   }
-  
-  // URL exists - test it actually
+
   const testResult = await testWebhook(url);
-  
+
   if (testResult.status === "ok") {
     return res.json({
       ok: true,
@@ -67,11 +59,10 @@ router.get("/n8n/status", async (_req, res) => {
       status: "connected",
       verified: true,
       latency: testResult.latency,
-      note: "n8n webhook tested and responding. Ready to send tasks.",
+      note: "n8n webhook endpoint is reachable. POST task output is still verified by /api/n8n/send.",
     });
   }
-  
-  // URL exists but test failed
+
   return res.json({
     ok: true,
     configured: true,
@@ -94,7 +85,7 @@ router.post("/n8n/send", async (req, res) => {
   }
 
   const body = req.body as Partial<N8nPayload>;
-  const kind = body?.kind || "video";
+  const kind = String(body?.kind || "video");
   const prompt = body?.prompt?.trim();
 
   if (!prompt) {
@@ -119,15 +110,22 @@ router.post("/n8n/send", async (req, res) => {
 
     const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
-    if (!response.ok) {
-      return res.status(response.status).json({
+    if (!response.ok || data.ok === false) {
+      return res.status(response.ok ? 502 : response.status).json({
         ok: false,
         error: String(data.error || data.detail || `n8n_http_${response.status}`),
         n8nResponse: data,
       });
     }
 
-    const resultUrl = typeof data.url === "string" ? data.url : undefined;
+    const resultUrl = typeof data.url === "string" ? data.url : typeof data.artifactUrl === "string" ? data.artifactUrl : undefined;
+    if (mediaKinds.has(kind) && !resultUrl) {
+      return res.status(502).json({
+        ok: false,
+        error: "n8n returned ok:true but no media URL. Refusing fake success.",
+        n8nResponse: data,
+      });
+    }
 
     return res.json({
       ok: true,
