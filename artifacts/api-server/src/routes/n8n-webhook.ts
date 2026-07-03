@@ -15,24 +15,70 @@ interface N8nPayload {
   source?: string;
 }
 
-interface N8nResponse {
-  ok: boolean;
-  url?: string;
-  provider?: string;
-  logs?: string[];
-  error?: string;
+/**
+ * Actually test the webhook by sending a minimal probe
+ * Returns: "ok" | "failed" | "timeout" | "error"
+ */
+async function testWebhook(url: string): Promise<{ status: string; latency?: number; error?: string }> {
+  try {
+    const start = Date.now();
+    // Send a HEAD or minimal GET to test connectivity
+    // Many webhooks respond to GET with info
+    const response = await fetch(url, {
+      method: "GET",
+      signal: AbortSignal.timeout(5000),
+    });
+    const latency = Date.now() - start;
+    
+    // 200-299 = OK, 401/403 = exists but needs auth, 405 = exists but needs POST
+    if (response.ok || response.status === 401 || response.status === 403 || response.status === 405) {
+      return { status: "ok", latency };
+    }
+    return { status: "failed", error: `HTTP ${response.status}` };
+  } catch (err) {
+    if (err instanceof Error && err.name === "TimeoutError") {
+      return { status: "timeout" };
+    }
+    return { status: "error", error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
-router.get("/n8n/status", (_req, res) => {
+router.get("/n8n/status", async (_req, res) => {
   const url = n8nUrl();
+  
+  // No URL configured
+  if (!url) {
+    return res.json({
+      ok: true,
+      configured: false,
+      status: "missing_config",
+      env: "N8N_WEBHOOK_URL",
+      note: "Set N8N_WEBHOOK_URL to enable n8n automation.",
+    });
+  }
+  
+  // URL exists - test it actually
+  const testResult = await testWebhook(url);
+  
+  if (testResult.status === "ok") {
+    return res.json({
+      ok: true,
+      configured: true,
+      status: "connected",
+      verified: true,
+      latency: testResult.latency,
+      note: "n8n webhook tested and responding. Ready to send tasks.",
+    });
+  }
+  
+  // URL exists but test failed
   return res.json({
     ok: true,
-    configured: Boolean(url),
-    status: url ? "connected" : "missing_config",
-    env: "N8N_WEBHOOK_URL",
-    note: url
-      ? "n8n webhook is configured. TAMS can send video/audio/voice/vision tasks."
-      : "Set N8N_WEBHOOK_URL to enable n8n automation.",
+    configured: true,
+    status: "failed",
+    verified: false,
+    error: testResult.error,
+    note: "N8N_WEBHOOK_URL is set but webhook is not responding. Check if n8n workflow is active.",
   });
 });
 
