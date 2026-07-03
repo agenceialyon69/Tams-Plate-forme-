@@ -6,7 +6,7 @@ from datetime import datetime
 from io import BytesIO
 import requests
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import numpy as np
@@ -14,30 +14,39 @@ from PIL import Image
 
 app = FastAPI(title="TAMS Vision Worker")
 
-# Configuration
 MODELS_DIR = Path(os.environ.get("MODELS_DIR", "/app/models"))
 OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "/app/outputs"))
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-YOLO_ENABLED = os.environ.get("YOLO_ENABLED", "true").lower() == "true"
-SAM_ENABLED = Path("/app/models/sam").exists()
-OCR_ENABLED = os.environ.get("OCR_ENABLED", "true").lower() == "true"
-
 def check_models():
+    yolo_ready = False
+    try:
+        from ultralytics import YOLO
+        yolo_ready = True
+    except ImportError:
+        pass
+    
+    sam_ready = (MODELS_DIR / "sam").exists() or (MODELS_DIR / "sam_vit_h_4b8939.pth").exists()
+    
+    ocr_ready = False
+    try:
+        from paddleocr import PaddleOCR
+        ocr_ready = True
+    except ImportError:
+        pass
+    
     return {
-        "yolo": YOLO_ENABLED,
-        "sam": SAM_ENABLED,
-        "ocr": OCR_ENABLED,
+        "yolo": yolo_ready,
+        "sam": sam_ready,
+        "ocr": ocr_ready,
     }
 
 def load_image(image_input: str) -> np.ndarray:
-    """Load image from URL or base64"""
     if image_input.startswith("http://") or image_input.startswith("https://"):
         resp = requests.get(image_input, timeout=30)
         resp.raise_for_status()
         img = Image.open(BytesIO(resp.content))
     else:
-        # Assume base64
         img_data = base64.b64decode(image_input)
         img = Image.open(BytesIO(img_data))
     return np.array(img.convert("RGB"))
@@ -66,6 +75,7 @@ async def health():
         "models": list(models.keys()),
         "available": available,
         "missing_config": missing,
+        "note": "Returns ok:true ONLY when real processing happens"
     }
 
 @app.post("/detect")
@@ -79,13 +89,13 @@ async def detect(req: DetectRequest):
                 "ok": False,
                 "error": "YOLO not available",
                 "missingConfig": True,
-                "hint": "Set YOLO_ENABLED=true or install ultralytics"
+                "hint": "pip install ultralytics"
             }
         )
     
     try:
         from ultralytics import YOLO
-        model = YOLO("yolov8m.pt")  # Downloads on first use
+        model = YOLO("yolov8m.pt")
         
         img = load_image(req.image)
         results = model(img, conf=req.confidence)[0]
@@ -95,50 +105,50 @@ async def detect(req: DetectRequest):
             detections.append({
                 "label": results.names[int(box.cls)],
                 "confidence": float(box.conf),
-                "bbox": box.xywh.tolist()[0],  # [x, y, w, h]
+                "bbox": box.xywh.tolist()[0],
             })
-        
         
         return {
             "ok": True,
             "detections": detections,
             "provider": "yolo",
             "engine": "yolov8m",
+            "verified": True,
             "metadata": {
                 "count": len(detections),
                 "generated_at": datetime.utcnow().isoformat()
             }
         }
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"ok": False, "error": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 @app.post("/segment")
 async def segment(req: SegmentRequest):
+    """Segmentation requires SAM model weights - NO FAKE URLS"""
     if not check_models()["sam"]:
         return JSONResponse(
             status_code=503,
             content={
                 "ok": False,
-                "error": "SAM not available",
+                "error": "SAM not available - model weights not found",
                 "missingConfig": True,
-                "hint": "Download SAM model to /app/models/sam/"
+                "hint": "Download SAM model to MODELS_DIR/sam/",
+                "requiredFiles": ["sam_vit_h_4b8939.pth or similar"]
             }
         )
     
-    # Placeholder - implement SAM segmentation
-    return {
-        "ok": True,
-        "mask_url": f"/outputs/{uuid.uuid4()}.png",
-        "provider": "sam",
-        "engine": "sam-vit-h",
-        "metadata": {
-            "generated_at": datetime.utcnow().isoformat(),
-            "note": "Worker ready. Download SAM weights for actual segmentation."
+    # SAM model exists - but we don't create fake mask URLs
+    # Return that model is available but pipeline not implemented
+    return JSONResponse(
+        status_code=501,
+        content={
+            "ok": False,
+            "error": "SAM weights found but segmentation pipeline not implemented",
+            "missingConfig": True,
+            "hint": "SAM model weights exist, but inference code not complete",
+            "model_available": True
         }
-    }
+    )
 
 @app.post("/ocr")
 async def ocr(req: OcrRequest):
@@ -149,28 +159,24 @@ async def ocr(req: OcrRequest):
                 "ok": False,
                 "error": "OCR not available",
                 "missingConfig": True,
-                "hint": "Set OCR_ENABLED=true and install paddleocr"
+                "hint": "pip install paddleocr paddlepaddle"
             }
         )
     
     try:
         from paddleocr import PaddleOCR
         
-        ocr_model = PaddleOCR(use_angle_cls=True, lang=req.language)
+        ocr_model = PaddleOCR(use_angle_cls=True, lang=req.language, show_log=False)
         img = load_image(req.image)
         result = ocr_model.ocr(img, cls=True)
         
         blocks = []
         full_text = []
-        for line in result[0]:
+        for line in result[0] if result[0] else []:
             text = line[1][0]
             confidence = line[1][1]
             bbox = line[0]
-            blocks.append({
-                "text": text,
-                "confidence": confidence,
-                "bbox": bbox
-            })
+            blocks.append({"text": text, "confidence": confidence, "bbox": bbox})
             full_text.append(text)
         
         return {
@@ -179,17 +185,18 @@ async def ocr(req: OcrRequest):
             "blocks": blocks,
             "provider": "paddleocr",
             "engine": "paddleocr-v3",
-            "metadata": {
-                "block_count": len(blocks),
-                "language": req.language,
-                "generated_at": datetime.utcnow().isoformat()
-            }
+            "verified": True,
+            "metadata": {"block_count": len(blocks), "language": req.language}
         }
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"ok": False, "error": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@app.get("/outputs/{filename}")
+async def get_output(filename: str):
+    path = OUTPUT_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found or expired")
+    return FileResponse(path)
 
 if __name__ == "__main__":
     import uvicorn

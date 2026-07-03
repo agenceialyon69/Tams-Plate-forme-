@@ -1,14 +1,15 @@
 import os
 import uuid
 import asyncio
+import wave
+import struct
+import math
 from pathlib import Path
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from typing import Optional
-import numpy as np
-import scipy.io.wavfile as wavfile
 
 app = FastAPI(title="TAMS Audio/Voice Worker")
 
@@ -17,23 +18,28 @@ VOICES_DIR = Path(os.environ.get("VOICES_DIR", "/app/voices"))
 OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "/app/outputs"))
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-PIPER_AVAILABLE = os.environ.get("PIPER_ENABLED", "true").lower() == "true"
-EDGE_TTS_AVAILABLE = os.environ.get("EDGE_TTS_ENABLED", "true").lower() == "true"
-XTTS_AVAILABLE = (Path("/app/models/xtts").exists() or 
-                  os.environ.get("XTTS_ENABLED", "false").lower() == "true")
-MUSICGEN_AVAILABLE = (Path("/app/models/musicgen").exists() or
-                      os.environ.get("MUSICGEN_ENABLED", "false").lower() == "true")
-
 def check_engines():
+    """Check real engine availability"""
+    edge_tts_installed = False
+    try:
+        import edge_tts
+        edge_tts_installed = True
+    except ImportError:
+        pass
+    
+    piper_ready = VOICES_DIR.exists() and any(VOICES_DIR.glob("*.onnx"))
+    musicgen_ready = Path("/app/models/musicgen").exists()
+    xtts_ready = Path("/app/models/xtts").exists()
+    
     return {
-        "piper": PIPER_AVAILABLE,
-        "edge-tts": EDGE_TTS_AVAILABLE,
-        "xtts": XTTS_AVAILABLE,
-        "musicgen": MUSICGEN_AVAILABLE,
+        "edge-tts": edge_tts_installed,
+        "piper": piper_ready,
+        "xtts": xtts_ready,
+        "musicgen": musicgen_ready,
     }
 
 class GenerateRequest(BaseModel):
-    kind: str = "audio"  # audio or voice
+    kind: str = "audio"
     prompt: Optional[str] = None
     text: Optional[str] = None
     voice: Optional[str] = "default"
@@ -52,8 +58,39 @@ async def health():
         "engines": list(engines.keys()),
         "available": available,
         "missing_config": missing,
-        "note": "Enable engines via environment variables or by downloading models."
+        "note": "Returns ok:true ONLY when real files are created"
     }
+
+def generate_simple_wav(prompt: str, output_path: Path, duration: float = 8.0) -> bool:
+    """Generate a real playable WAV file"""
+    try:
+        sample_rate = 22050
+        samples = int(sample_rate * duration)
+        
+        with wave.open(str(output_path), 'w') as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            
+            h = hash(prompt) % 1000
+            base_freq = 220 + (h % 220)
+            
+            for i in range(samples):
+                t = i / sample_rate
+                envelope = min(1.0, i / (sample_rate * 0.1)) * min(1.0, (samples - i) / (sample_rate * 0.2))
+                value = (
+                    math.sin(2 * math.pi * base_freq * t) * 0.4 +
+                    math.sin(2 * math.pi * base_freq * 1.5 * t) * 0.2 +
+                    math.sin(2 * math.pi * base_freq * 2 * t) * 0.1
+                ) * envelope
+                if int(t * 2) % 2 == 0:
+                    value *= 0.7
+                data = int(max(-32768, min(32767, value * 32760)))
+                wav_file.writeframes(struct.pack('<h', data))
+        
+        return output_path.exists() and output_path.stat().st_size > 0
+    except Exception:
+        return False
 
 @app.post("/generate")
 async def generate(req: GenerateRequest):
@@ -65,71 +102,91 @@ async def generate(req: GenerateRequest):
         if not text:
             raise HTTPException(status_code=400, detail="text or prompt required for voice generation")
         
-        # Try edge-tts first (free, cloud-based)
         if engines["edge-tts"]:
             try:
                 import edge_tts
-                communicate = edge_tts.Communicate(text, "fr-FR-DeniseNeural")
                 output_path = OUTPUT_DIR / f"{output_id}.mp3"
+                communicate = edge_tts.Communicate(text, "fr-FR-DeniseNeural")
                 await communicate.save(str(output_path))
-                return {
-                    "ok": True,
-                    "url": f"/outputs/{output_id}.mp3",
-                    "provider": "edge-tts",
-                    "engine": "fr-FR-DeniseNeural",
-                    "metadata": {
-                        "text_length": len(text),
-                        "generated_at": datetime.utcnow().isoformat()
+                
+                # VERIFY FILE EXISTS BEFORE RETURNING OK
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    return {
+                        "ok": True,
+                        "url": f"/outputs/{output_id}.mp3",
+                        "provider": "edge-tts",
+                        "engine": "fr-FR-DeniseNeural",
+                        "bytes": output_path.stat().st_size,
+                        "verified": True,
+                        "metadata": {
+                            "text_length": len(text),
+                            "generated_at": datetime.utcnow().isoformat()
+                        }
                     }
-                }
+                # File not created - return error
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "ok": False,
+                        "error": "edge-tts failed to create audio file",
+                        "missingConfig": False
+                    }
+                )
             except Exception as e:
-                pass  # Fall through to fallback
+                pass
         
-        # Fallback: generate silent audio with placeholder message
         return JSONResponse(
             status_code=503,
             content={
                 "ok": False,
                 "error": "No voice engine available",
                 "missingConfig": True,
-                "hint": "Run: pip install edge-tts OR set PIPER_ENABLED=true and download voice models"
+                "hint": "Run: pip install edge-tts",
+                "available_engines": engines
             }
         )
     
     if req.kind == "audio":
-        # Music generation
         prompt = req.prompt or "calm ambient music"
+        output_path = OUTPUT_DIR / f"{output_id}.wav"
         
-        if not any(engines.values()):
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "ok": False,
-                    "error": "No audio engine available",
-                    "missingConfig": True,
-                    "hint": "Set MUSICGEN_ENABLED=true or XTTS_ENABLED=true and download models"
+        # MusicGen if available - would go here
+        
+        # Fallback: Generate a REAL simple WAV file
+        if generate_simple_wav(prompt, output_path, req.duration):
+            # DOUBLE VERIFY FILE EXISTS
+            if output_path.exists() and output_path.stat().st_size > 0:
+                return {
+                    "ok": True,
+                    "url": f"/outputs/{output_id}.wav",
+                    "provider": "local_wav",
+                    "engine": "simple_tone_generator",
+                    "bytes": output_path.stat().st_size,
+                    "verified": True,
+                    "degraded": True,
+                    "metadata": {
+                        "prompt": prompt,
+                        "duration": req.duration,
+                        "generated_at": datetime.utcnow().isoformat(),
+                        "note": "Real WAV file generated. Simple synthesis, not premium AI music."
+                    }
                 }
-            )
         
         
-        # Placeholder - implement actual music generation
-        return {
-            "ok": True,
-            "url": f"/outputs/{output_id}.wav",
-            "provider": "musicgen-placeholder",
-            "engine": "musicgen-small",
-            "metadata": {
-                "prompt": prompt,
-                "duration": req.duration,
-                "generated_at": datetime.utcnow().isoformat(),
-                "note": "Worker infrastructure ready. Download MusicGen model for actual generation."
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "error": "Failed to generate audio file",
+                "missingConfig": False
             }
-        }
+        )
     
     raise HTTPException(status_code=400, detail=f"Unknown kind: {req.kind}")
 
 @app.get("/outputs/{filename}")
 async def get_output(filename: str):
+    """Serve real output files only"""
     path = OUTPUT_DIR / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found or expired")
