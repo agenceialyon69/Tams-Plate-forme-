@@ -41,7 +41,7 @@ setInterval(() => {
   const ttl = 2 * 60 * 60 * 1000; // 2h
   for (const [id, asset] of assets) {
     if (now - asset.uploadedAt.getTime() > ttl) {
-      try { fs.unlinkSync(asset.path); } catch {}
+      try { fs.unlinkSync(asset.path); } catch { /* ignore */ }
       assets.delete(id);
     }
   }
@@ -87,7 +87,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter: multer.FileFilterCallback = (_req, file, cb) => {
   const detected = detectType(file.mimetype);
   if (detected) {
     cb(null, true);
@@ -143,7 +143,7 @@ router.post("/studio/upload", upload.single("file"), async (req, res) => {
       id: assetId,
       filename: req.file.filename,
       originalName: req.file.originalname,
-      mimeType: req.file.mimeType,
+      mimeType: req.file.mimetype,
       type,
       sizeBytes: req.file.size,
       uploadedAt: new Date(),
@@ -273,14 +273,12 @@ router.post("/studio/render-edit", async (req, res) => {
     let inputIdx = 0;
 
     for (const clip of body.clips) {
-      const asset = assets.get(clip.assetId)!;
+      const asset = assets.get(clip.assetId);
+      if (!asset) continue;
+      
       inputFiles.push(asset.path);
       
       // Scale and crop for format
-      const startSec = clip.start || 0;
-      const duration = clip.end && clip.start ? clip.end - clip.start : undefined;
-      
-      // Build filter for this input
       filterParts.push(
         `[${inputIdx}:v]scale=${res.w}:${res.h}:force_original_aspect_ratio=increase,crop=${res.w}:${res.h},setsar=1[v${inputIdx}]`
       );
@@ -289,13 +287,12 @@ router.post("/studio/render-edit", async (req, res) => {
 
     // Build concat filter
     const concatInputs = body.clips.map((_, i) => `[v${i}]`).join("");
-    const concatOuts = body.clips.map((_, i) => `[a${i}]`).join("");
     
     let filterComplex = filterParts.join(";");
     filterComplex += `;${concatInputs}concat=n=${body.clips.length}:v=1:a=0[outv]`;
 
     // Add text overlays if any
-    if (body.textOverlays?.length) {
+    if (body.textOverlays && body.textOverlays.length > 0) {
       for (let i = 0; i < body.textOverlays.length; i++) {
         const overlay = body.textOverlays[i];
         const y = overlay.position === "top" ? 50 : overlay.position === "bottom" ? res.h - 100 : res.h / 2;
@@ -433,7 +430,9 @@ router.post("/studio/render-photo-video", async (req, res) => {
     let idx = 0;
 
     for (const img of body.images) {
-      const asset = assets.get(img.assetId)!;
+      const asset = assets.get(img.assetId);
+      if (!asset) continue;
+      
       const duration = img.duration || defaultDuration;
       totalDuration += duration;
       inputs.push("-loop", "1", "-t", String(duration), "-i", asset.path);
@@ -458,17 +457,11 @@ router.post("/studio/render-photo-video", async (req, res) => {
     // Concat inputs
     const concatInputs = body.images.map((_, i) => `[v${i}]`).join("");
     let filterComplex = filterParts.join(";");
-    
-    // Add transitions if requested
-    if (body.transition === "fade" && body.images.length > 1) {
-      // Simple fade transition using xfade
-      // For MVP, we just concat without complex transitions
-    }
 
     filterComplex += `;${concatInputs}concat=n=${body.images.length}:v=1:a=0[outv]`;
 
     // Add text overlays
-    if (body.textOverlays?.length) {
+    if (body.textOverlays && body.textOverlays.length > 0) {
       for (const overlay of body.textOverlays) {
         const y = overlay.position === "top" ? 50 : overlay.position === "bottom" ? resolution.h - 100 : resolution.h / 2;
         filterComplex += `;[outv]drawtext=text='${escapeText(overlay.text)}':fontcolor=white:fontsize=48:borderw=2:bordercolor=black:x=(w-text_w)/2:y=${y}:enable='between(t,${overlay.start},${overlay.end})'[outv]`;
@@ -565,7 +558,7 @@ router.delete("/studio/assets/:assetId", (req, res) => {
     return res.status(404).json({ ok: false, error: "not_found" });
   }
 
-  try { fs.unlinkSync(asset.path); } catch {}
+  try { fs.unlinkSync(asset.path); } catch { /* ignore */ }
   assets.delete(assetId);
 
   return res.json({ ok: true, deleted: assetId });
