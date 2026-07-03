@@ -43,12 +43,23 @@ export type CapabilityStatus = {
 
 const env = (name: string): string | undefined => {
   const value = process.env[name];
-  return value && value.trim().length > 0 ? value : undefined;
+  return value && value.trim().length > 0 ? value.trim() : undefined;
 };
 
 const hasAny = (keys: string[]): boolean => keys.some(key => !!env(key));
 const configuredProviders = (providers: ProviderSpec[]): string[] => providers.filter(p => p.configured).map(p => p.id);
 const hasProvider = (providers: ProviderSpec[], ids: string[]): boolean => providers.some(p => ids.includes(p.id) && p.configured);
+
+export function operatingMode(): "free_personal" | "paid_controlled" | "multi_tenant" {
+  const mode = (env("TAMS_OPERATING_MODE") || "free_personal").toLowerCase();
+  if (mode === "multi_tenant") return "multi_tenant";
+  if (mode === "paid_controlled") return "paid_controlled";
+  return "free_personal";
+}
+
+export function paidProvidersAllowed(): boolean {
+  return operatingMode() !== "free_personal" && env("TAMS_ALLOW_PAID_PROVIDERS") === "true";
+}
 
 function spec(input: Omit<ProviderSpec, "configured" | "status"> & { builtin?: boolean; local?: boolean }): ProviderSpec {
   const configured = !!input.builtin || !!input.local || hasAny(input.env);
@@ -83,9 +94,10 @@ export function providerRegistry(): ProviderSpec[] {
       priority: "P0",
       category: "llm",
       env: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
-      capabilities: ["llm", "reasoning", "vision", "image", "video_premium", "tts", "embeddings", "tools"],
-      freeFirstRole: "Primary multimodal brain: reasoning, vision, image, embeddings, tools, and premium media when enabled.",
-      fallbackStrategy: "Fallback to Groq for fast text/voice, OpenRouter for LLM routing, Pollinations/FFmpeg for free media.",
+      capabilities: ["llm", "reasoning", "vision", "image", "tts", "embeddings", "tools"],
+      freeFirstRole: "Primary free-first multimodal brain using Flash-class models only in free_personal mode.",
+      fallbackStrategy: "Fallback to Groq for fast text/voice, OpenRouter free models for LLM routing, Pollinations/FFmpeg for free media.",
+      notes: "Do not use Pro/Veo/paid models in free_personal mode. Override model names through GEMINI_MODEL_* only with free/allowed models.",
     }),
     spec({
       id: "groq",
@@ -94,8 +106,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "llm",
       env: ["GROQ_API_KEY"],
       capabilities: ["llm_fast", "stt", "tts", "tool_use", "realtime"],
-      freeFirstRole: "Low-latency text, speech-to-text, text-to-speech and realtime assistant lane.",
+      freeFirstRole: "Low-latency free-first text, speech-to-text, text-to-speech and realtime assistant lane.",
       fallbackStrategy: "Fallback to Gemini/OpenRouter for text and missing_config for voice if no speech provider is configured.",
+      notes: "Keep usage within free-tier/quota until the project is personally validated.",
     }),
     spec({
       id: "openrouter",
@@ -104,8 +117,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "gateway",
       env: ["OPENROUTER_API_KEY", "OPENROUTE_API_KEY"],
       capabilities: ["llm_router", "fallback", "free_models", "model_catalog"],
-      freeFirstRole: "Unified LLM fallback/router using free model variants first.",
+      freeFirstRole: "Unified LLM fallback/router using :free model variants first.",
       fallbackStrategy: "Fallback to direct Gemini/Groq/Hugging Face providers or honest AI_NOT_CONFIGURED.",
+      notes: "In free_personal mode, configure OPENROUTER_MODEL_* only with :free models.",
     }),
     spec({
       id: "huggingface",
@@ -116,6 +130,7 @@ export function providerRegistry(): ProviderSpec[] {
       capabilities: ["llm", "image", "audio", "stt", "model_sandbox", "inference_providers"],
       freeFirstRole: "Open-source model sandbox and secondary media/model provider through one token.",
       fallbackStrategy: "Fallback to Gemini/Groq/OpenRouter/Pollinations depending on task.",
+      notes: "Use free quota and lightweight inference first; avoid paid dedicated endpoints in free_personal mode.",
     }),
     spec({
       id: "database",
@@ -134,7 +149,7 @@ export function providerRegistry(): ProviderSpec[] {
       category: "memory",
       env: ["DATABASE_URL", "POSTGRES_URL"],
       capabilities: ["semantic_memory", "rag", "vector_search"],
-      freeFirstRole: "Semantic memory on the existing PostgreSQL database before adding a paid vector DB.",
+      freeFirstRole: "Semantic memory on the existing PostgreSQL database before adding any paid vector DB.",
       fallbackStrategy: "Fallback to keyword search/log history until vector extension and tables are verified.",
       notes: "Configured means database is present; extension/table verification must be done by migration or readiness DB check.",
     }),
@@ -187,8 +202,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "search",
       env: ["TAVILY_API_KEY"],
       capabilities: ["web_search", "agent_search", "extract", "crawl"],
-      freeFirstRole: "Agentic web search/extraction lane for research, audits and current information.",
-      fallbackStrategy: "Fallback to Gemini Search/URL context or missing_config for research-specific workflows.",
+      freeFirstRole: "Optional free-tier web search lane after P0 is stable; not required for personal validation.",
+      fallbackStrategy: "Fallback to existing LLM context/search capabilities or missing_config for research-specific workflows.",
+      notes: "Do not block platform PASS on Tavily in free_personal mode.",
     }),
     spec({
       id: "firecrawl",
@@ -197,8 +213,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "search",
       env: ["FIRECRAWL_API_KEY"],
       capabilities: ["scrape", "crawl", "browser_sandbox", "structured_extraction"],
-      freeFirstRole: "Reliable web data extraction layer for agents and RAG ingestion.",
+      freeFirstRole: "Optional free-tier web extraction after P0 is stable; not required for personal validation.",
       fallbackStrategy: "Fallback to Tavily extract/Gemini URL context; never pretend browser automation works if missing.",
+      notes: "Do not block platform PASS on Firecrawl in free_personal mode.",
     }),
     spec({
       id: "langfuse",
@@ -207,8 +224,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "observability",
       env: ["LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST"],
       capabilities: ["llm_tracing", "prompt_tracing", "cost_tracking", "latency_tracking"],
-      freeFirstRole: "LLM/agent observability to debug cost, latency and provider failures.",
-      fallbackStrategy: "Fallback to structured server logs; platform remains WARN until AI traces are available.",
+      freeFirstRole: "Optional free-tier observability after core flows are stable.",
+      fallbackStrategy: "Fallback to structured server logs; do not block personal validation.",
+      notes: "Useful later, not a current budget requirement.",
     }),
     spec({
       id: "n8n",
@@ -217,8 +235,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "workflow",
       env: ["N8N_WEBHOOK_URL", "N8N_API_URL", "N8N_API_KEY", "WORKFLOW_PROVIDER"],
       capabilities: ["workflows", "webhooks", "async_automation"],
-      freeFirstRole: "Workflow execution layer for async tasks, notifications and integrations.",
+      freeFirstRole: "Optional self-hosted workflow execution layer for async tasks, notifications and integrations.",
       fallbackStrategy: "Fallback to internal jobs/manual workflows; never claim automation if n8n is not configured.",
+      notes: "Use self-host/free-first only; no n8n Cloud dependency while budget is zero.",
     }),
     spec({
       id: "cloudflare_ai_gateway",
@@ -227,8 +246,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "gateway",
       env: ["CLOUDFLARE_AI_GATEWAY_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"],
       capabilities: ["ai_gateway", "analytics", "rate_limits", "cache", "retries"],
-      freeFirstRole: "Optional gateway for provider analytics, cache, retries and centralized rate limits.",
+      freeFirstRole: "Future optional gateway for provider analytics, cache, retries and centralized rate limits.",
       fallbackStrategy: "Fallback to direct provider calls; do not block platform readiness if absent.",
+      notes: "Not part of the current zero-budget personal phase.",
     }),
     spec({
       id: "comfyui",
@@ -237,8 +257,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "video",
       env: ["COMFYUI_BASE_URL", "COMFYUI_API_KEY"],
       capabilities: ["image_premium", "video_premium", "workflow_media", "gpu_worker"],
-      freeFirstRole: "External GPU worker for open-source premium image/video pipelines.",
+      freeFirstRole: "Future external GPU worker for open-source premium image/video pipelines.",
       fallbackStrategy: "Fallback to FFmpeg/Pollinations; never run heavy GPU models inside the main Railway service.",
+      notes: "Explicitly deferred until the personal platform is stable and a budget is selected.",
     }),
     spec({
       id: "studio_gpu_workers",
@@ -247,8 +268,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "video",
       env: ["STUDIO_GPU_VIDEO_URL", "STUDIO_GPU_AUDIO_URL", "STUDIO_GPU_IMAGE_URL", "STUDIO_GPU_VOICE_URL", "STUDIO_GPU_VISION_URL", "STUDIO_GPU_GENERAL_URL"],
       capabilities: ["premium_video", "premium_audio", "premium_image", "premium_voice", "premium_vision"],
-      freeFirstRole: "Optional premium lane for heavy generation while keeping Railway as orchestrator.",
+      freeFirstRole: "Future premium lane for heavy generation while keeping Railway as orchestrator.",
       fallbackStrategy: "Fallback to local FFmpeg/audio/image fallbacks and return missing_config for premium buttons.",
+      notes: "Explicitly deferred in free_personal mode.",
     }),
     spec({
       id: "runware",
@@ -257,8 +279,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "image",
       env: ["RUNWARE_API_KEY"],
       capabilities: ["image_premium", "video_secondary", "media_api"],
-      freeFirstRole: "Low-cost secondary media provider for controlled experiments.",
+      freeFirstRole: "Future low-cost secondary media provider for controlled experiments.",
       fallbackStrategy: "Fallback to Gemini/HF/Pollinations/FFmpeg depending on media task.",
+      notes: "Not part of the current zero-budget personal phase.",
     }),
     spec({
       id: "r2_storage",
@@ -267,8 +290,9 @@ export function providerRegistry(): ProviderSpec[] {
       category: "storage",
       env: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "S3_BUCKET", "S3_ENDPOINT"],
       capabilities: ["durable_media", "uploads", "generated_assets"],
-      freeFirstRole: "Durable storage for generated videos/images/audio after local /tmp export.",
+      freeFirstRole: "Future durable storage for generated videos/images/audio after local /tmp export.",
       fallbackStrategy: "Fallback to temporary local media URLs with clear non-durable warning.",
+      notes: "Not required while the project remains personal and validation-focused.",
     }),
   ];
 }
@@ -283,12 +307,13 @@ export function platformCapabilities(): CapabilityStatus[] {
   const imageProviders = [
     ...byCapability(providers, "image"),
     ...byCapability(providers, "image_fallback"),
-    ...byCapability(providers, "image_premium"),
   ];
-  const premiumVideoProviders = [
-    ...byCapability(providers, "video_premium"),
-    ...byCapability(providers, "premium_video"),
-  ];
+  const premiumVideoProviders = paidProvidersAllowed()
+    ? [
+        ...byCapability(providers, "video_premium"),
+        ...byCapability(providers, "premium_video"),
+      ]
+    : [];
 
   return [
     {
@@ -297,16 +322,16 @@ export function platformCapabilities(): CapabilityStatus[] {
       verdict: llmProviders.length > 0 ? "PASS" : "FAIL",
       providers: llmProviders,
       evidence: llmProviders.length > 0 ? `Configured LLM lanes: ${llmProviders.join(", ")}` : "No LLM provider configured.",
-      risk: llmProviders.length === 1 ? "Single-provider dependency." : undefined,
-      nextAction: llmProviders.length > 0 ? "Route all chat/agent calls through the registry instead of reading env vars per module." : "Configure GEMINI_API_KEY or GROQ_API_KEY first.",
+      risk: llmProviders.length === 1 ? "Single-provider dependency; acceptable for personal validation but not for multi-tenant." : undefined,
+      nextAction: llmProviders.length > 0 ? "Use only free/allowed models and keep provider calls routed through the AI router." : "Configure at least one free-first provider: GEMINI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or HF_TOKEN.",
     },
     {
       id: "multimodal",
       label: "Multimodal / Vision / Documents",
       verdict: hasProvider(providers, ["gemini"]) ? "PASS" : hasProvider(providers, ["huggingface", "groq"]) ? "WARN" : "FAIL",
       providers: configuredProviders(providers.filter(p => ["gemini", "huggingface", "groq"].includes(p.id))),
-      evidence: hasProvider(providers, ["gemini"]) ? "Gemini configured for multimodal/vision/document workflows." : "Gemini is missing; multimodal capability is degraded.",
-      nextAction: "Make Gemini the primary multimodal lane and keep Groq/HF as fallbacks where compatible.",
+      evidence: hasProvider(providers, ["gemini"]) ? "Gemini configured for free-first multimodal/vision/document workflows." : "Gemini is missing; multimodal capability is degraded.",
+      nextAction: "Keep Gemini Flash-class models as the primary personal multimodal lane; do not use Pro/Veo until paid_controlled mode is chosen.",
     },
     {
       id: "image_generation",
@@ -315,16 +340,16 @@ export function platformCapabilities(): CapabilityStatus[] {
       providers: Array.from(new Set(imageProviders)),
       evidence: imageProviders.some(p => p !== "pollinations") ? `Image providers available: ${Array.from(new Set(imageProviders)).join(", ")}` : "Only Pollinations free fallback is guaranteed.",
       risk: imageProviders.every(p => p === "pollinations") ? "Community fallback only, not a premium SLA." : undefined,
-      nextAction: "Use Gemini Image/HF first, Pollinations only as honest fallback.",
+      nextAction: "Use Gemini/HF if already configured, Pollinations as honest fallback. Do not add paid image providers yet.",
     },
     {
       id: "video_generation",
       label: "Video / Studio Media",
-      verdict: premiumVideoProviders.length > 0 ? "WARN" : "WARN",
+      verdict: "WARN",
       providers: Array.from(new Set(["ffmpeg", ...premiumVideoProviders])),
-      evidence: premiumVideoProviders.length > 0 ? `Premium video lanes configured: ${premiumVideoProviders.join(", ")}; FFmpeg remains fallback.` : "FFmpeg local media backbone available; premium GPU/video providers are missing_config unless configured.",
-      risk: "Premium AI video is expensive/heavy; do not promise it without external worker/provider confirmation.",
-      nextAction: "Stabilize FFmpeg MP4 output first, then wire ComfyUI/Gemini Veo/Runware as optional premium lanes.",
+      evidence: premiumVideoProviders.length > 0 ? `Premium video lanes configured but ignored unless paid providers are allowed: ${premiumVideoProviders.join(", ")}; FFmpeg remains fallback.` : "Free-personal mode: FFmpeg local media backbone only. Premium GPU/video providers are deferred.",
+      risk: "AI video premium is expensive/heavy and is not part of the zero-budget personal phase.",
+      nextAction: "Stabilize FFmpeg MP4 output, montage, and photo-to-video first. Return missing_config for premium video buttons.",
     },
     {
       id: "voice_audio",
@@ -332,7 +357,7 @@ export function platformCapabilities(): CapabilityStatus[] {
       verdict: hasProvider(providers, ["groq", "gemini", "huggingface"]) ? "PASS" : "FAIL",
       providers: configuredProviders(providers.filter(p => ["groq", "gemini", "huggingface"].includes(p.id))),
       evidence: hasProvider(providers, ["groq"]) ? "Groq configured for low-latency STT/TTS lane." : "Groq missing; voice/audio fallback depends on Gemini/HF or local audio.",
-      nextAction: "Make Groq Whisper the primary STT lane; use Gemini/Groq TTS, local WAV only as fallback.",
+      nextAction: "Use Groq/Gemini/HF free-first if configured; otherwise return clear missing_config.",
     },
     {
       id: "memory_rag",
@@ -341,32 +366,32 @@ export function platformCapabilities(): CapabilityStatus[] {
       providers: configuredProviders(providers.filter(p => ["database", "pgvector"].includes(p.id))),
       evidence: hasProvider(providers, ["database"]) ? "Database configured; pgvector migration/extension verification still required." : "No durable database configured.",
       risk: "Without pgvector migration checks, semantic memory may be decorative.",
-      nextAction: "Add a migration/readiness check for CREATE EXTENSION vector and memory embedding tables.",
+      nextAction: "Enable/verify pgvector and embedding tables on the existing DB before adding any paid vector database.",
     },
     {
       id: "web_research",
       label: "Web Research / Extraction",
-      verdict: hasProvider(providers, ["tavily", "firecrawl"]) ? "PASS" : hasProvider(providers, ["gemini", "openrouter"]) ? "WARN" : "FAIL",
+      verdict: hasProvider(providers, ["tavily", "firecrawl"]) ? "WARN" : hasProvider(providers, ["gemini", "openrouter"]) ? "WARN" : "FAIL",
       providers: configuredProviders(providers.filter(p => ["tavily", "firecrawl", "gemini", "openrouter"].includes(p.id))),
-      evidence: hasProvider(providers, ["tavily", "firecrawl"]) ? "Dedicated search/extraction provider configured." : "Only LLM-native search/context may be available; no dedicated agentic web extraction provider configured.",
-      nextAction: "Add TAVILY_API_KEY first, then FIRECRAWL_API_KEY when crawl/extract becomes critical.",
+      evidence: hasProvider(providers, ["tavily", "firecrawl"]) ? "Dedicated search/extraction provider configured, but still optional in free_personal mode." : "No dedicated web extraction provider configured; acceptable for personal phase if core platform works.",
+      nextAction: "Do not block the platform on Tavily/Firecrawl. Add them later only if free-tier signup is acceptable and P0 is stable.",
     },
     {
       id: "observability",
       label: "AI Observability",
-      verdict: hasProvider(providers, ["langfuse", "cloudflare_ai_gateway"]) ? "PASS" : "WARN",
+      verdict: hasProvider(providers, ["langfuse", "cloudflare_ai_gateway"]) ? "WARN" : "WARN",
       providers: configuredProviders(providers.filter(p => ["langfuse", "cloudflare_ai_gateway"].includes(p.id))),
-      evidence: hasProvider(providers, ["langfuse", "cloudflare_ai_gateway"]) ? "AI traces/gateway telemetry configured." : "No dedicated AI observability provider configured.",
-      risk: "Without traces, provider failures and costs remain hard to debug.",
-      nextAction: "Add Langfuse keys and trace every provider call before scaling agents.",
+      evidence: hasProvider(providers, ["langfuse", "cloudflare_ai_gateway"]) ? "AI traces/gateway telemetry configured, but optional in personal mode." : "No dedicated AI observability provider configured; use structured logs first.",
+      risk: "Without traces, provider failures are harder to debug, but this should not create a budget obligation today.",
+      nextAction: "Use structured logs/readiness first. Add Langfuse later only when the platform is stable.",
     },
     {
       id: "automation",
       label: "Workflow Automation",
-      verdict: hasProvider(providers, ["n8n"]) ? "PASS" : "WARN",
+      verdict: hasProvider(providers, ["n8n"]) ? "WARN" : "WARN",
       providers: configuredProviders(providers.filter(p => p.id === "n8n")),
       evidence: hasProvider(providers, ["n8n"]) ? "n8n configured as external workflow lane." : "n8n missing_config; internal/manual workflows only.",
-      nextAction: "Keep TAMS as decision layer and n8n as async execution layer, not the core brain.",
+      nextAction: "Keep TAMS usable without n8n. Add self-hosted n8n later only if it helps personal workflows.",
     },
   ];
 }
@@ -378,19 +403,49 @@ export function providerSummary() {
   const missingP0 = p0.filter(p => !p.configured && p.status !== "free_builtin" && p.status !== "local_runtime");
   const failedCapabilities = capabilities.filter(c => c.verdict === "FAIL");
   const warnCapabilities = capabilities.filter(c => c.verdict === "WARN");
+  const mode = operatingMode();
+
+  const p0FreeFirstEnv = [
+    "GEMINI_API_KEY",
+    "GROQ_API_KEY",
+    "OPENROUTER_API_KEY",
+    "HF_TOKEN",
+    "DATABASE_URL",
+  ].filter(key => !env(key));
+
+  const optionalFreeLaterEnv = [
+    "TAVILY_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "LANGFUSE_HOST",
+    "N8N_WEBHOOK_URL",
+  ].filter(key => !env(key));
 
   return {
     verdict: failedCapabilities.length > 0 ? "FAIL" : warnCapabilities.length > 0 || missingP0.length > 0 ? "WARN" : "PASS",
+    operatingMode: mode,
+    paidProvidersAllowed: paidProvidersAllowed(),
     providers,
     capabilities,
     missingP0: missingP0.map(p => p.id),
     configured: providers.filter(p => p.configured).map(p => p.id),
-    recommendedNextEnv: [
-      "TAVILY_API_KEY",
-      "FIRECRAWL_API_KEY",
-      "LANGFUSE_PUBLIC_KEY",
-      "LANGFUSE_SECRET_KEY",
-      "LANGFUSE_HOST",
+    recommendedNextEnv: mode === "free_personal" ? p0FreeFirstEnv : [...p0FreeFirstEnv, ...optionalFreeLaterEnv],
+    optionalFreeLaterEnv,
+    deferredPaidOrScaleEnv: [
+      "COMFYUI_BASE_URL",
+      "RUNWARE_API_KEY",
+      "STUDIO_GPU_VIDEO_URL",
+      "R2_ACCOUNT_ID",
+      "CLOUDFLARE_AI_GATEWAY_URL",
+      "QDRANT_URL",
     ].filter(key => !env(key)),
+    rules: [
+      "Current mode is personal validation, not multi-tenant production.",
+      "No paid provider is required while operatingMode=free_personal.",
+      "Premium media must return missing_config unless paid providers are explicitly allowed.",
+      "Move to paid_controlled only after the personal platform is stable and a monthly budget is chosen.",
+      "Move to multi_tenant only after auth, quotas, billing, isolation and data retention are validated.",
+    ],
   };
 }
