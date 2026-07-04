@@ -15,6 +15,7 @@ const Studio = lazy(() => import("@/pages/studio"));
 const Systeme = lazy(() => import("@/pages/systeme"));
 const Capabilities = lazy(() => import("@/pages/capabilities"));
 const DevAgentPro = lazy(() => import("@/pages/dev-agent-pro"));
+const MonAgent = lazy(() => import("@/pages/mon-agent"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function LoadingFallback() {
@@ -51,6 +52,7 @@ function Router() {
           <Route path="/systeme" component={Systeme} />
           <Route path="/capabilities" component={Capabilities} />
           <Route path="/dev-agent-pro" component={DevAgentPro} />
+          <Route path="/mon-agent" component={MonAgent} />
           <Route component={NotFound} />
         </Switch>
       </ErrorBoundary>
