@@ -10,6 +10,13 @@ import { logger } from "./lib/logger";
 import { aiRateLimit, defaultRateLimit } from "./middlewares/rate-limit";
 import { errorHandler } from "./middlewares/error-handler";
 import { requireAuth, optionalAuth } from "./middlewares/auth";
+import {
+  personalAccessGate,
+  personalAccessLoginPage,
+  personalAccessLoginSubmit,
+  personalAccessLogout,
+  personalAccessEnabled,
+} from "./middlewares/personal-access";
 
 const app: Express = express();
 
@@ -121,6 +128,21 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Personal Access Gate — rend TAMS privé (projet personnel free-first).
+// Actif UNIQUEMENT si TAMS_PERSONAL_ACCESS_ENABLED=true ; sinon 100% no-op
+// (comportement historique inchangé, CI et health checks intacts).
+// Les routes de login sont montées AVANT le gate pour ne jamais s'auto-bloquer.
+app.get("/personal-access", personalAccessLoginPage);
+app.post("/personal-access", personalAccessLoginSubmit);
+app.post("/personal-access/logout", personalAccessLogout);
+// Gate global : protège l'UI (SPA, ex: /mon-agent) ET les API sensibles
+// (ex: /api/operator/*). Exempte /api/health, /api/healthz, /api/auth et la
+// page de login. Voir isPublicPath() dans middlewares/personal-access.ts.
+app.use(personalAccessGate);
+if (personalAccessEnabled()) {
+  logger.info("Personal Access Gate ENABLED — TAMS is private");
+}
 
 // Rate limiting: AI endpoints first (stricter), then general API
 app.use("/api/chat", aiRateLimit);

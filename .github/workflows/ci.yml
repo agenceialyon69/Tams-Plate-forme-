@@ -92,6 +92,32 @@ jobs:
           plan=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"title":"ci plan","commands":["pnpm run typecheck"]}' http://127.0.0.1:4000/api/dev-agent/pro/command-plan)
           plan_id=$(echo "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).plan.id))')
           curl -sf -X POST "http://127.0.0.1:4000/api/dev-agent/pro/command-plan/$plan_id/run" | grep -q '"status":"success"'
+      - name: Smoke Personal Access Gate (privé quand activé)
+        run: |
+          TAMS_PERSONAL_ACCESS_ENABLED=true \
+          TAMS_PERSONAL_ACCESS_USERNAME=admin \
+          TAMS_PERSONAL_ACCESS_PASSWORD=ci-secret-pw \
+          TAMS_PERSONAL_ACCESS_SECRET=ci-secret-key-long-enough-1234567890 \
+          NODE_ENV=production PORT=4002 node ./artifacts/api-server/dist/index.mjs > /tmp/tams-gate.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4002/api/healthz >/dev/null && break; sleep 1; done
+          # /api/healthz reste public malgré le gate
+          curl -sf http://127.0.0.1:4002/api/healthz >/dev/null
+          # page de login accessible
+          curl -sf http://127.0.0.1:4002/personal-access | grep -q 'Accès personnel'
+          # sans session : /mon-agent redirige (302) vers /personal-access
+          curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4002/mon-agent | grep -q '302'
+          # sans session : /api/operator/* renvoie 401
+          curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4002/api/operator/status | grep -q '401'
+          # login : mauvais mot de passe -> 401
+          curl -s -o /dev/null -w '%{http_code}' -X POST -d 'username=admin&password=wrong' http://127.0.0.1:4002/personal-access | grep -q '401'
+          # login correct -> Set-Cookie HttpOnly, cookie stocké
+          curl -s -c /tmp/gate-cookie.txt -o /dev/null -D /tmp/gate-headers.txt -X POST -d 'username=admin&password=ci-secret-pw' http://127.0.0.1:4002/personal-access
+          grep -qi 'set-cookie: *tams_personal_session' /tmp/gate-headers.txt
+          grep -qi 'httponly' /tmp/gate-headers.txt
+          # avec session : /api/operator/status n'est plus 401
+          test "$(curl -s -b /tmp/gate-cookie.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:4002/api/operator/status)" != "401"
+          # aucun secret loggé
+          if grep -Eq 'ci-secret-pw|ci-secret-key-long-enough' /tmp/tams-gate.log; then echo 'SECRET LEAK in logs'; exit 1; fi
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
