@@ -24,3 +24,6 @@ dist-ssr
 
 # TypeScript incremental build caches (machine-local, never commit)
 *.tsbuildinfo
+
+# Artefacts générés au boot par le dev-runtime (état machine, jamais commité)
+.tams/runtime/
