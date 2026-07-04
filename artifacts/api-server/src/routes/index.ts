@@ -46,6 +46,7 @@ import capabilityActionsMemoryRouter from "./capability-actions-memory.js";
 import capabilityActionsRouter from "./capability-actions.js";
 import chatCapabilitiesRouter from "./chat-capabilities.js";
 import n8nWebhookRouter from "./n8n-webhook.js";
+import operatorRouter from "./operator.js";
 
 const router: IRouter = Router();
 
@@ -98,6 +99,8 @@ router.use(capabilityActionsRouter);
 router.use(capabilityRegistryRouter);
 router.use(chatCapabilitiesRouter);
 router.use(n8nWebhookRouter);
+// Mon Agent — control plane du chat (operator). Voir REDTEAM_OPERATOR_FREE_FIRST.md.
+router.use(operatorRouter);
 router.use(defaultRateLimit);
 
 export default router;
