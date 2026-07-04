@@ -25,18 +25,35 @@ interface OperatorReply {
 interface Capability {
   id: string;
   label: string;
-  status: "available" | "configured" | "missing" | "disabled";
+  description: string;
+  group: string;
+  status: "available" | "configured" | "missing" | "disabled" | "future";
+  freeFirst: boolean;
   riskLevel: string;
   requiresConfirmation: boolean;
-  nextSetupStep: string | null;
+  setupNeeded: string | null;
 }
 
 interface ReadinessCheck {
   id: string;
-  verdict: "PASS" | "WARN" | "FAIL";
+  verdict: "PASS" | "WARN" | "FAIL" | "FUTURE";
   cause?: string;
   nextAction?: string;
 }
+
+const PRODUCT_MESSAGE =
+  "Je suis ton agent personnel privé. Je peux rechercher, analyser, organiser, coder, " +
+  "travailler sur GitHub, lire tes fichiers, utiliser le Studio, préparer tes communications " +
+  "et automatiser progressivement tes tâches. Je privilégie toujours le gratuit et je " +
+  "t'indique honnêtement ce qui est connecté ou non.";
+
+const STATUS_LABEL: Record<Capability["status"], string> = {
+  available: "disponible",
+  configured: "configuré",
+  missing: "à connecter",
+  disabled: "désactivé",
+  future: "futur",
+};
 
 interface ChatEntry {
   role: "user" | "agent";
@@ -119,10 +136,18 @@ export default function MonAgent() {
   const verdictIcon = (v: string) =>
     v === "PASS" ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
       : v === "WARN" ? <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-        : <ShieldX className="w-3.5 h-3.5 text-red-400" />;
+        : v === "FUTURE" ? <ShieldAlert className="w-3.5 h-3.5 text-violet-400" />
+          : <ShieldX className="w-3.5 h-3.5 text-red-400" />;
 
   const statusColor = (s: Capability["status"]) =>
-    s === "available" || s === "configured" ? "bg-emerald-400" : s === "disabled" ? "bg-amber-400" : "bg-red-400";
+    s === "available" || s === "configured" ? "bg-emerald-400"
+      : s === "disabled" ? "bg-amber-400"
+        : s === "future" ? "bg-violet-400" : "bg-red-400";
+
+  const groups = caps.reduce<Record<string, Capability[]>>((acc, c) => {
+    (acc[c.group] ||= []).push(c);
+    return acc;
+  }, {});
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in pb-28 md:pb-6">
@@ -211,19 +236,46 @@ export default function MonAgent() {
           </div>
         )}
 
-        {/* Capacités */}
+        {/* Capacités — carte MAXIMUM free-first, par groupes, statuts honnêtes */}
         {caps.length > 0 && (
-          <div className="bg-secondary/60 border border-border/50 rounded-xl p-3 space-y-1.5">
-            <div className="text-xs font-semibold text-foreground">Capacités ({caps.filter(c => c.status === "available" || c.status === "configured").length}/{caps.length} actives)</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-              {caps.map(c => (
-                <div key={c.id} className="flex items-center gap-2 text-[11px] min-w-0">
-                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", statusColor(c.status))} />
-                  <span className="text-foreground truncate">{c.label}</span>
-                  {c.requiresConfirmation && <span className="text-[9px] text-amber-400/80 shrink-0">confirmation</span>}
-                </div>
-              ))}
+          <div className="bg-secondary/60 border border-border/50 rounded-xl p-3 space-y-3">
+            <div>
+              <div className="text-xs font-semibold text-foreground mb-1">Voici ce que je peux faire</div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{PRODUCT_MESSAGE}</p>
+              <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-muted-foreground">
+                <span>{caps.filter(c => c.status === "available" || c.status === "configured").length}/{caps.length} actives</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> dispo/configuré</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> à connecter</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> désactivé (garde-fou)</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> futur</span>
+              </div>
             </div>
+            {Object.entries(groups).map(([groupName, list]) => (
+              <div key={groupName} className="space-y-1">
+                <div className="text-[11px] font-semibold text-foreground flex items-center justify-between gap-2">
+                  <span className="truncate">{groupName}</span>
+                  <span className="text-[10px] text-muted-foreground font-normal shrink-0">
+                    {list.filter(c => c.status === "available" || c.status === "configured").length}/{list.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                  {list.map(c => (
+                    <div key={c.id} className="flex items-start gap-2 text-[11px] min-w-0">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0 mt-1", statusColor(c.status))} />
+                      <div className="min-w-0">
+                        <span className="text-foreground">{c.label}</span>
+                        <span className="text-muted-foreground/70"> · {STATUS_LABEL[c.status]}</span>
+                        {c.freeFirst === false && <span className="text-amber-400/80"> · payant → non activé</span>}
+                        {c.requiresConfirmation && <span className="text-amber-400/80"> · confirmation</span>}
+                        {(c.status === "missing" || c.status === "disabled") && c.setupNeeded && (
+                          <div className="text-[10px] text-muted-foreground/80 truncate">→ {c.setupNeeded}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

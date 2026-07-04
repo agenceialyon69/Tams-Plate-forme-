@@ -100,3 +100,37 @@
 4. Gmail OAuth (lecture + brouillons, jamais d'envoi auto).
 5. Calendar OAuth (lecture, création confirmée).
 6. Automatisations gratuites (scheduler interne / GitHub Actions cron).
+
+---
+
+## Addendum — Capacités MAXIMUM free-first (commit suivant sur PR #95)
+
+Implémente OPERATOR_CAPABILITIES_MAX_FREE_FIRST.md (ajouté par ChatGPT sur cette branche).
+
+### Ajouté
+- `lib/operator-capabilities.ts` : **140 capacités en 10 groupes** (Recherche, Emails,
+  Agenda, Code, Automatisation, Fichiers, Studio multimédia, Canaux, Mémoire,
+  Readiness/sécurité), chacune avec id/label/description/group/status/freeFirst/
+  provider/toolsUsed/requiresConfirmation/riskLevel/setupNeeded/fallback/nextAction/evidence.
+  Statuts calculés depuis l'env réel : available/configured/missing/disabled/**future**.
+- Readiness étendu : **32 volets** PASS/WARN/FAIL/**FUTURE** (+provider/freeFirst/evidence),
+  dont pdf/word/excel_csv/image_analysis/studio_* détaillés/whatsapp_future.
+  ffmpeg vérifié par spawn réel (succès seul mis en cache — un échec transitoire ne
+  devient jamais un FAIL permanent).
+- Intents : + `research` (recherche approfondie LLM, limite « sans web » annoncée),
+  + `briefing` ; **Studio multimédia dans le chat** : storyboard / script / hooks /
+  captions / prompts / packs d'assets générés réellement (LLM free-first) ; demande de
+  vidéo → réponse honnête « vidéo IA non configurée gratuitement » + alternative
+  composée FFmpeg réelle.
+- `/mon-agent` : message produit, capacités par groupes avec badges 5 statuts,
+  légende, étapes de setup pour les manquants, readiness FUTURE.
+
+### Vérité produit
+- WhatsApp = `future` (jamais présenté disponible). Web + Telegram/Sheet prioritaires
+  (Telegram = missing avec setup exact, le bot existant sera réutilisé, pas remplacé).
+- Statuts smoke-testés localement : 140 caps, honnêteté vérifiée sans providers
+  (missing/blocked corrects) ; intents storyboard/hooks/captions/research/briefing OK.
+
+### Bugs trouvés par auto-red-team pendant ce lot
+1. Regex studio sans storyboard/hooks/captions → intent `unknown`. Corrigé + retesté.
+2. Cache ffmpeg mémorisait un échec transitoire à vie → readiness FAIL permanent. Corrigé.
