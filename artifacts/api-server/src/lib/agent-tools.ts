@@ -86,13 +86,13 @@ export async function gatherUserContext(): Promise<string> {
 
 // ─── Recherche web (DuckDuckGo, sans clé) ─────────────────────────────────────
 
-interface SearchResult {
+export interface SearchResult {
   title: string;
   url: string;
   snippet: string;
 }
 
-async function searchWeb(query: string): Promise<SearchResult[]> {
+export async function searchWeb(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
 
   try {
@@ -128,10 +128,39 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
       }
     }
   } catch {
-    // DuckDuckGo failed — try SearXNG public instance
+    // DuckDuckGo Instant Answer indisponible — on continue (Wikipedia + fallbacks).
   }
 
-  // Fallback : SearXNG public instance (plusieurs disponibles)
+  // Couche FIABLE et sans clé : recherche plein-texte Wikipedia (FR puis EN).
+  // DDG Instant Answer ne répond que pour des entités ; Wikipedia couvre bien
+  // plus de requêtes avec des sources stables. Best-effort : n'échoue jamais dur.
+  for (const lang of ["fr", "en"]) {
+    if (results.length >= 5) break;
+    try {
+      const wpUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=5&format=json&origin=*`;
+      const wpRes = await fetch(wpUrl, {
+        headers: { "User-Agent": "TAMS-OS/1.0 (https://github.com/agenceialyon69/Tams-Plate-forme-)" },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (wpRes.ok) {
+        const data = await wpRes.json() as { query?: { search?: any[] } };
+        for (const hit of (data.query?.search || []).slice(0, 5)) {
+          const title = String(hit.title || "");
+          if (!title) continue;
+          results.push({
+            title: `${title} (Wikipédia ${lang.toUpperCase()})`,
+            url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
+            snippet: String(hit.snippet || "").replace(/<[^>]+>/g, "").slice(0, 300),
+          });
+          if (results.length >= 5) break;
+        }
+      }
+    } catch {
+      // langue suivante / autres fallbacks
+    }
+  }
+
+  // Fallback best-effort : SearXNG public (souvent indisponible — jamais bloquant)
   if (results.length === 0) {
     const searxInstances = [
       "https://search.bus-hit.me",

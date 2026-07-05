@@ -92,6 +92,11 @@ jobs:
           plan=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"title":"ci plan","commands":["pnpm run typecheck"]}' http://127.0.0.1:4000/api/dev-agent/pro/command-plan)
           plan_id=$(echo "$plan" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).plan.id))')
           curl -sf -X POST "http://127.0.0.1:4000/api/dev-agent/pro/command-plan/$plan_id/run" | grep -q '"status":"success"'
+          # Recherche web sourcée (Mon Agent) : l'intent "research" doit router vers
+          # research_source_based sans crasher. Réseau/LLM peuvent manquer en CI : on
+          # valide le CONTRAT, pas la couverture. Même step = serveur 4000 encore vivant.
+          research=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"message":"recherche intelligence artificielle open source"}' http://127.0.0.1:4000/api/operator/chat)
+          echo "$research" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const b=JSON.parse(s);const r=b.reply||b;if(r.intent!=="research")process.exit(1);if(r.capabilityId!=="research_source_based")process.exit(1);if(!["completed","blocked","failed"].includes(r.executionStatus))process.exit(1);console.log("research OK:",r.executionStatus,"sources:",Array.isArray(r.evidence)?r.evidence.length:0)})'
       - name: Smoke Personal Admin Access Gate (privé quand activé)
         run: |
           # Génère un vrai hash scrypt (chemin recommandé) → prouve générateur + vérif.
