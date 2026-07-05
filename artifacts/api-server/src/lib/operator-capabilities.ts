@@ -210,10 +210,10 @@ export function operatorCapabilitiesMax(): OperatorCapability[] {
     fallback: "colle le texte dans le chat : analyse immédiate",
   });
   caps.push(
-    f("file_upload", "Upload de document", "Upload PDF/Word/CSV pour analyse", "missing", { evidence: "L'upload Studio existe pour images/vidéos/audio, pas pour documents" }),
+    f("file_upload", "Upload de document", "Upload PDF/Word/CSV/txt pour analyse", "available", { provider: "extraction locale (zlib pur Node, sans clé)", toolsUsed: ["POST /api/documents/analyze"], setupNeeded: null, evidence: "txt/csv/md/json/docx OK ; pdf best-effort (scanné = message honnête)" }),
     f("file_index", "Index des fichiers", "Retrouver ses documents analysés", "future"),
-    f("pdf_analyze", "Analyser un PDF", "Extraction + résumé d'un PDF", "missing"),
-    f("word_analyze", "Analyser un Word", "Extraction + résumé d'un .docx", "missing"),
+    f("pdf_analyze", "Analyser un PDF", "Extraction + résumé d'un PDF (texte)", e.ai ? "available" : "available", { provider: "extraction locale + ai-router", toolsUsed: ["POST /api/documents/analyze"], setupNeeded: null, evidence: "PDF texte extrait localement (best-effort) ; PDF scanné = message honnête, jamais de faux texte" }),
+    f("word_analyze", "Analyser un Word", "Extraction + résumé d'un .docx", "available", { provider: "extraction locale (ZIP pur Node) + ai-router", toolsUsed: ["POST /api/documents/analyze"], setupNeeded: null }),
     f("excel_csv_analyze", "Analyser Excel/CSV", "Analyse de tableur (colle le contenu : dispo maintenant)", llm(e.ai), { provider: "ai-router", setupNeeded: e.ai ? null : LLM_SETUP, evidence: "Contenu collé = analyse immédiate ; upload natif en PR fichiers" }),
     f("image_analyze", "Analyser une image", "Vision sur pièces jointes du Chat", e.vision ? "configured" : "missing", { provider: "Gemini vision (quota gratuit)", toolsUsed: ["Chat pièces jointes"], setupNeeded: e.vision ? null : "GEMINI_API_KEY requis", evidence: "Pièces jointes image du Chat analysées par Gemini" }),
     f("document_key_info_extract", "Extraire les infos clés", "Points clés d'un document collé", llm(e.ai), { provider: "ai-router", setupNeeded: e.ai ? null : LLM_SETUP }),

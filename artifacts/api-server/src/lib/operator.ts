@@ -882,7 +882,32 @@ export async function handleOperatorChat(message: string, params: Record<string,
         nextStep: "Pour l'automatiser : activer TAMS_DEV_AGENT_SCHEDULER=true ou un workflow GitHub Actions cron (gratuit).",
       });
     }
-    case "file": return notConnected(intent, "files_read", "L'analyse de fichiers", "Prochaine PR : upload + extraction PDF/Word/CSV. En attendant, colle le texte dans le chat et je l'analyse.");
+    case "file": {
+      const doc = params.document as { filename?: string; contentBase64?: string; text?: string } | undefined;
+      if (doc && (doc.contentBase64 || doc.text)) {
+        try {
+          const { extractText } = await import("./document-extract.js");
+          const extraction = doc.text
+            ? { type: "text", text: String(doc.text).slice(0, 100000), chars: String(doc.text).length, truncated: false, note: undefined as string | undefined }
+            : extractText(String(doc.filename || "document"), Buffer.from(String(doc.contentBase64), "base64"));
+          if (!extraction.text || !extraction.text.trim()) {
+            return reply({ message: `Aucun texte extractible. ${extraction.note || "Colle le texte, ou fournis un fichier texte."}`, intent, capabilityId: "files_read", executionStatus: "blocked", nextStep: "Colle le contenu, ou vérifie le format." });
+          }
+          return llmReply(intent, "document_summary",
+            "Tu es analyste. À partir UNIQUEMENT du texte du document, donne : résumé court, points clés, risques/pièges, actions à faire. Français, structuré. N'invente rien hors du texte.",
+            `Document ${extraction.type} :\n\n${extraction.text.slice(0, 24000)}`,
+            { evidence: [{ type: extraction.type, chars: extraction.chars, truncated: extraction.truncated }], nextStep: "Je peux en créer des tâches (« ajoute une tâche : … »)." });
+        } catch (err) {
+          return reply({ message: `Analyse impossible : ${err instanceof Error ? err.message : "erreur"}`, intent, capabilityId: "files_read", executionStatus: "failed", nextStep: "Vérifie le format (txt/csv/md/json/docx/pdf) et la taille (< 8 Mo)." });
+        }
+      }
+      return reply({
+        message: "Envoie un document (POST /api/documents/analyze avec { filename, contentBase64 }) ou colle le texte : j'en fais résumé, points clés, risques et actions. Formats : txt, csv, md, json, docx, pdf (texte). Extraction 100% locale et gratuite.",
+        intent, capabilityId: "files_read",
+        evidence: [{ endpoint: "POST /api/documents/analyze" }],
+        nextStep: "Colle le texte dans le chat, ou utilise le endpoint documents.",
+      });
+    }
     case "gmail": return notConnected(intent, "gmail_read", "Gmail", "Je peux préparer l'intégration OAuth (scopes minimaux, lecture + brouillons, jamais d'envoi auto) — PR dédiée.");
     case "calendar": return notConnected(intent, "calendar_read", "Google Calendar", "Je peux préparer l'intégration OAuth (lecture d'abord, création d'événement avec confirmation) — PR dédiée.");
     case "telegram_sheet": {
