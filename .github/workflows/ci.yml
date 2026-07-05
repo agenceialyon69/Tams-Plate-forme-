@@ -108,6 +108,9 @@ jobs:
           # Code operator ÉCRITURE (garde-fous, flag off + pas de token ici) : main => 400, branche valide => 403.
           curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"branch":"main","files":[{"path":"a","content":"b"}]}' http://127.0.0.1:4000/api/code/propose | grep -q '400'
           curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"branch":"feat/x","files":[{"path":"a","content":"b"}]}' http://127.0.0.1:4000/api/code/propose | grep -q '403'
+          # Boucle autonome : instruction de modif => intent github_code + confirmation ; sans token => blocked (honnête).
+          chg=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"message":"modifie artifacts/api-server/src/app.ts pour ajouter un commentaire"}' http://127.0.0.1:4000/api/operator/chat)
+          echo "$chg" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const b=JSON.parse(s);const r=b.reply||b;if(r.intent!=="github_code")process.exit(1);if(r.capabilityId!=="github_pr_create_confirmed")process.exit(1);if(!["blocked","completed","failed"].includes(r.executionStatus))process.exit(1);console.log("code-loop OK:",r.executionStatus)})'
       - name: Smoke Personal Admin Access Gate (privé quand activé)
         run: |
           # Génère un vrai hash scrypt (chemin recommandé) → prouve générateur + vérif.

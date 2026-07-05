@@ -178,6 +178,7 @@ export function detectIntent(text: string): OperatorIntent {
   if (/\b(repo|dépôt|depot|code|refactor|bug|corrige|correction|patch)\b/.test(t) && /\b(analyse|audit|risques?|propose|plan|corrige)\b/.test(t)) return "github_code";
   if (/\b(explique|montre|affiche|lis|résume|resume)\b/.test(t) && /[\w./-]+\.(ts|tsx|js|jsx|mjs|cjs|json|md|ya?ml|css|html|py|sh|sql)\b/.test(t)) return "github_code";
   if (/\b(où est|ou est|cherche|trouve|where is)\b/.test(t) && /\b(fonctions?|function|classes?|class|fichiers?|code|variables?|endpoints?|routes?|composants?|imports?)\b/.test(t)) return "github_code";
+  if (/\b(modifie|modifier|ajoute|ajouter|change|remplace|remplacer|corrige|corriger|refactor|réécris|reecris|renomme)\b/.test(t) && /[\w./-]+\.(ts|tsx|js|jsx|mjs|cjs|json|md|ya?ml|css|html|py|sh|sql)\b/.test(t)) return "github_code";
   if (/\bred[ -]?team\b|\bavocat du diable\b|\bcritique?\b.*\b(décision|decision|plan|idée|idee)\b/.test(t)) return "red_team";
   if (/\b(tâches?|taches?|todos?|à faire|a faire)\b/.test(t)) return "task";
   if (/\b(mémoires?|memoires?|retiens|souviens|garde ça|garde ca|note ça|note ca|mémorise|memorise)\b/.test(t)) return "memory";
@@ -516,6 +517,82 @@ async function llmReply(
 }
 
 /**
+ * Boucle autonome de l'agent codeur (free-first, SÛR) :
+ * instruction NL → lecture du fichier → le LLM gratuit génère le NOUVEAU contenu
+ * complet → PROPOSITION en CONFIRMATION obligatoire (jamais main, jamais merge,
+ * flag requis pour l'exécution). Un seul fichier par passe (borne de sûreté).
+ */
+async function handleCodeChange(message: string): Promise<OperatorReply> {
+  const CAP = "github_pr_create_confirmed";
+  if (!githubConfigured()) {
+    return notConnected("github_code", CAP, "L'agent codeur (écriture)", "Définir GITHUB_TOKEN (droit d'écriture) côté serveur.");
+  }
+  const pathMatch = message.match(/([\w.-]+\/)*[\w.-]+\.(ts|tsx|js|jsx|mjs|cjs|json|md|ya?ml|css|html|py|sh|sql)\b/);
+  if (!pathMatch) {
+    return reply({ message: "Indique le fichier exact à modifier, ex : « modifie artifacts/api-server/src/app.ts pour … ».", intent: "github_code", capabilityId: CAP, executionStatus: "blocked", nextStep: "Donne le chemin du fichier." });
+  }
+  const path = pathMatch[0];
+
+  let current;
+  try {
+    current = await readFile({ path });
+  } catch (err) {
+    if (err instanceof MissingGithubConfig) return notConnected("github_code", CAP, "L'agent codeur", "Définir GITHUB_TOKEN côté serveur.");
+    return reply({ message: `Lecture impossible : ${err instanceof Error ? err.message : "erreur"}`, intent: "github_code", capabilityId: CAP, executionStatus: "failed", nextStep: "Vérifie le chemin exact du fichier." });
+  }
+
+  const { aiConfigured, aiChat } = await import("./ai.js");
+  if (!aiConfigured()) {
+    return reply({ message: "Aucun provider IA configuré : je ne peux pas générer la modification, et je ne fabrique rien.", intent: "github_code", capabilityId: CAP, executionStatus: "blocked", warnings: ["GROQ_API_KEY / GEMINI_API_KEY absents"], nextStep: "Configurer un LLM gratuit." });
+  }
+  if (current.truncated) {
+    return reply({ message: `Fichier trop volumineux pour une modification sûre en une passe (${current.size} octets) : je refuse pour ne pas risquer une troncature.`, intent: "github_code", capabilityId: CAP, executionStatus: "blocked", nextStep: "Cible un fichier plus petit ou une section précise." });
+  }
+
+  let content = "";
+  try {
+    const c = await aiChat({
+      messages: [
+        { role: "system", content: "Tu es ingénieur logiciel senior. On te donne le contenu ACTUEL d'un fichier et une instruction. Applique STRICTEMENT l'instruction et renvoie UNIQUEMENT le CONTENU COMPLET du nouveau fichier — aucun ```, aucune explication, aucun diff : juste le fichier entier prêt à committer. Conserve le style existant. Ne casse rien d'autre." },
+        { role: "user", content: `Instruction : ${message}\n\nFichier ${current.path} (contenu actuel) :\n${current.content}` },
+      ],
+      max_tokens: 4000,
+    }, "reasoning");
+    content = c?.choices?.[0]?.message?.content ?? "";
+  } catch (err) {
+    return reply({ message: `Génération indisponible : ${err instanceof Error ? err.message : "erreur"}`, intent: "github_code", capabilityId: CAP, executionStatus: "failed", nextStep: "Réessayer (quota gratuit possiblement saturé)." });
+  }
+
+  content = content.trim().replace(/^```[\w-]*\n?/, "").replace(/\n?```$/, "").trim();
+  if (!content || content.length < 5) {
+    return reply({ message: "Le modèle n'a pas renvoyé de contenu exploitable : je ne propose rien plutôt que de risquer de casser le fichier.", intent: "github_code", capabilityId: CAP, executionStatus: "blocked", nextStep: "Reformule l'instruction." });
+  }
+  if (content === current.content.trim()) {
+    return reply({ message: "Contenu généré identique à l'actuel : aucune modification (ou instruction pas assez précise).", intent: "github_code", capabilityId: CAP, executionStatus: "completed", nextStep: "Précise ce qu'il faut changer." });
+  }
+
+  const branch = `tams/agent-${Date.now().toString(36)}`;
+  const short = message.slice(0, 60);
+  const propose = {
+    branch,
+    files: [{ path: current.path, content }],
+    commitMessage: `TAMS agent: ${short}`,
+    prTitle: `TAMS agent: ${short}`,
+    prBody: `Modification proposée par Mon Agent (après confirmation).\n\nInstruction : ${message}\nFichier : ${current.path}`,
+  };
+  const entry = createPending(CAP, "code_propose", propose, `Modifier ${current.path} → PR sur ${branch} (jamais main, jamais merge).`);
+  const flagOff = process.env.TAMS_DEV_AGENT_PR_WRITE !== "true";
+  return reply({
+    message: `Proposition prête pour ${current.path} (${content.length} octets). Confirme pour créer la branche « ${branch} » + la PR.${flagOff ? " ⚠️ L'exécution nécessite TAMS_DEV_AGENT_PR_WRITE=true côté serveur." : ""} Jamais sur main, jamais de merge.`,
+    intent: "github_code", capabilityId: CAP,
+    requiresConfirmation: true, confirmationId: entry.id,
+    evidence: [{ path: current.path, branch, newSize: content.length, preview: content.slice(0, 500) }],
+    warnings: flagOff ? ["TAMS_DEV_AGENT_PR_WRITE=false : flag d'écriture requis pour exécuter"] : [],
+    nextStep: "POST /api/operator/confirm { id } pour créer la PR, ou /api/operator/cancel.",
+  });
+}
+
+/**
  * Agent codeur — LECTURE SEULE (façon Claude Code, free-first).
  * « explique ce fichier X » → lit le fichier (API GitHub) + synthèse LLM.
  * « où est / cherche X »    → recherche de code.
@@ -553,6 +630,13 @@ async function handleGithubCode(message: string, params: Record<string, unknown>
     evidence: [{ ciOperator: ciOperatorStatus(), readTools: ["/api/code/file", "/api/code/tree", "/api/code/search"] }],
     nextStep: "Ex : « explique artifacts/api-server/src/app.ts » ou « où est searchWeb ? ».",
   });
+
+  // Instruction de MODIFICATION (« modifie/ajoute/corrige … <fichier> ») → boucle
+  // autonome : lecture → LLM génère le nouveau contenu → PROPOSITION (confirmation).
+  if (/\b(modifie|modifier|ajoute|ajouter|change|remplace|remplacer|corrige|corriger|refactor|réécris|reecris|renomme)\b/i.test(message)
+      && /[\w./-]+\.(ts|tsx|js|jsx|mjs|cjs|json|md|ya?ml|css|html|py|sh|sql)\b/.test(message)) {
+    return handleCodeChange(message);
+  }
 
   if (!githubConfigured()) {
     return notConnected("github_code", "github_repo_analyze", "L'opérateur de code (lecture du repo)",
