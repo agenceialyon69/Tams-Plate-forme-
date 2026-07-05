@@ -24,6 +24,7 @@ import {
   runRepairLoop,
   type RunKind,
 } from "./dev-agent-ci-operator.js";
+import { searchWeb, type SearchResult } from "./agent-tools.js";
 
 // ─── Types du contrat de réponse (voir issue #94) ────────────────────────────
 
@@ -507,6 +508,94 @@ function notConnected(intent: OperatorIntent, capabilityId: string, label: strin
   });
 }
 
+/**
+ * Recherche web RÉELLE + synthèse sourcée, free-first.
+ * Web = DuckDuckGo/SearXNG (searchWeb, sans clé). Synthèse = ai-router gratuit.
+ * Règle de vérité : on ne fabrique jamais de source ni d'URL. Sans LLM, on
+ * renvoie les sources brutes (utile et honnête) plutôt qu'un blocage sec.
+ */
+async function handleResearch(message: string): Promise<OperatorReply> {
+  const CAP = "research_source_based";
+  const query =
+    message
+      .replace(/^\s*\/?(recherches?\s+approfondies?|recherches?|cherche[rz]?|search|veilles?|synth[èe]ses?|rapports?|[ée]tude de march[ée])\s*:?\s*/i, "")
+      .trim() || message.trim();
+
+  let results: SearchResult[] = [];
+  let searchError: string | null = null;
+  try {
+    results = await searchWeb(query);
+  } catch (err) {
+    searchError = err instanceof Error ? err.message : "recherche web indisponible";
+  }
+
+  // Écarte le placeholder "Aucun résultat trouvé" (pas une vraie source).
+  const sources = results.filter(r => r.url && !/^Aucun résultat/i.test(r.title));
+  const evidence = sources.map(r => ({ title: r.title, url: r.url, snippet: r.snippet }));
+  const sourcesBlock = sources.length
+    ? sources.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n")
+    : "(aucune source web récupérée)";
+
+  const { aiConfigured, aiChat } = await import("./ai.js");
+
+  // Ni source web, ni LLM → honnête, on ne simule rien.
+  if (sources.length === 0 && !aiConfigured()) {
+    return reply({
+      message: `Aucune source web exploitable pour « ${query} » et aucun provider IA configuré. Je ne fabrique rien.`,
+      intent: "research", capabilityId: CAP, executionStatus: "blocked",
+      warnings: [searchError ?? "0 résultat web", "GROQ_API_KEY / GEMINI_API_KEY absents"],
+      nextStep: "Reformuler la requête, ou configurer un provider IA gratuit.",
+    });
+  }
+
+  // Sources trouvées mais pas de LLM → on livre les sources brutes.
+  if (!aiConfigured()) {
+    return reply({
+      message: `Sources web pour « ${query} » (synthèse non générée : aucun provider IA configuré) :\n\n${sourcesBlock}`,
+      intent: "research", capabilityId: CAP, executionStatus: "completed",
+      evidence,
+      warnings: ["Synthèse LLM non générée : configurer GROQ_API_KEY/GEMINI_API_KEY"],
+      nextStep: "Configure un LLM gratuit pour la synthèse sourcée automatique.",
+    });
+  }
+
+  // LLM disponible → synthèse strictement basée sur les sources.
+  try {
+    const completion = await aiChat({
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es analyste senior. À partir UNIQUEMENT des sources web fournies (numérotées), " +
+            "produis une synthèse structurée : contexte, points clés, comparatif si pertinent, " +
+            "risques/angles morts, recommandation. CITE les sources par leur numéro [n]. " +
+            "Ne fabrique JAMAIS un fait ou une URL absent des sources. Si elles sont insuffisantes, dis-le. Français.",
+        },
+        { role: "user", content: `Sujet : ${query}\n\nSources web :\n${sourcesBlock}` },
+      ],
+      max_tokens: 900,
+    }, "reasoning");
+    const content: string = completion?.choices?.[0]?.message?.content ?? "";
+    if (!content.trim()) throw new Error("réponse vide");
+    return reply({
+      message: content,
+      intent: "research", capabilityId: CAP, executionStatus: "completed",
+      evidence: evidence.length ? evidence : [{ provider: "ai-router (aucune source web récupérée)" }],
+      warnings: sources.length === 0 ? ["Aucune source web : synthèse basée sur les connaissances du modèle"] : [],
+      nextStep: "Je peux transformer ça en décision, en tâches, ou approfondir une source.",
+    });
+  } catch (err) {
+    // Repli : au moins les sources brutes, jamais une fausse synthèse.
+    return reply({
+      message: `Synthèse indisponible (${err instanceof Error ? err.message : "erreur"}). Sources web trouvées :\n\n${sourcesBlock}`,
+      intent: "research", capabilityId: CAP, executionStatus: sources.length ? "completed" : "failed",
+      evidence,
+      warnings: ["Quota gratuit possiblement saturé"],
+      nextStep: "Réessayer dans un instant.",
+    });
+  }
+}
+
 // ─── Point d'entrée du control plane ─────────────────────────────────────────
 
 export async function handleOperatorChat(message: string, params: Record<string, unknown> = {}): Promise<OperatorReply> {
@@ -597,12 +686,7 @@ export async function handleOperatorChat(message: string, params: Record<string,
       }
       return handleInternalTool(intent, "generate_image", { prompt: message }, "Image générée ✅ (Pollinations, gratuit)", "studio_image_generate");
     }
-    case "research": {
-      return llmReply(intent, "research_deep",
-        "Tu es analyste senior. Produis une recherche APPROFONDIE et structurée : contexte, points clés, comparatif si pertinent, risques/angles morts, recommandation. IMPORTANT : tu n'as PAS de navigation web en direct — annonce-le en une ligne et raisonne à partir de tes connaissances. Français.",
-        message,
-        { warnings: ["Analyse LLM sans navigation web en direct (recherche sourcée web = capability research_source_based, non branchée)"], nextStep: "Je peux transformer les conclusions en décision ou en tâches." });
-    }
+    case "research": return handleResearch(message);
     case "briefing": {
       return reply({
         message: "Le briefing quotidien (priorités, risques, recommandations générés depuis tes données) est disponible sur la page Accueil et via GET /api/briefing. L'automatisation récurrente (chaque matin) n'est pas encore active — garde-fou scheduler.",

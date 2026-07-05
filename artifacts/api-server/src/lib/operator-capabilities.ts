@@ -88,7 +88,7 @@ export function operatorCapabilitiesMax(): OperatorCapability[] {
   });
   caps.push(
     r("research_deep", "Recherche approfondie", "Analyse structurée d'un sujet (LLM, sans web live)", llm(e.ai)),
-    r("research_source_based", "Rapport sourcé (web)", "Recherche avec sources web en direct", "missing", { setupNeeded: "Brancher une recherche web gratuite (DuckDuckGo/Tavily quota gratuit)", evidence: "Non connecté : jamais de fausses sources" }),
+    r("research_source_based", "Rapport sourcé (web)", "Recherche avec sources réelles + synthèse", "available", { provider: "Wikipedia (plein-texte, sans clé) + DuckDuckGo entités + ai-router", toolsUsed: ["/api/operator/chat (intent research)", "searchWeb"], setupNeeded: null, evidence: "Sources réelles et fiables (Wikipedia FR/EN + entités DDG) ; sans LLM = sources brutes ; jamais de fausse source. Limite honnête : web général temps réel = couverture partielle (clé gratuite Tavily/Brave possible plus tard)." }),
     r("compare_options", "Comparer des options", "Comparatif structuré avantages/risques/reco", llm(e.ai)),
     r("synthesize_report", "Synthèse / rapport", "Rapport structuré à partir des éléments fournis", llm(e.ai)),
     r("competitive_watch", "Veille concurrentielle", "Veille récurrente concurrents", "future", { setupNeeded: "Nécessite web + automatisation récurrente" }),
