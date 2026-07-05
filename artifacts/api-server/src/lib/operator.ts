@@ -699,7 +699,19 @@ export async function handleOperatorChat(message: string, params: Record<string,
     case "file": return notConnected(intent, "files_read", "L'analyse de fichiers", "Prochaine PR : upload + extraction PDF/Word/CSV. En attendant, colle le texte dans le chat et je l'analyse.");
     case "gmail": return notConnected(intent, "gmail_read", "Gmail", "Je peux préparer l'intégration OAuth (scopes minimaux, lecture + brouillons, jamais d'envoi auto) — PR dédiée.");
     case "calendar": return notConnected(intent, "calendar_read", "Google Calendar", "Je peux préparer l'intégration OAuth (lecture d'abord, création d'événement avec confirmation) — PR dédiée.");
-    case "telegram_sheet": return notConnected(intent, "telegram_sheet_capture", "La capture Telegram/Google Sheet", "Ton bot Telegram → Sheet existant sera branché tel quel (webhook + import CSV) — PR dédiée, sans le remplacer.");
+    case "telegram_sheet": {
+      const on = Boolean(process.env.TAMS_TELEGRAM_CAPTURE_SECRET);
+      if (on) {
+        return reply({
+          message: "Capture Telegram/Sheet branchée : ton workflow n8n peut envoyer une note/idée/tâche à TAMS, qui la range en tâche ou en mémoire. Le endpoint ne fait que stocker — aucune action sensible n'est exécutée sans confirmation.",
+          intent, capabilityId: "telegram_capture", executionStatus: "completed",
+          evidence: [{ endpoint: "POST /api/integrations/telegram-capture", auth: "secret partagé (x-tams-capture-secret)" }],
+          nextStep: "Dans n8n, ajoute un nœud HTTP Request POST vers /api/integrations/telegram-capture avec l'en-tête x-tams-capture-secret et { text }.",
+        });
+      }
+      return notConnected(intent, "telegram_capture", "La capture Telegram/Google Sheet",
+        "Endpoint prêt (POST /api/integrations/telegram-capture). Pour l'activer : définir TAMS_TELEGRAM_CAPTURE_SECRET côté serveur, puis pointer ton workflow n8n dessus. On réutilise ton bot + Sheet existants, sans les remplacer.");
+    }
     case "automation": {
       const enabled = process.env.TAMS_DEV_AGENT_SCHEDULER === "true";
       return reply({

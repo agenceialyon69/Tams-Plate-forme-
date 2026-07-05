@@ -40,6 +40,7 @@ interface Env {
   prWrite: boolean;     // TAMS_DEV_AGENT_PR_WRITE
   scheduler: boolean;   // TAMS_DEV_AGENT_SCHEDULER
   hf: boolean;          // HF_TOKEN (musique/voix HuggingFace)
+  telegramCapture: boolean; // TAMS_TELEGRAM_CAPTURE_SECRET (webhook n8n → TAMS)
 }
 
 function readEnv(): Env {
@@ -52,6 +53,7 @@ function readEnv(): Env {
     prWrite: process.env.TAMS_DEV_AGENT_PR_WRITE === "true",
     scheduler: process.env.TAMS_DEV_AGENT_SCHEDULER === "true",
     hf,
+    telegramCapture: Boolean(process.env.TAMS_TELEGRAM_CAPTURE_SECRET),
   };
 }
 
@@ -195,7 +197,7 @@ export function operatorCapabilitiesMax(): OperatorCapability[] {
     a("automation_alerts", "Alertes simples", "Alertes readiness/erreurs", "future"),
     a("webhook_integrations", "Intégrations webhook", "Webhook entrant n8n self-host/gratuit", "available", { provider: "n8n-webhook route (self-host/webhook only)", requiresConfirmation: false, setupNeeded: null, evidence: "Route /api/n8n-webhook présente — jamais n8n Cloud payant" }),
     a("google_sheet_sync", "Sync Google Sheet", "Import des lignes du Sheet de capture", "missing", { setupNeeded: "PR capture : import CSV/Sheet + anti-duplication", requiresConfirmation: false }),
-    a("telegram_capture", "Capture Telegram", "Bot existant → Sheet → TAMS", "missing", { setupNeeded: "PR capture : POST /api/integrations/telegram-capture", requiresConfirmation: false, evidence: "Bot + Sheet existants côté utilisateur : on les réutilise, on ne les remplace pas" }),
+    a("telegram_capture", "Capture Telegram", "Bot existant → Sheet → TAMS (endpoint d'ingestion)", e.telegramCapture ? "configured" : "missing", { provider: "POST /api/integrations/telegram-capture (secret partagé)", requiresConfirmation: false, setupNeeded: e.telegramCapture ? null : "Définir TAMS_TELEGRAM_CAPTURE_SECRET + pointer le workflow n8n vers le endpoint", evidence: e.telegramCapture ? "Endpoint actif : capture → tâche/mémoire (ne stocke que, aucune action sensible auto)" : "Endpoint prêt ; en attente de TAMS_TELEGRAM_CAPTURE_SECRET" }),
     a("scheduled_workflows", "Workflows planifiés GitHub", "Cron gratuit via GitHub Actions", "available", { provider: "GitHub Actions (gratuit)", requiresConfirmation: false, setupNeeded: null }),
     a("n8n_self_host_future", "n8n self-host", "Orchestrations avancées auto-hébergées", "future", { setupNeeded: "Uniquement self-host — jamais n8n Cloud payant" }),
     a("app_connector_registry", "Registre de connecteurs", "Connecter d'autres apps gratuites", "future"),
@@ -259,7 +261,7 @@ export function operatorCapabilitiesMax(): OperatorCapability[] {
   caps.push(
     ch("web_app", "Web app TAMS", "Cockpit web (maintenant)", "available", { provider: "Railway (plan actuel)" }),
     ch("mobile_web", "Web mobile", "Utilisable sur mobile (safe-area, nav intacte)", "available"),
-    ch("telegram_bot_capture", "Capture via bot Telegram", "Ton bot existant → Sheet → TAMS", "missing", { setupNeeded: "PR capture : endpoint + import", evidence: "Bot + workflow existants : réutilisés, pas remplacés" }),
+    ch("telegram_bot_capture", "Capture via bot Telegram", "Ton bot existant → Sheet → TAMS", e.telegramCapture ? "configured" : "missing", { provider: "POST /api/integrations/telegram-capture", setupNeeded: e.telegramCapture ? null : "TAMS_TELEGRAM_CAPTURE_SECRET + noeud HTTP n8n", evidence: "Bot + workflow existants : réutilisés, pas remplacés" }),
     ch("telegram_bot_commands", "Commandes bot Telegram", "Piloter Mon Agent depuis Telegram", "future"),
     ch("google_sheet_workflow", "Workflow Google Sheet", "Sheet de capture existant", "missing", { setupNeeded: "PR capture : import CSV/Sheet", evidence: "Le workflow externe existe ; TAMS ne le lit pas encore" }),
     ch("email_channel_future", "Canal email", "Piloter par email", "future"),

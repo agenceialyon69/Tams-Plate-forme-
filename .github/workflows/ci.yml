@@ -97,6 +97,8 @@ jobs:
           # valide le CONTRAT, pas la couverture. Même step = serveur 4000 encore vivant.
           research=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"message":"recherche intelligence artificielle open source"}' http://127.0.0.1:4000/api/operator/chat)
           echo "$research" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const b=JSON.parse(s);const r=b.reply||b;if(r.intent!=="research")process.exit(1);if(r.capabilityId!=="research_source_based")process.exit(1);if(!["completed","blocked","failed"].includes(r.executionStatus))process.exit(1);console.log("research OK:",r.executionStatus,"sources:",Array.isArray(r.evidence)?r.evidence.length:0)})'
+          # Capture Telegram NON configurée (pas de secret sur ce serveur) => 503 honnête.
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"text":"x"}' http://127.0.0.1:4000/api/integrations/telegram-capture | grep -q '503'
       - name: Smoke Personal Admin Access Gate (privé quand activé)
         run: |
           # Génère un vrai hash scrypt (chemin recommandé) → prouve générateur + vérif.
@@ -105,6 +107,7 @@ jobs:
           TAMS_ADMIN_EMAIL=admin@tams.local \
           TAMS_ADMIN_PASSWORD_HASH="$HASH" \
           TAMS_SESSION_SECRET=ci-secret-key-long-enough-1234567890 \
+          TAMS_TELEGRAM_CAPTURE_SECRET=ci-capture-secret \
           NODE_ENV=production PORT=4002 node ./artifacts/api-server/dist/index.mjs > /tmp/tams-gate.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:4002/api/healthz >/dev/null && break; sleep 1; done
           # /api/healthz reste public malgré le gate
@@ -128,8 +131,15 @@ jobs:
           test "$(curl -s -b /tmp/gate-cookie.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:4002/api/operator/readiness)" != "401"
           # logout -> 302 (efface le cookie)
           curl -s -o /dev/null -w '%{http_code}' -b /tmp/gate-cookie.txt -X POST http://127.0.0.1:4002/personal-access/logout | grep -q '302'
+          # Capture Telegram : exemptée du gate par son secret partagé.
+          # mauvais secret -> 401
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'x-tams-capture-secret: WRONG' -H 'Content-Type: application/json' -d '{"text":"x"}' http://127.0.0.1:4002/api/integrations/telegram-capture | grep -q '401'
+          # bon secret + texte -> stocké (ok:true, DB up en CI)
+          cap=$(curl -s -X POST -H 'x-tams-capture-secret: ci-capture-secret' -H 'Content-Type: application/json' -d '{"text":"note capturee en CI"}' http://127.0.0.1:4002/api/integrations/telegram-capture)
+          echo "$cap" | grep -q '"ok":true'
+          echo "$cap" | grep -q '"type":"memory"'
           # aucun secret loggé
-          if grep -Eq 'ci-secret-pw|ci-secret-key-long-enough' /tmp/tams-gate.log; then echo 'SECRET LEAK in logs'; exit 1; fi
+          if grep -Eq 'ci-secret-pw|ci-secret-key-long-enough|ci-capture-secret' /tmp/tams-gate.log; then echo 'SECRET LEAK in logs'; exit 1; fi
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
