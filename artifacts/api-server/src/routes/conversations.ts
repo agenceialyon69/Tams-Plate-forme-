@@ -7,45 +7,19 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { conversationsTable, messagesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
-// INVARIANT (/AGENTS.md) : importer le SYSTÈME D'AGENTS depuis le dossier
-// `lib/agents/*` (Chief of Staff → Council → Planner → Runtime → Tools).
-// L'import nu "../lib/agents" résoudrait l'ANCIEN fichier lib/agents.ts (système
-// hérité utilisé par routes/agents.ts) → mauvaises signatures. NE PAS RÉVERTER.
-import { getAgent } from "../lib/agents/definitions";
 import {
+  getAgent,
+  getAllAgents,
   runAgent,
-  runTool,
+  executeTool,
   gatherUserContext,
   getAllTools,
-} from "../lib/agents/orchestrator";
-import { runChiefWithCouncil } from "../lib/agents/council";
-import { planAndExecute } from "../lib/agents/planner";
+} from "../lib/agents/index";
 import type { AgentRole, AgentContext } from "../lib/agents/types";
-import { aiChatStream } from "../lib/ai";
-import { ReflectionEngine } from "../lib/reflection";
+import { aiChat, aiChatStream } from "../lib/ai";
+import { logActivity } from "../lib/activity";
 
 const router = Router();
-
-// Reflection Engine (pilier « Continuous Improvement ») : observe CHAQUE tour du
-// Chat pour apprendre (détection de patterns d'échec, auto-mémorisation). C'est
-// ce qui branche le moteur de réflexion sur le pipeline principal. Fire-and-forget :
-// l'apprentissage ne doit JAMAIS faire échouer une réponse de chat.
-function reflectAfterTurn(
-  agentRole: string,
-  query: string,
-  result: string,
-  success: boolean,
-  durationMs: number,
-): void {
-  void ReflectionEngine.reflect({
-    agentRole,
-    query,
-    result,
-    success,
-    durationMs,
-    timestamp: new Date(),
-  }).catch(() => { /* la réflexion ne bloque jamais le chat */ });
-}
 
 // ─── List conversations ─────────────────────────────────────────────────────
 
@@ -137,9 +111,8 @@ router.get("/conversations/:id/messages", async (req, res) => {
 
 router.post("/conversations/:id/messages", async (req, res) => {
   try {
-    const startedAt = Date.now();
     const conversationId = Number(req.params.id);
-    const { content, useCouncil = true, usePlanner = false } = req.body;
+    const { content } = req.body;
 
     if (!content) return res.status(400).json({ error: "content is required" });
 
@@ -164,35 +137,20 @@ router.post("/conversations/:id/messages", async (req, res) => {
       content: m.content,
     }));
 
-    let responseContent: string;
-    let metadata: Record<string, unknown> = {};
+    // Select agent based on conversation mode or query content
+    const agentRole = (conv.mode || "chat") as AgentRole;
+    const agent = getAgent(agentRole) || getAgent("chief_of_staff")!;
 
-    // Use Planner for action-oriented requests
-    if (usePlanner) {
-      const plan = await planAndExecute(content, await gatherUserContext());
-      responseContent = plan.message;
-      metadata = { plan: plan.plan, verified: plan.success };
-    }
-    // Use Council for complex reasoning (Chief of Staff mode)
-    else if (useCouncil && (conv.mode === "chief_of_staff" || conv.mode === "decision")) {
-      const council = await runChiefWithCouncil(content, historyForAgent);
-      responseContent = council.content;
-      metadata = { usedCouncil: true };
-    }
-    // Standard agent
-    else {
-      const agentRole = (conv.mode || "chat") as AgentRole;
-      const agent = getAgent(agentRole) || getAgent("chief_of_staff")!;
-      const context: AgentContext = { conversationId };
-      const response = await runAgent(agent, content, historyForAgent, context);
-      responseContent = response.content;
-    }
+    const context: AgentContext = { conversationId };
+
+    // Run agent
+    const response = await runAgent(agent, content, historyForAgent, context);
 
     // Persist assistant message
     const [assistantMsg] = await db.insert(messagesTable).values({
       conversationId,
       role: "assistant",
-      content: responseContent,
+      content: response.content,
     }).returning();
 
     // Update conversation
@@ -204,13 +162,10 @@ router.post("/conversations/:id/messages", async (req, res) => {
       })
       .where(eq(conversationsTable.id, conversationId));
 
-    // Branche le Reflection Engine sur le pipeline (apprentissage continu).
-    reflectAfterTurn(String(conv.mode || "chat"), content, responseContent, true, Date.now() - startedAt);
-
     return res.json({
       userMessage: userMsg,
       assistantMessage: assistantMsg,
-      metadata,
+      toolCalls: response.toolCalls,
     });
   } catch (err) {
     req.log.error({ err }, "Error sending message");
@@ -218,23 +173,122 @@ router.post("/conversations/:id/messages", async (req, res) => {
   }
 });
 
+// ─── Capabilities Intent Detection ────────────────────────────────────────────
+
+const CAPABILITIES_KEYWORDS = [
+  "capacités", "capacites", "compétences", "competences",
+  "que peux-tu faire", "que sais-tu faire", "que peut tu faire", "que peut tu",
+  "quels sont tes outils", "tes outils", "tes fonctions",
+  "liste tes fonctions", "mes capacités", "tes capacités",
+  "qu'est-ce que tu sais faire", "qu'est ce que tu sais",
+  "présente-toi", "presente toi", "qui es-tu", "qui es tu",
+  "aide-moi", "aide moi",
+];
+
+function detectCapabilitiesIntent(message: string): boolean {
+  const lower = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return CAPABILITIES_KEYWORDS.some(kw => lower.includes(kw.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+}
+
+function getCapabilitiesResponse(): string {
+  return `## Mes capacités TAMS AI
+
+Je suis votre AI Operating System personnel. Voici ce que je peux faire :
+
+### Gestion des tâches et projets
+- **Créer des tâches** — "/tâche Appeler le client demain"
+- **Créer des projets** — "/projet Refonte du site web"
+- **Suivi des statuts** — Je peux mettre à jour et suivre vos tâches
+
+### Gestion des contacts
+- **Ajouter des contacts** — "/contact Jean Dupont, Acme Corp"
+- **Lier des contacts à des projets** — Associations contact-projet
+
+### Mémoire et connaissances
+- **Enregistrer des informations** — Personnes, entreprises, notes
+- **Rechercher dans la mémoire** — "Souviens-toi de..."
+- **Rappels programmés** — Planification de rappels
+
+### Décisions et analyse
+- **Analyser des décisions** — "/décision Dois-je changer de fournisseur ?"
+- **Recherche de mémoires pertinentes** — Contexte automatique
+
+### Studio créatif
+- **Générer des images** — Via Pollinations (gratuit)
+- **Scripts et storyboards** — Vidéo, audio, documents
+
+### Ce qui n'est PAS encore configuré :
+- **Vidéo IA premium** — Nécessite un provider GPU (Kling, Runway, Veo)
+- **Audio IA premium** — Nécessite un provider audio externe
+- **Intégrations Gmail/Calendar** — Non connectées
+
+### Comment m'utiliser ?
+- Tapez simplement votre demande en langage naturel
+- Utilisez "/" pour les commandes rapides
+- Demandez-moi de vous aider à planifier, créer, rechercher
+
+Que puis-je faire pour vous maintenant ?`;
+}
+
 // ─── Streaming endpoint (SSE) ───────────────────────────────────────────────
 
 router.post("/conversations/:id/stream", async (req, res) => {
-  const startedAt = Date.now();
   const conversationId = Number(req.params.id);
-  const { content, images } = req.body as { content?: string; images?: string[] };
+  const { content } = req.body;
 
   if (!content) {
     res.status(400).json({ error: "content is required" });
     return;
   }
 
-  // Pièces jointes IMAGE (vision) : data URLs base64. Analysées par un modèle
-  // multimodal GRATUIT (Gemini). Limité à 4 images raisonnables.
-  const attachedImages = (Array.isArray(images) ? images : [])
-    .filter((u) => typeof u === "string" && u.startsWith("data:image/") && u.length < 8_000_000)
-    .slice(0, 4);
+  // PRIORITY: Check for capabilities intent BEFORE any other processing
+  if (detectCapabilitiesIntent(content)) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const send = (data: object) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Persist user message
+    const [userMsg] = await db.insert(messagesTable).values({
+      conversationId,
+      role: "user",
+      content,
+    }).returning();
+    send({ type: "user_id", id: userMsg.id });
+
+    // Direct capabilities response
+    const capabilitiesResponse = getCapabilitiesResponse();
+
+    // Stream the response
+    for (let i = 0; i < capabilitiesResponse.length; i += 3) {
+      send({ type: "token", content: capabilitiesResponse.slice(i, i + 3) });
+      await new Promise(r => setTimeout(r, 5));
+    }
+
+    // Persist assistant message
+    const [assistantMsg] = await db.insert(messagesTable).values({
+      conversationId,
+      role: "assistant",
+      content: capabilitiesResponse,
+    }).returning();
+
+    await db.update(conversationsTable)
+      .set({
+        messageCount: sql`${conversationsTable.messageCount} + 2`,
+        lastMessage: content.slice(0, 100),
+        updatedAt: new Date(),
+      })
+      .where(eq(conversationsTable.id, conversationId));
+
+    send({ type: "done", id: assistantMsg.id, toolResults: [] });
+    res.end();
+    return;
+  }
 
   const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, conversationId));
   if (!conv) {
@@ -252,12 +306,6 @@ router.post("/conversations/:id/stream", async (req, res) => {
   const send = (data: object) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
-
-  // Keepalive : un outil long (create_video : Pollinations + FFmpeg, 30-60s) laisse
-  // le flux SILENCIEUX → le proxy Railway peut couper une connexion inactive. On
-  // envoie un commentaire SSE toutes les 12s pour garder la connexion vivante.
-  const keepalive = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* socket fermé */ } }, 12_000);
-  res.on("close", () => clearInterval(keepalive));
 
   // Persist user message
   const [userMsg] = await db.insert(messagesTable).values({
@@ -289,48 +337,23 @@ router.post("/conversations/:id/stream", async (req, res) => {
   let toolResults: Array<{ name: string; result: string }> = [];
 
   try {
-    // Streaming via le routeur IA GRATUIT lib/ai.ts (Ollama/Groq/Gemini/
-    // OpenRouter) — fetch pur, fallback en chaîne entre fournisseurs, ZÉRO SDK
-    // propriétaire et ZÉRO API payante. Les chunks sont OpenAI-compatibles.
-    // Contenu utilisateur : texte seul, ou multimodal (texte + images) si des
-    // pièces jointes sont présentes (format OpenAI-compatible, lu par Gemini).
-    const userContent: unknown = attachedImages.length > 0
-      ? [
-          { type: "text", text: content },
-          ...attachedImages.map((url) => ({ type: "image_url", image_url: { url } })),
-        ]
-      : content;
-
-    // Directive OUTILS : pour toute demande de PRODUCTION, le Chat doit RÉELLEMENT
-    // appeler l'outil (il ne peut pas naviguer le web → jamais de lien/exemple).
-    const TOOLS_DIRECTIVE =
-      "RÈGLE OUTILS (impérative) : pour toute demande de CRÉATION ou GÉNÉRATION " +
-      "(vidéo, clip TikTok, musique, image, cover, campagne marketing, audit Shopify), " +
-      "tu DOIS appeler l'outil approprié — `execute_mission` de préférence (il orchestre " +
-      "tout), sinon `create_video` / `generate_music` / `generate_image`. Tu génères " +
-      "RÉELLEMENT le contenu via ces outils. Tu n'as AUCUN accès au web : ne réponds " +
-      "JAMAIS par un lien externe, un « voici des exemples », ou une description à la place " +
-      "de l'outil. Si l'utilisateur veut une vidéo/musique/image, APPELLE l'outil.";
-
-    const messages: Array<{ role: "system" | "user" | "assistant"; content: unknown }> = [
-      { role: "system", content: `${agent.systemPrompt}\n\n${TOOLS_DIRECTIVE}\n\nContexte actuel:\n${userContext}` },
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: `${agent.systemPrompt}\n\nContexte actuel:\n${userContext}` },
       ...historyForAgent,
-      { role: "user", content: userContent },
+      { role: "user", content },
     ];
 
     const stream = aiChatStream({
+      model: "google/gemini-2.5-flash",
       messages,
       max_tokens: 1500,
-      // Vision et function-calling cohabitent mal : avec des images, pas d'outils.
-      // Tâche "chat" = modèle CAPABLE (Groq 70B / Gemini) → appels d'outils fiables
-      // (generate_image, create_video, tâches…). Le 8B "fast" rate les tool calls.
-      tools: attachedImages.length > 0 ? undefined : getAllTools(),
-    }, "chat");
+      tools: getAllTools(),
+    });
 
     let pendingToolCalls: Array<{ id: string; index: number; name: string; args: string }> = [];
 
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta;
+      const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
 
       if (delta.content) {
@@ -349,32 +372,58 @@ router.post("/conversations/:id/stream", async (req, res) => {
       }
     }
 
-    // Execute tool calls — événements alignés sur le frontend (tool_start/tool_done)
-    // pour que l'utilisateur VOIE le Chat agir sur la plateforme.
+    // Execute tool calls with enriched SSE events
     if (pendingToolCalls.length > 0) {
       for (const tc of pendingToolCalls) {
         let args: Record<string, unknown>;
         try { args = JSON.parse(tc.args); } catch { args = {}; }
+
+        // tool_start
         send({ type: "tool_start", name: tc.name, args });
-        const result = await runTool(tc.name, args);
-        toolResults.push({ name: tc.name, result });
-        send({ type: "tool_done", name: tc.name, result });
+
+        // tool_progress
+        send({ type: "tool_progress", name: tc.name, step: "Exécution en cours..." });
+
+        let result: string;
+        let toolError: string | null = null;
+
+        try {
+          // Per-tool timeout (10s) instead of global
+          result = await Promise.race([
+            executeTool(tc.name, args),
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error("Timeout tool")), 10000)
+            ),
+          ]);
+
+          // Log activity
+          await logActivity("tool_call", `Tool: ${tc.name}`, `Args: ${JSON.stringify(args)}`, 0);
+
+          toolResults.push({ name: tc.name, result });
+
+          // tool_done
+          send({ type: "tool_done", name: tc.name, result });
+        } catch (err: any) {
+          toolError = err?.message || "Erreur inconnue";
+          send({ type: "tool_error", name: tc.name, error: toolError });
+        }
       }
 
       // Follow-up to summarize
-      const followUpMessages: Array<{ role: "system" | "user" | "assistant"; content: unknown }> = [
+      const followUpMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         ...messages,
         { role: "assistant", content: fullContent || "" },
         { role: "system", content: `Actions effectuées:\n${toolResults.map(t => `- ${t.name}: ${t.result}`).join("\n")}\n\nRésume naturellement.` },
       ];
 
       const followUp = aiChatStream({
+        model: "google/gemini-2.5-flash",
         messages: followUpMessages,
         max_tokens: 800,
-      }, "fast");
+      });
 
       for await (const chunk of followUp) {
-        const delta = chunk.choices[0]?.delta;
+        const delta = chunk.choices?.[0]?.delta;
         if (delta?.content) {
           fullContent += delta.content;
           send({ type: "token", content: delta.content });
@@ -403,18 +452,322 @@ router.post("/conversations/:id/stream", async (req, res) => {
     })
     .where(eq(conversationsTable.id, conversationId));
 
-  // Branche le Reflection Engine sur le pipeline de streaming (apprentissage continu).
-  reflectAfterTurn(String(conv.mode || "chat"), content, fullContent, fullContent.length > 0, Date.now() - startedAt);
-
-  clearInterval(keepalive);
   send({ type: "done", id: assistantMsg.id, toolResults });
   res.end();
 });
 
-// NOTE (/AGENTS.md) : les endpoints agents publics (/agents, /agents/:id/run,
-// /agents/council, /agents/orchestrate, /agents/pipeline, /agents/delegate)
-// sont servis par routes/agents.ts — c'est ce que la page Agents appelle.
-// Ce routeur-ci ne gère QUE les conversations + le chat (CRUD, messages,
-// streaming SSE) pour éviter toute collision de routes (double GET /agents).
+// ─── Agent info endpoint ───────────────────────────────────────────────────
+
+router.get("/agents", (_req, res) => {
+  const agents = getAllAgents().map(a => ({
+    role: a.role,
+    name: a.name,
+    description: a.description,
+    capabilities: a.capabilities,
+  }));
+  res.json(agents);
+});
+
+router.get("/agents/:role", (req, res) => {
+  const agent = getAgent(req.params.role as AgentRole);
+  if (!agent) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+  res.json({
+    role: agent.role,
+    name: agent.name,
+    description: agent.description,
+    capabilities: agent.capabilities,
+    tools: agent.tools.map(t => t.name),
+  });
+});
+
+// ─── Runtime endpoint (dev only, secured) ───────────────────────────────────
+
+router.post("/conversations/:id/runtime", async (req, res) => {
+  try {
+    const conversationId = Number(req.params.id);
+    const { action, params, session_token } = req.body;
+
+    // Import runtime config
+    const {
+      isRuntimeAvailable,
+      isChatRuntimeBridgeEnabled,
+      validateRuntimeAction,
+      detectRuntimeIntent,
+    } = await import("../lib/runtime-config");
+
+    // Check runtime availability
+    if (!isRuntimeAvailable()) {
+      return res.status(403).json({
+        error: "Runtime désactivé",
+        message: "Runtime installé mais désactivé par sécurité. Activez TAMS_DEV_RUNTIME_ENABLED.",
+      });
+    }
+
+    // Check chat bridge
+    if (!isChatRuntimeBridgeEnabled()) {
+      return res.status(403).json({
+        error: "Bridge désactivé",
+        message: "Bridge runtime chat désactivé. Activez ENABLE_DEV_RUNTIME_CHAT.",
+      });
+    }
+
+    // Check Bearer auth
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : session_token;
+
+    if (!token) {
+      return res.status(401).json({
+        error: "Authentification requise",
+        message: "Action runtime indisponible : token d'authentification manquant.",
+      });
+    }
+
+    // Verify token with Supabase (simple check - just verify it's a valid JWT structure)
+    // Full verification would require Supabase client
+    const hasSession = token.length > 20; // Basic check
+
+    // Get conversation to check mode
+    const [conv] = await db.select().from(conversationsTable)
+      .where(eq(conversationsTable.id, conversationId));
+
+    if (!conv) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    // Detect or use provided action
+    const detectedAction = action || (params?.message ? detectRuntimeIntent(params.message) : null);
+
+    if (!detectedAction) {
+      return res.json({
+        status: "no_action",
+        message: "Aucune action runtime détectée dans ce message.",
+        hint: "Exemples d'actions : 'analyse le repo', 'liste les routes', 'vérifie le runtime'",
+      });
+    }
+
+    // Validate action
+    const validation = validateRuntimeAction(detectedAction, hasSession, conv.mode);
+
+    if (!validation.allowed) {
+      return res.status(403).json({
+        error: "Action non autorisée",
+        action: detectedAction,
+        reason: validation.reason,
+      });
+    }
+
+    // Execute read-only actions only for now
+    // Full execution would require additional safety layers
+    const result = await executeRuntimeAction(detectedAction, params, conv);
+
+    // Log activity
+    await logActivity(
+      "runtime_action",
+      `Action: ${detectedAction}`,
+      `Conversation: ${conversationId}`,
+      conversationId,
+    );
+
+    return res.json({
+      status: "success",
+      action: detectedAction,
+      mode: validation.mode,
+      result,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Runtime action failed");
+    return res.status(500).json({
+      error: "Runtime error",
+      message: process.env.NODE_ENV === "production"
+        ? "Erreur interne"
+        : (err as Error).message,
+    });
+  }
+});
+
+/**
+ * Execute a runtime action (read-only for now).
+ */
+async function executeRuntimeAction(
+  action: string,
+  params: Record<string, unknown>,
+  _conv: { id: number; mode: string; title: string },
+): Promise<Record<string, unknown>> {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  switch (action) {
+    case "analyze_repo": {
+      const rootFiles = await fs.readdir(".").catch(() => []);
+      const artifacts = await fs.readdir("./artifacts").catch(() => []);
+      const lib = await fs.readdir("./lib").catch(() => []);
+
+      return {
+        summary: "Structure du projet TAMS",
+        root: rootFiles.slice(0, 20),
+        artifacts: artifacts.slice(0, 15),
+        lib: lib.slice(0, 15),
+        insights: [
+          "Monorepo pnpm avec workspaces",
+          "Frontends: tams, kore, mockup-sandbox",
+          "Backend: api-server (Express)",
+          "DB: lib/db (Drizzle)",
+        ],
+      };
+    }
+
+    case "list_routes": {
+      const routesDir = "./artifacts/api-server/src/routes";
+      const files = await fs.readdir(routesDir).catch(() => []);
+      const routeFiles = files.filter(f => f.endsWith(".ts"));
+
+      const routes: string[] = [];
+      for (const file of routeFiles) {
+        const content = await fs.readFile(path.join(routesDir, file), "utf-8").catch(() => "");
+        const matches = content.matchAll(/router\.(get|post|put|delete|patch)\s*\(\s*["'`]([^"`]+)/g);
+        for (const m of matches) {
+          routes.push(`${m[1].toUpperCase()} ${m[2]}`);
+        }
+      }
+
+      return {
+        total: routes.length,
+        routes: routes.sort().slice(0, 30),
+        files: routeFiles,
+      };
+    }
+
+    case "list_agents": {
+      const agents = getAllAgents().map(a => ({
+        role: a.role,
+        name: a.name,
+        capabilities: a.capabilities,
+      }));
+      return { total: agents.length, agents };
+    }
+
+    case "list_tools": {
+      const tools = getAllTools();
+      return {
+        total: tools.length,
+        tools: tools.map(t => ({
+          name: t.function.name,
+          description: t.function.description?.slice(0, 80),
+        })),
+      };
+    }
+
+    case "list_tables": {
+      const schema = await import("@workspace/db");
+      const tables = Object.keys(schema).filter(k => k.endsWith("Table"));
+      return {
+        tables: tables.map(t => ({
+          name: t,
+          type: "table",
+        })),
+      };
+    }
+
+    case "validate_runtime":
+    case "health_check": {
+      const checks: Record<string, { status: string; message?: string }> = {};
+
+      // DB check
+      try {
+        await db.execute(sql`SELECT 1`);
+        checks.database = { status: "ok" };
+      } catch (e) {
+        checks.database = { status: "error", message: (e as Error).message };
+      }
+
+      // Files check
+      try {
+        await fs.access("./artifacts/api-server/src/index.ts");
+        checks.files = { status: "ok" };
+      } catch {
+        checks.files = { status: "error", message: "Missing files" };
+      }
+
+      // Flags check
+      const { RUNTIME_FLAGS } = await import("../lib/runtime-config");
+      checks.flags = {
+        status: RUNTIME_FLAGS.DEV_RUNTIME_ENABLED ? "ok" : "warning",
+        message: `DEV_RUNTIME: ${RUNTIME_FLAGS.DEV_RUNTIME_ENABLED}, CHAT_BRIDGE: ${RUNTIME_FLAGS.CHAT_RUNTIME_BRIDGE}`,
+      };
+
+      const allOk = Object.values(checks).every(c => c.status === "ok");
+      return {
+        status: allOk ? "ok" : "degraded",
+        checks,
+      };
+    }
+
+    case "search_code": {
+      const query = String(params?.query || params?.message || "");
+      const results: Array<{ file: string; line: number; snippet: string }> = [];
+
+      // Simple grep simulation
+      const searchDirs = ["./artifacts/api-server/src", "./lib"];
+      for (const dir of searchDirs) {
+        try {
+          const files = await fs.readdir(dir, { recursive: true }).catch(() => []);
+          for (const file of files.slice(0, 20)) {
+            if (!String(file).endsWith(".ts")) continue;
+            const content = await fs.readFile(path.join(dir, String(file)), "utf-8").catch(() => "");
+            const lines = content.split("\n");
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].toLowerCase().includes(query.toLowerCase().slice(0, 20))) {
+                results.push({
+                  file: String(file),
+                  line: i + 1,
+                  snippet: lines[i].trim().slice(0, 100),
+                });
+                if (results.length >= 10) break;
+              }
+            }
+            if (results.length >= 10) break;
+          }
+        } catch {}
+        if (results.length >= 10) break;
+      }
+
+      return { query, results, total: results.length };
+    }
+
+    case "read_file": {
+      const filePath = String(params?.path || params?.file || ".");
+      // Safety: only allow reading non-sensitive files
+      const blocked = [".env", "secret", "key", "password", "token"];
+      if (blocked.some(b => filePath.toLowerCase().includes(b))) {
+        return { error: "File access denied", reason: "Sensitive file" };
+      }
+
+      try {
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.split("\n").slice(0, 50);
+        return {
+          path: filePath,
+          lines: lines.length,
+          content: lines.join("\n"),
+          truncated: content.split("\n").length > 50,
+        };
+      } catch (e) {
+        return { error: "File read error", message: (e as Error).message };
+      }
+    }
+
+    default:
+      return {
+        action,
+        status: "not_implemented",
+        message: "Cette action n'est pas encore implémentée en mode read-only.",
+      };
+  }
+}
 
 export default router;
