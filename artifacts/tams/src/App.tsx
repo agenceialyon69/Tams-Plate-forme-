@@ -7,8 +7,6 @@ import { BottomNav, Sidebar } from "@/components/navigation";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 const Accueil = lazy(() => import("@/pages/accueil"));
-const Chat = lazy(() => import("@/pages/chat"));
-const Agents = lazy(() => import("@/pages/agents"));
 const Travail = lazy(() => import("@/pages/travail"));
 const Vie = lazy(() => import("@/pages/vie"));
 const Studio = lazy(() => import("@/pages/studio"));
@@ -44,8 +42,8 @@ function Router() {
       <ErrorBoundary key={location}>
         <Switch>
           <Route path="/" component={Accueil} />
-          <Route path="/chat" component={Chat} />
-          <Route path="/agents" component={Agents} />
+          <Route path="/chat" component={MonAgent} />
+          <Route path="/agents" component={MonAgent} />
           <Route path="/travail" component={Travail} />
           <Route path="/vie" component={Vie} />
           <Route path="/studio" component={Studio} />
