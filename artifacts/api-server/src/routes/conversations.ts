@@ -47,6 +47,43 @@ function reflectAfterTurn(
   }).catch(() => { /* la réflexion ne bloque jamais le chat */ });
 }
 
+// ─── Capabilities Intent Detection (HOTFIX MINIMAL) ────────────────────────────
+const CAPABILITIES_KEYWORDS = [
+  "capacités", "capacites", "compétences", "competences",
+  "que peux-tu faire", "que sais-tu faire", "que peut tu faire", "que peut tu",
+  "quels sont tes outils", "tes outils", "tes fonctions", "liste tes fonctions",
+];
+function isCapabilitiesQuery(msg: string) {
+  const n = msg.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return CAPABILITIES_KEYWORDS.some(k => n.includes(k.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+}
+const CAPABILITIES_RESPONSE = `## Mes capacités TAMS AI
+
+Je suis votre AI Operating System personnel. Voici ce que je peux faire :
+
+### Gestion des tâches et projets
+- Créer des tâches — "/tâche Appeler le client demain"
+- Créer des projets — "/projet Refonte du site web"
+
+### Gestion des contacts
+- Ajouter des contacts — "/contact Jean Dupont, Acme Corp"
+
+### Mémoire et connaissances
+- Enregistrer des informations — Personnes, entreprises, notes
+- Rechercher dans la mémoire — "Souviens-toi de..."
+
+### Studio créatif
+- Générer des images — Via Pollinations (gratuit)
+- Scripts et storyboards
+
+### Ce qui n'est PAS encore configuré :
+- Vidéo IA premium — Nécessite un provider GPU (Kling, Runway, Veo)
+- Audio IA premium — Nécessite un provider audio externe
+- Intégrations Gmail/Calendar — Non connectées
+
+Que puis-je faire pour vous maintenant ?`;
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── List conversations ─────────────────────────────────────────────────────
 
 router.get("/conversations", async (req, res) => {
@@ -229,6 +266,26 @@ router.post("/conversations/:id/stream", async (req, res) => {
     res.status(400).json({ error: "content is required" });
     return;
   }
+
+  // HOTFIX MINIMAL: Capabilities detection BEFORE any agent routing
+  if (isCapabilitiesQuery(content)) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+    const send = (d: object) => res.write(`data: ${JSON.stringify(d)}\n\n`);
+    const [u] = await db.insert(messagesTable).values({ conversationId, role: "user", content }).returning();
+    send({ type: "user_id", id: u.id });
+    for (let i = 0; i < CAPABILITIES_RESPONSE.length; i += 5) {
+      send({ type: "token", content: CAPABILITIES_RESPONSE.slice(i, i + 5) });
+    }
+    const [a] = await db.insert(messagesTable).values({ conversationId, role: "assistant", content: CAPABILITIES_RESPONSE }).returning();
+    send({ type: "done", id: a.id, toolResults: [] });
+    res.end();
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Pièces jointes IMAGE (vision) : data URLs base64. Analysées par un modèle
   // multimodal GRATUIT (Gemini). Limité à 4 images raisonnables.
