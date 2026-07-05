@@ -25,6 +25,8 @@ import {
   type RunKind,
 } from "./dev-agent-ci-operator.js";
 import { searchWeb, type SearchResult } from "./agent-tools.js";
+import { githubConfigured } from "./dev-agent-ci-operator.js";
+import { readFile, searchCode, MissingGithubConfig } from "./github-code-operator.js";
 
 // ─── Types du contrat de réponse (voir issue #94) ────────────────────────────
 
@@ -162,6 +164,8 @@ export function detectIntent(text: string): OperatorIntent {
   if (/\b(logs?|jobs?|runs?|relance|rerun|dispatch|validation ci|workflow)\b/.test(t) && /\b(ci|github|pr|pipeline|job|run|workflow)\b/.test(t)) return "github_ci";
   if (/\b(pr|pull request)\b/.test(t) && /\b(prépare|prepare|crée|cree|ouvre|fais|créer|creer)\b/.test(t)) return "github_ci";
   if (/\b(repo|dépôt|depot|code|refactor|bug|corrige|correction|patch)\b/.test(t) && /\b(analyse|audit|risques?|propose|plan|corrige)\b/.test(t)) return "github_code";
+  if (/\b(explique|montre|affiche|lis|résume|resume)\b/.test(t) && /[\w./-]+\.(ts|tsx|js|jsx|mjs|cjs|json|md|ya?ml|css|html|py|sh|sql)\b/.test(t)) return "github_code";
+  if (/\b(où est|ou est|cherche|trouve|where is)\b/.test(t) && /\b(fonctions?|function|classes?|class|fichiers?|code|variables?|endpoints?|routes?|composants?|imports?)\b/.test(t)) return "github_code";
   if (/\bred[ -]?team\b|\bavocat du diable\b|\bcritique?\b.*\b(décision|decision|plan|idée|idee)\b/.test(t)) return "red_team";
   if (/\b(tâches?|taches?|todos?|à faire|a faire)\b/.test(t)) return "task";
   if (/\b(mémoires?|memoires?|retiens|souviens|garde ça|garde ca|note ça|note ca|mémorise|memorise)\b/.test(t)) return "memory";
@@ -499,6 +503,88 @@ async function llmReply(
   }
 }
 
+/**
+ * Agent codeur — LECTURE SEULE (façon Claude Code, free-first).
+ * « explique ce fichier X » → lit le fichier (API GitHub) + synthèse LLM.
+ * « où est / cherche X »    → recherche de code.
+ * Sinon → plan (l'écriture réelle = PR dédiée, confirmation, jamais main).
+ */
+async function handleGithubCode(message: string): Promise<OperatorReply> {
+  const plan = (): OperatorReply => reply({
+    message: "Je peux LIRE le repo (explique un fichier, cherche du code) et préparer un plan. L'écriture réelle (branche → commit → PR) arrive bientôt, toujours sur confirmation, jamais sur main, jamais de merge auto.",
+    intent: "github_code", capabilityId: "dev.agent.ci",
+    actionPlan: [
+      "1. Lire les fichiers/parties concernés (API GitHub, lecture seule)",
+      "2. Identifier risques + diff minimal",
+      "3. Sur confirmation : branche dédiée → commit → PR (à venir)",
+      "4. Suivre la CI, proposer correction si échec",
+    ],
+    evidence: [{ ciOperator: ciOperatorStatus(), readTools: ["/api/code/file", "/api/code/tree", "/api/code/search"] }],
+    nextStep: "Ex : « explique artifacts/api-server/src/app.ts » ou « où est searchWeb ? ».",
+  });
+
+  if (!githubConfigured()) {
+    return notConnected("github_code", "github_repo_analyze", "L'opérateur de code (lecture du repo)",
+      "Définir GITHUB_TOKEN côté serveur pour lire les fichiers du repo.");
+  }
+
+  // Détecte un chemin de fichier (avec extension).
+  const pathMatch = message.match(/([\w.-]+\/)*[\w.-]+\.[A-Za-z0-9]{1,6}\b/);
+  const wantsExplain = /\b(explique|montre|affiche|lis|résume|resume|comprends?)\b/i.test(message);
+  if (pathMatch && (wantsExplain || /\b(fichier|file)\b/i.test(message))) {
+    try {
+      const file = await readFile({ path: pathMatch[0] });
+      const { aiConfigured, aiChat } = await import("./ai.js");
+      const excerpt = file.content.slice(0, 8000);
+      if (aiConfigured()) {
+        const c = await aiChat({
+          messages: [
+            { role: "system", content: "Tu es ingénieur senior. Explique le rôle de ce fichier, ses points clés, risques/dette éventuels. Concis, en français. Ne fabrique rien hors du code fourni." },
+            { role: "user", content: `Fichier ${file.path} (${file.repo}) :\n\n${excerpt}` },
+          ], max_tokens: 700,
+        }, "reasoning");
+        const content = c?.choices?.[0]?.message?.content ?? "";
+        return reply({
+          message: content.trim() || `Fichier ${file.path} lu (${file.size} octets).`,
+          intent: "github_code", capabilityId: "repo_architecture_analysis",
+          evidence: [{ repo: file.repo, path: file.path, size: file.size, truncated: file.truncated }],
+          nextStep: "Je peux chercher où il est utilisé (« où est X ») ou préparer un changement (PR à venir).",
+        });
+      }
+      return reply({
+        message: `Fichier ${file.path} lu (${file.size} octets). Configure une clé IA gratuite pour l'explication automatique. Extrait :\n\n${excerpt.slice(0, 1500)}`,
+        intent: "github_code", capabilityId: "repo_architecture_analysis",
+        evidence: [{ repo: file.repo, path: file.path, size: file.size, truncated: file.truncated }],
+        warnings: ["Synthèse LLM non générée (aucun provider IA configuré)"],
+      });
+    } catch (err) {
+      if (err instanceof MissingGithubConfig) return notConnected("github_code", "github_repo_analyze", "L'opérateur de code", "Définir GITHUB_TOKEN côté serveur.");
+      return reply({ message: `Lecture impossible : ${err instanceof Error ? err.message : "erreur"}`, intent: "github_code", capabilityId: "github_repo_analyze", executionStatus: "failed", nextStep: "Vérifie le chemin exact du fichier." });
+    }
+  }
+
+  // Recherche de code.
+  const search = message.match(/\b(où est|ou est|cherche|trouve|find|where is)\b\s+(.+)$/i);
+  if (search) {
+    const q = search[2].replace(/[?.!]+$/, "").trim();
+    try {
+      const r = await searchCode({ query: q, limit: 10 });
+      const list = r.hits.length ? r.hits.map(h => `• ${h.path}`).join("\n") : "(aucun résultat)";
+      return reply({
+        message: `Recherche « ${q} » : ${r.total} résultat(s).\n${list}`,
+        intent: "github_code", capabilityId: "github_repo_analyze",
+        evidence: [{ query: r.query, total: r.total, hits: r.hits }],
+        nextStep: "Dis « explique <chemin> » pour lire un de ces fichiers.",
+      });
+    } catch (err) {
+      if (err instanceof MissingGithubConfig) return notConnected("github_code", "github_repo_analyze", "L'opérateur de code", "Définir GITHUB_TOKEN côté serveur.");
+      return reply({ message: `Recherche impossible : ${err instanceof Error ? err.message : "erreur"}`, intent: "github_code", capabilityId: "github_repo_analyze", executionStatus: "failed", nextStep: "Reformule la recherche." });
+    }
+  }
+
+  return plan();
+}
+
 function notConnected(intent: OperatorIntent, capabilityId: string, label: string, setup: string): OperatorReply {
   return reply({
     message: `${label} n'est pas encore connecté. Je ne simule jamais une capacité absente. Je peux préparer l'intégration ou te guider.`,
@@ -621,22 +707,7 @@ export async function handleOperatorChat(message: string, params: Record<string,
       });
     }
     case "github_ci": return handleGithubCi(message, params);
-    case "github_code": {
-      return reply({
-        message: "Voici mon plan pour travailler sur le repo. Aucune modification sans ta confirmation — et toujours via une branche dédiée + PR, jamais main.",
-        intent, capabilityId: "dev.agent.ci",
-        actionPlan: [
-          "1. Lire le statut CI + derniers runs (lecture)",
-          "2. Identifier fichiers/risques concernés",
-          "3. Te proposer le diff minimal + plan de rollback",
-          "4. Sur confirmation : branche dédiée → commit → PR (dev.agent.ci create_pr)",
-          "5. Suivre la CI, lire les logs, proposer correction si échec",
-        ],
-        requiresConfirmation: false,
-        evidence: [{ ciOperator: ciOperatorStatus() }],
-        nextStep: "Dis « prépare une PR » pour lancer l'étape 4 (confirmation demandée).",
-      });
-    }
+    case "github_code": return handleGithubCode(message);
     case "red_team": return handleRedTeam(message);
     case "task": return handleInternalTool(intent, "create_task", { title: message.replace(/^.*?(tâche|tache|todo)\s*:?\s*/i, "").trim() || message }, "Tâche créée ✅", "task_create");
     case "memory": return handleInternalTool(intent, "create_memory", { title: message.slice(0, 120), content: message }, "Gardé en mémoire ✅", "memory_write");

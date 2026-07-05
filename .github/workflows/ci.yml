@@ -99,6 +99,12 @@ jobs:
           echo "$research" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const b=JSON.parse(s);const r=b.reply||b;if(r.intent!=="research")process.exit(1);if(r.capabilityId!=="research_source_based")process.exit(1);if(!["completed","blocked","failed"].includes(r.executionStatus))process.exit(1);console.log("research OK:",r.executionStatus,"sources:",Array.isArray(r.evidence)?r.evidence.length:0)})'
           # Capture Telegram NON configurée (pas de secret sur ce serveur) => 503 honnête.
           curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"text":"x"}' http://127.0.0.1:4000/api/integrations/telegram-capture | grep -q '503'
+          # Code operator (lecture seule) : pas de GITHUB_TOKEN en CI => 503 missing_config + validation.
+          curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/file?path=README.md' | grep -q '503'
+          curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/file' | grep -q '400'
+          curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/tree' | grep -q '503'
+          curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/search?q=searchWeb' | grep -q '503'
+          curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/search' | grep -q '400'
       - name: Smoke Personal Admin Access Gate (privé quand activé)
         run: |
           # Génère un vrai hash scrypt (chemin recommandé) → prouve générateur + vérif.

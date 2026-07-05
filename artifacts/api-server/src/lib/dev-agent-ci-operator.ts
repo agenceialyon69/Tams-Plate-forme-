@@ -9,19 +9,24 @@ function token(): string | null {
   return value && value.trim() ? value.trim() : null;
 }
 
-function repoName(input?: string): string {
+/** GITHUB_TOKEN présent ? (utilisé par le code operator lecture seule). */
+export function githubConfigured(): boolean {
+  return token() !== null;
+}
+
+export function repoName(input?: string): string {
   const repo = input || process.env.GITHUB_REPO || DEFAULT_REPO;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error("repo invalide");
   return repo;
 }
 
-function split(repo: string): { owner: string; name: string } {
+export function split(repo: string): { owner: string; name: string } {
   const [owner, name] = repo.split("/");
   if (!owner || !name) throw new Error("repo invalide");
   return { owner, name };
 }
 
-function redact(text: string): string {
+export function redact(text: string): string {
   let safe = text
     .replace(/gh[pousr]_[A-Za-z0-9_]+/g, "[redacted]")
     .replace(/github_pat_[A-Za-z0-9_]+/g, "[redacted]")
@@ -51,7 +56,7 @@ function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-async function github(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<Json | string> {
+export async function github(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<Json | string> {
   const secret = token();
   if (!secret) throw new Error("GITHUB_TOKEN manquant");
   const response = await fetch(`https://api.github.com${path}`, {
