@@ -15,6 +15,11 @@ type StudioFormat = "9:16" | "1:1" | "16:9";
 const UPLOAD_DIR = path.join(os.tmpdir(), "tams-studio-uploads");
 const MAX_UPLOAD_BYTES = 90_000_000;
 
+// HOTFIX MINIMAL: Premium keywords for video honesty
+const PREMIUM_VIDEO_KEYWORDS = ["tiktok naturel", "ugc naturel", "réaliste", "premium", "vraie vidéo", "pub tiktok", "haute conversion"];
+function isPremiumVideoExpectation(text: string) { return PREMIUM_VIDEO_KEYWORDS.some(k => text.toLowerCase().includes(k)); }
+// ─────────────────────────────────────────────────────────────────────────────
+
 const FORMAT_SIZE: Record<StudioFormat, { w: number; h: number }> = {
   "9:16": { w: 720, h: 1280 },
   "1:1": { w: 1080, h: 1080 },
@@ -300,6 +305,18 @@ router.post("/studio/generate-video", async (req, res) => {
     images?: string[]; text?: string; secondsPerImage?: number; musicUrl?: string; imageCount?: number;
   };
   try {
+    // HOTFIX MINIMAL: Video honesty - refuse premium expectations without provider
+    if (!gpuVideoUrl() && text && isPremiumVideoExpectation(text)) {
+      return res.status(503).json({
+        ok: false,
+        error: "Je ne peux pas générer une vraie vidéo IA réaliste sans provider vidéo premium.",
+        provider: null,
+        premiumRequired: true,
+        alternatives: ["Demander un script/storyboard", "Demander des prompts Kling/Runway/Veo", "Fournir des images produit pour un prototype"],
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
     const sourceImages = Array.isArray(images) && images.length > 0 ? images : autoImages(text, imageCount ?? 4);
     const gpu = await tryGpuVideo(text, sourceImages);
     if (gpu?.url) {
@@ -320,6 +337,7 @@ router.post("/studio/generate-video", async (req, res) => {
       secondsPerImage: secondsPerImage ?? 2.5,
       musicUrl,
     });
+    // HOTFIX MINIMAL: Add warning for fallback results
     return res.json({
       ok: true,
       ...result,
@@ -327,10 +345,10 @@ router.post("/studio/generate-video", async (req, res) => {
       imageProvider: sourceImages.length > 0 ? "pollinations" : "none",
       inputImages: sourceImages.length,
       gpuWarning: gpu?.error,
-      badge: result.degraded ? "fallback" : "fallback",
+      badge: "fallback",
       premiumAvailable: Boolean(gpuVideoUrl()),
       premiumStatus: gpuVideoUrl() ? "configured" : "missing_config",
-      honesty: result.degraded ? "Fallback local: résultat réel mais pas niveau vidéo premium." : "Vidéo réelle générée avec images IA gratuites + montage FFmpeg.",
+      honesty: "Prototype vidéo local / slideshow FFmpeg. Ce rendu n'est PAS adapté pour une publicité TikTok haute conversion.",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -455,6 +473,9 @@ router.get("/studio/video/status", (_req, res) => {
     premiumStatus: hasGpu ? "configured" : "missing_config",
     missingConfigMessage: hasGpu ? null : "Premium non configuré — fallback disponible",
     capabilities: hasGpu ? ["gpu_worker", "fallback_mp4"] : ["text_to_ai_images", "ai_images_to_mp4", "subtitled_overlay", "local_fallback"],
+    // HOTFIX MINIMAL: Add prototype name in status
+    prototypeName: "Prototype vidéo local / slideshow FFmpeg",
+    prototypeWarning: "Ce rendu n'est PAS adapté pour une publicité TikTok haute conversion.",
   });
 });
 
