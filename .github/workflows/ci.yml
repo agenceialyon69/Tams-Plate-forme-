@@ -111,6 +111,13 @@ jobs:
           # Boucle autonome : instruction de modif => intent github_code + confirmation ; sans token => blocked (honnête).
           chg=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"message":"modifie artifacts/api-server/src/app.ts pour ajouter un commentaire"}' http://127.0.0.1:4000/api/operator/chat)
           echo "$chg" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const b=JSON.parse(s);const r=b.reply||b;if(r.intent!=="github_code")process.exit(1);if(r.capabilityId!=="github_pr_create_confirmed")process.exit(1);if(!["blocked","completed","failed"].includes(r.executionStatus))process.exit(1);console.log("code-loop OK:",r.executionStatus)})'
+          # Documents : extraction locale d'un CSV (base64) => texte correct ; type non supporté => 400 ; vide => 400.
+          csvb64=$(printf 'name,amount\nInvoiceA,1200' | base64 -w0)
+          doc=$(curl -sf -X POST -H 'Content-Type: application/json' -d "{\"filename\":\"d.csv\",\"contentBase64\":\"$csvb64\",\"analyze\":false}" http://127.0.0.1:4000/api/documents/analyze)
+          echo "$doc" | grep -q '"type":"csv"'
+          echo "$doc" | grep -q '1200'
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"filename":"x.exe","contentBase64":"QUJD"}' http://127.0.0.1:4000/api/documents/analyze | grep -q '400'
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:4000/api/documents/analyze | grep -q '400'
       - name: Smoke Personal Admin Access Gate (privé quand activé)
         run: |
           # Génère un vrai hash scrypt (chemin recommandé) → prouve générateur + vérif.

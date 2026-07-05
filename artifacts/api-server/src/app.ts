@@ -126,6 +126,10 @@ app.use(cors({
   maxAge: 86400,
 }));
 
+// Analyse de documents : corps plus gros (fichier base64, borné à 8 Mo côté route).
+// Ce parseur passe AVANT le parseur global (100kb) et pose req.body, que le
+// parseur global saute ensuite (idempotent). Limité à cette route uniquement.
+app.use("/api/documents", express.json({ limit: "12mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
