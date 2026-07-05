@@ -43,14 +43,21 @@ function adminPasswordHash(): string | undefined {
   return env("TAMS_ADMIN_PASSWORD_HASH");
 }
 
-/** Mot de passe en clair — SEULEMENT toléré en dev local (déconseillé en prod). */
+/** Mot de passe en clair — toléré en dev / rétro-compat (déconseillé en prod). */
 function adminPasswordPlain(): string | undefined {
-  return env("TAMS_ADMIN_PASSWORD");
+  // Repli sur l'ancienne variable pour ne pas casser une config existante.
+  return env("TAMS_ADMIN_PASSWORD") || env("TAMS_PERSONAL_ACCESS_PASSWORD");
 }
 
 function sessionSecret(): string | undefined {
-  // TAMS_SESSION_SECRET prioritaire ; fallbacks pour ne pas casser l'existant.
-  return env("TAMS_SESSION_SECRET") || env("TAMS_PERSONAL_ACCESS_SECRET") || env("SESSION_SECRET");
+  // TAMS_SESSION_SECRET prioritaire ; replis larges pour ne jamais fail-closed
+  // à tort quand un secret équivalent existe déjà (rétro-compat + robustesse).
+  return (
+    env("TAMS_SESSION_SECRET") ||
+    env("TAMS_PERSONAL_ACCESS_SECRET") ||
+    env("SESSION_SECRET") ||
+    env("JWT_SECRET")
+  );
 }
 
 function configReady(): boolean {

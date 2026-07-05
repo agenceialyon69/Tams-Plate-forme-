@@ -140,6 +140,25 @@ jobs:
           echo "$cap" | grep -q '"type":"memory"'
           # aucun secret loggé
           if grep -Eq 'ci-secret-pw|ci-secret-key-long-enough|ci-capture-secret' /tmp/tams-gate.log; then echo 'SECRET LEAK in logs'; exit 1; fi
+      - name: Smoke gate — replis de config (JWT_SECRET + mot de passe legacy)
+        run: |
+          # Config "rétro-compat" : PAS de TAMS_SESSION_SECRET (repli JWT_SECRET),
+          # PAS de TAMS_ADMIN_PASSWORD_HASH (mot de passe via ancienne variable).
+          # Le gate doit être opérationnel (login OK), pas fail-closed à tort.
+          TAMS_PERSONAL_ACCESS_ENABLED=true \
+          TAMS_ADMIN_EMAIL=admin@tams.local \
+          TAMS_PERSONAL_ACCESS_PASSWORD=legacy-pw \
+          JWT_SECRET=legacy-jwt-secret-long-enough-000000 \
+          NODE_ENV=production PORT=4003 node ./artifacts/api-server/dist/index.mjs > /tmp/tams-gate2.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4003/api/healthz >/dev/null && break; sleep 1; done
+          # login page servie (pas de 503 fail-closed)
+          curl -sf http://127.0.0.1:4003/personal-access | grep -q 'Accès admin'
+          # mauvais mot de passe -> 401 (config bien reconnue)
+          curl -s -o /dev/null -w '%{http_code}' -X POST -d 'email=admin@tams.local&password=nope' http://127.0.0.1:4003/personal-access | grep -q '401'
+          # login via mot de passe legacy + secret JWT de repli -> cookie posé
+          curl -s -c /tmp/g2.txt -o /dev/null -D /tmp/g2h.txt -X POST -d 'email=admin@tams.local&password=legacy-pw' http://127.0.0.1:4003/personal-access
+          grep -qi 'set-cookie: *tams_admin_session' /tmp/g2h.txt
+          test "$(curl -s -b /tmp/g2.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:4003/api/operator/readiness)" != "401"
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
