@@ -271,10 +271,45 @@ Après configuration, tester chaque commande:
 5. `/image chat mignon` - Doit retourner une URL d'image
 6. `/gpu` - Doit lister les workers configurés/non configurés
 
+## Capture vers TAMS (note / idée / tâche)
+
+En plus du journal Google Sheet, tu peux envoyer chaque message à **TAMS** pour
+qu'il le range en **tâche** ou **mémoire**. On réutilise ton bot + ta Sheet, on
+n'ajoute qu'un nœud.
+
+### Prérequis (Railway)
+Définir la variable `TAMS_TELEGRAM_CAPTURE_SECRET` (ex. `openssl rand -base64 32`).
+Tant qu'elle est vide, l'endpoint répond `503` (canal non connecté).
+
+### Nœud à ajouter : HTTP Request « Capture TAMS »
+- **Method** : POST
+- **URL** : `https://<ton-domaine-tams>/api/integrations/telegram-capture`
+- **Headers** :
+  - `Content-Type: application/json`
+  - `x-tams-capture-secret: <la valeur de TAMS_TELEGRAM_CAPTURE_SECRET>`
+    (à stocker dans les **credentials n8n**, jamais en clair dans le workflow)
+- **Body (JSON)** :
+```json
+{
+  "text": "={{ $json.message.text }}",
+  "source": "telegram",
+  "kind": "auto"
+}
+```
+- **Réponse** : `{"ok":true,"stored":{"type":"task"|"memory","id":...}}` si stocké,
+  `401` si le secret est faux, `503` si non configuré, `502` si la base TAMS est
+  indisponible (jamais de faux succès).
+
+Astuce de classement : commence le message par « tâche : … », « todo … » ou
+« rappelle-moi … » pour créer une **tâche** ; sinon c'est rangé en **note**.
+
+> ⚠️ Cet endpoint **ne fait que stocker**. Il n'exécute jamais d'action sensible
+> (email, calendrier) — ça reste à confirmer côté Mon Agent.
+
 ## Notes importantes
 
 - **Ne jamais** mettre le token Telegram dans le code n8n ou le dépôt
-- **Ne jamais** mettre de clés API dans le dépôt
-- Utiliser les credentials n8n pour HTTP Request si nécessaire
+- **Ne jamais** mettre de clés API dans le dépôt (utiliser les credentials n8n)
+- Le secret `x-tams-capture-secret` va dans les credentials n8n, pas dans le workflow exporté
 - Le workflow GitHub Sheets sert de journal d'audit
 - Les médias générés sont temporaires (stockés dans /tmp Railway)

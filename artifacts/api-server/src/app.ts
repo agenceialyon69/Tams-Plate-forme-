@@ -168,6 +168,11 @@ app.use("/api", (req, res, next) => {
   if (req.path.startsWith("/healthz") || req.path.startsWith("/health") || req.path.startsWith("/auth")) {
     return next();
   }
+  // Webhook machine-à-machine (n8n → TAMS) : authentifié par son propre secret
+  // partagé (TAMS_TELEGRAM_CAPTURE_SECRET), donc exempté du JWT Supabase.
+  if (req.path.startsWith("/integrations/telegram-capture")) {
+    return next();
+  }
   return AUTH_REQUIRED ? requireAuth(req, res, next) : optionalAuth(req, res, next);
 });
 

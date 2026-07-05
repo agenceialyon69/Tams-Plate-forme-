@@ -169,7 +169,9 @@ function isPublicPath(req: Request): boolean {
     path === "/api/health" ||
     path === "/api/healthz" ||
     path.startsWith("/api/health/") ||
-    path.startsWith("/api/healthz/")
+    path.startsWith("/api/healthz/") ||
+    // Webhook de capture (n8n → TAMS) : authentifié par son propre secret partagé.
+    path === "/api/integrations/telegram-capture"
   );
 }
 

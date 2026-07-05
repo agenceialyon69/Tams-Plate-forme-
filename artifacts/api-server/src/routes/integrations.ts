@@ -1,7 +1,87 @@
 import { Router } from "express";
+import { timingSafeEqual } from "node:crypto";
 import { db, assetsTable } from "@workspace/db";
+import { executeTool } from "../lib/agent-tools.js";
 
 const router = Router();
+
+/**
+ * CAPTURE TELEGRAM / GOOGLE SHEET — canal free-first prioritaire.
+ *
+ * L'utilisateur a DÉJÀ un bot Telegram relié à sa Google Sheet via un workflow
+ * n8n (voir docs/n8n-console-setup.md). On NE le remplace pas : on ajoute un
+ * point d'entrée pour que ce workflow envoie une capture (note / idée / tâche)
+ * à TAMS, qui la range en tâche ou en mémoire. Le Sheet reste le journal.
+ *
+ * Sécurité : endpoint machine-à-machine (n8n → TAMS), protégé par un SECRET
+ * partagé (TAMS_TELEGRAM_CAPTURE_SECRET), comparé en temps constant. Non
+ * configuré = 503 honnête (canal "non connecté", jamais présenté comme actif).
+ * Ce endpoint ne fait QUE stocker : il n'exécute jamais d'action sensible
+ * (email, calendrier…). Toute action reste à confirmer ensuite via Mon Agent.
+ *
+ * Body : { text: string, kind?: "task"|"note"|"idea"|"auto", source?: string,
+ *          secret?: string }  (secret aussi accepté via header x-tams-capture-secret)
+ */
+function captureSecret(): string {
+  return (process.env.TAMS_TELEGRAM_CAPTURE_SECRET || "").trim();
+}
+
+function timingEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+router.post("/integrations/telegram-capture", async (req, res) => {
+  const secret = captureSecret();
+  if (!secret) {
+    return res.status(503).json({
+      ok: false,
+      code: "CAPTURE_NOT_CONFIGURED",
+      error: "Capture Telegram/Sheet non connectée. Définir TAMS_TELEGRAM_CAPTURE_SECRET côté serveur, puis pointer le workflow n8n vers ce endpoint.",
+    });
+  }
+
+  const headerSecret = req.headers["x-tams-capture-secret"];
+  const provided = (typeof headerSecret === "string" ? headerSecret : typeof req.body?.secret === "string" ? req.body.secret : "").trim();
+  if (!provided || !timingEqual(provided, secret)) {
+    req.log?.warn?.({ path: "/integrations/telegram-capture" }, "capture: secret invalide");
+    return res.status(401).json({ ok: false, error: "Secret de capture invalide" });
+  }
+
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  if (!text) {
+    return res.status(400).json({ ok: false, error: "Champ 'text' requis" });
+  }
+
+  const source = typeof req.body?.source === "string" ? req.body.source.slice(0, 60) : "telegram";
+  const rawKind = typeof req.body?.kind === "string" ? req.body.kind.toLowerCase() : "auto";
+  const looksTask = /^\/?(t[âa]che|todo|rappelle?|rappel)\b/i.test(text) || /\b(rappelle-moi|à faire|a faire)\b/i.test(text);
+  const kind = rawKind === "task" || rawKind === "note" || rawKind === "idea" ? rawKind : looksTask ? "task" : "note";
+
+  // executeTool NE throw PAS : il renvoie { __type:"error", message } en cas
+  // d'échec. On ne déclare donc "ok" QUE si un vrai enregistrement (id) existe.
+  try {
+    if (kind === "task") {
+      const title = text.replace(/^\/?(t[âa]che|todo|rappelle?-moi|rappelle?|rappel)\s*:?\s*/i, "").trim() || text;
+      const out = JSON.parse(await executeTool("create_task", { title: title.slice(0, 200), description: `Capturé via ${source}` }));
+      if (out?.__type === "error" || out?.id == null) {
+        return res.status(502).json({ ok: false, error: "Stockage TAMS indisponible (base de données ?)", detail: out?.message ?? "création de tâche échouée" });
+      }
+      return res.json({ ok: true, stored: { type: "task", id: out.id, title: out.title }, source });
+    }
+    const memType = kind === "idea" ? "goal" : "note";
+    const out = JSON.parse(await executeTool("create_memory", { title: text.slice(0, 120), content: text, type: memType, tags: ["telegram", "capture", source] }));
+    if (out?.__type === "error" || out?.id == null) {
+      return res.status(502).json({ ok: false, error: "Stockage TAMS indisponible (base de données ?)", detail: out?.message ?? "création de mémoire échouée" });
+    }
+    return res.json({ ok: true, stored: { type: "memory", id: out.id, title: out.title, memoryType: out.type }, source });
+  } catch (err) {
+    req.log?.error?.({ err }, "capture: stockage échoué");
+    return res.status(502).json({ ok: false, error: "Stockage TAMS indisponible (base de données ?)", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
 
 /**
  * Connecteur SHOPIFY — import des produits de la boutique dans TAMS (Assets).
