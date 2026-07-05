@@ -138,6 +138,18 @@ export async function confirmAction(id: string): Promise<PendingAction | null> {
       case "repair_loop_rerun":
         entry.result = await runRepairLoop({ repo: asStr(p.repo), runId: Number(p.runId), rerun: true });
         break;
+      case "code_propose": {
+        const { proposeChange } = await import("./github-code-operator.js");
+        entry.result = await proposeChange({
+          repo: asStr(p.repo),
+          branch: asStr(p.branch) || "",
+          files: Array.isArray(p.files) ? p.files as Array<{ path: string; content: string }> : [],
+          commitMessage: asStr(p.commitMessage),
+          prTitle: asStr(p.prTitle),
+          prBody: asStr(p.prBody),
+        });
+        break;
+      }
       default:
         throw new Error(`action inconnue: ${entry.action}`);
     }
@@ -509,7 +521,26 @@ async function llmReply(
  * « où est / cherche X »    → recherche de code.
  * Sinon → plan (l'écriture réelle = PR dédiée, confirmation, jamais main).
  */
-async function handleGithubCode(message: string): Promise<OperatorReply> {
+async function handleGithubCode(message: string, params: Record<string, unknown> = {}): Promise<OperatorReply> {
+  // Écriture structurée : { propose: { branch, files:[{path,content}], commitMessage, prTitle, prBody } }
+  // → CONFIRMATION obligatoire (jamais exécutée sans confirm). Jamais main, jamais merge.
+  const propose = params.propose as { branch?: string; files?: unknown[] } | undefined;
+  if (propose && Array.isArray(propose.files) && propose.files.length > 0) {
+    if (!githubConfigured()) {
+      return notConnected("github_code", "github_pr_create_confirmed", "L'écriture de code (PR)", "Définir GITHUB_TOKEN côté serveur.");
+    }
+    const branch = String(propose.branch || "").trim();
+    const entry = createPending("github_pr_create_confirmed", "code_propose", propose as Record<string, unknown>,
+      `Créer la branche « ${branch} » (${propose.files.length} fichier(s)) et ouvrir une PR — jamais main, jamais merge.`);
+    return reply({
+      message: `Changement prêt : branche « ${branch} », ${propose.files.length} fichier(s). Confirme pour créer la branche + la PR. Rien n'est écrit sans ta confirmation, jamais sur main, jamais de merge.`,
+      intent: "github_code", capabilityId: "github_pr_create_confirmed",
+      requiresConfirmation: true, confirmationId: entry.id,
+      warnings: process.env.TAMS_DEV_AGENT_PR_WRITE === "true" ? [] : ["TAMS_DEV_AGENT_PR_WRITE=false : le flag d'écriture doit être activé côté serveur pour exécuter"],
+      nextStep: "POST /api/operator/confirm { id } pour créer la PR, ou /api/operator/cancel.",
+    });
+  }
+
   const plan = (): OperatorReply => reply({
     message: "Je peux LIRE le repo (explique un fichier, cherche du code) et préparer un plan. L'écriture réelle (branche → commit → PR) arrive bientôt, toujours sur confirmation, jamais sur main, jamais de merge auto.",
     intent: "github_code", capabilityId: "dev.agent.ci",
@@ -707,7 +738,7 @@ export async function handleOperatorChat(message: string, params: Record<string,
       });
     }
     case "github_ci": return handleGithubCi(message, params);
-    case "github_code": return handleGithubCode(message);
+    case "github_code": return handleGithubCode(message, params);
     case "red_team": return handleRedTeam(message);
     case "task": return handleInternalTool(intent, "create_task", { title: message.replace(/^.*?(tâche|tache|todo)\s*:?\s*/i, "").trim() || message }, "Tâche créée ✅", "task_create");
     case "memory": return handleInternalTool(intent, "create_memory", { title: message.slice(0, 120), content: message }, "Gardé en mémoire ✅", "memory_write");

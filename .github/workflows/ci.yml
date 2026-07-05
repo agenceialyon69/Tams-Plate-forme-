@@ -105,6 +105,9 @@ jobs:
           curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/tree' | grep -q '503'
           curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/search?q=searchWeb' | grep -q '503'
           curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:4000/api/code/search' | grep -q '400'
+          # Code operator ÉCRITURE (garde-fous, flag off + pas de token ici) : main => 400, branche valide => 403.
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"branch":"main","files":[{"path":"a","content":"b"}]}' http://127.0.0.1:4000/api/code/propose | grep -q '400'
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"branch":"feat/x","files":[{"path":"a","content":"b"}]}' http://127.0.0.1:4000/api/code/propose | grep -q '403'
       - name: Smoke Personal Admin Access Gate (privé quand activé)
         run: |
           # Génère un vrai hash scrypt (chemin recommandé) → prouve générateur + vérif.
@@ -165,6 +168,12 @@ jobs:
           curl -s -c /tmp/g2.txt -o /dev/null -D /tmp/g2h.txt -X POST -d 'email=admin@tams.local&password=legacy-pw' http://127.0.0.1:4003/personal-access
           grep -qi 'set-cookie: *tams_admin_session' /tmp/g2h.txt
           test "$(curl -s -b /tmp/g2.txt -o /dev/null -w '%{http_code}' http://127.0.0.1:4003/api/operator/readiness)" != "401"
+      - name: Smoke code operator écriture — 503 sans token (flag on)
+        run: |
+          # Flag d'écriture ON mais AUCUN GITHUB_TOKEN => 503 (token requis pour écrire).
+          TAMS_DEV_AGENT_PR_WRITE=true NODE_ENV=production PORT=4030 node ./artifacts/api-server/dist/index.mjs > /tmp/tams-cw.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4030/api/healthz >/dev/null && break; sleep 1; done
+          curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"branch":"feat/x","files":[{"path":"a","content":"b"}]}' http://127.0.0.1:4030/api/code/propose | grep -q '503'
       - name: E2E navigateur
         run: |
           pnpm exec playwright install --with-deps chromium
