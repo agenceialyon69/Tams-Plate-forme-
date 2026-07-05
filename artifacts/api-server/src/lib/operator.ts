@@ -27,6 +27,7 @@ import {
 import { searchWeb, type SearchResult } from "./agent-tools.js";
 import { githubConfigured } from "./dev-agent-ci-operator.js";
 import { readFile, searchCode, MissingGithubConfig } from "./github-code-operator.js";
+import { readUrl, findUrl, BlockedUrl } from "./web-read.js";
 
 // ─── Types du contrat de réponse (voir issue #94) ────────────────────────────
 
@@ -191,6 +192,7 @@ export function detectIntent(text: string): OperatorIntent {
   if (/\b(automatis|récurrent|recurrent|tous les jours|chaque matin|chaque soir|programme)\b/.test(t)) return "automation";
   if (/\b(briefing|résumé de (ma |la )?journée|resume de (ma |la )?journee|point du matin)\b/.test(t)) return "briefing";
   if (/\b(rappelle-moi|rappels?)\b/.test(t)) return "task";
+  if (/https?:\/\/\S+/i.test(t)) return "research"; // une URL → lire la page
   if (/\b(recherche approfondie|recherches?|compare|comparatifs?|veille|synthèses?|syntheses?|rapports?|étude de marché|etude de marche)\b/.test(t)) return "research";
   if (/\b(capacités|capacites|capabilities|que peux-tu|que sais-tu faire|tes modes|aide)\b/.test(t)) return "capabilities";
   if (/\b(readiness|prêt|pret|santé|sante|diagnostic|système|systeme)\b/.test(t)) return "status";
@@ -717,6 +719,40 @@ function notConnected(intent: OperatorIntent, capabilityId: string, label: strin
  */
 async function handleResearch(message: string): Promise<OperatorReply> {
   const CAP = "research_source_based";
+
+  // Une URL dans le message → lire la page et la résumer (jamais de faux contenu).
+  const url = findUrl(message);
+  if (url) {
+    let page;
+    try {
+      page = await readUrl(url);
+    } catch (err) {
+      if (err instanceof BlockedUrl) {
+        return reply({ message: `URL refusée : ${err.message}.`, intent: "research", capabilityId: "web_read", executionStatus: "blocked", nextStep: "Fournis une URL publique http(s)." });
+      }
+      return reply({ message: `Lecture de la page impossible : ${err instanceof Error ? err.message : "erreur réseau"}. Je ne fabrique rien.`, intent: "research", capabilityId: "web_read", executionStatus: "failed", nextStep: "Vérifie l'URL ou réessaie." });
+    }
+    if (!page.text || page.text.trim().length < 20) {
+      return reply({ message: `Page lue (${page.url}) mais peu/pas de texte exploitable (page JS ou vide ?). Je ne résume pas du vide.`, intent: "research", capabilityId: "web_read", executionStatus: "blocked", evidence: [{ url: page.url, title: page.title, chars: page.chars }], nextStep: "Colle le texte, ou donne une autre URL." });
+    }
+    const { aiConfigured, aiChat } = await import("./ai.js");
+    if (!aiConfigured()) {
+      return reply({ message: `Page lue : ${page.title || page.url} (${page.chars} car.). Configure une clé IA gratuite pour le résumé automatique. Extrait :\n\n${page.text.slice(0, 1500)}`, intent: "research", capabilityId: "web_read", executionStatus: "completed", evidence: [{ url: page.url, title: page.title, chars: page.chars }], warnings: ["Synthèse LLM non générée (aucun provider IA configuré)"] });
+    }
+    try {
+      const c = await aiChat({
+        messages: [
+          { role: "system", content: "Tu es analyste. Résume la page fournie : idées clés, chiffres, conclusion. Cite l'URL. N'invente rien hors du contenu. Français, concis." },
+          { role: "user", content: `URL : ${page.url}\nTitre : ${page.title}\n\nContenu :\n${page.text.slice(0, 20000)}` },
+        ], max_tokens: 800,
+      }, "reasoning");
+      const content = c?.choices?.[0]?.message?.content ?? "";
+      return reply({ message: content.trim() || `Page lue : ${page.title || page.url}.`, intent: "research", capabilityId: "web_read", executionStatus: "completed", evidence: [{ url: page.url, title: page.title, chars: page.chars }], nextStep: "Je peux en faire des tâches, ou lire une autre source." });
+    } catch (err) {
+      return reply({ message: `Page lue (${page.url}) mais synthèse indisponible (${err instanceof Error ? err.message : "erreur"}). Extrait :\n\n${page.text.slice(0, 1500)}`, intent: "research", capabilityId: "web_read", executionStatus: "completed", evidence: [{ url: page.url, title: page.title }] });
+    }
+  }
+
   const query =
     message
       .replace(/^\s*\/?(recherches?\s+approfondies?|recherches?|cherche[rz]?|search|veilles?|synth[èe]ses?|rapports?|[ée]tude de march[ée])\s*:?\s*/i, "")
