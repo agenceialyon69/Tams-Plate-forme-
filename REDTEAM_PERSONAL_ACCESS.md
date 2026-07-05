@@ -1,112 +1,103 @@
-# RED TEAM — Personal Access Gate (PR #2)
+# RED TEAM — Personal Admin Access Gate (PR #2)
 
-**Objectif** : rendre TAMS **privé** avec un accès personnel simple, robuste et
-free-first, sans casser l'existant ni exiger de provider payant.
+## Objectif
+Rendre TAMS **privé** derrière **UN SEUL accès admin** : email + mot de passe,
+session par cookie sécurisé. UX simple : j'ouvre TAMS, je me connecte, j'utilise
+`/mon-agent`. Aligné direction produit : agent personnel privé — **pas** de
+multi-tenant, **pas** de token utilisateur, **pas** de JWT public comme gate.
 
-**Verdict** : PASS local (typecheck + build front/back + 11 smoke checks du gate
-+ non-régression du mode désactivé). Reste à confirmer en CI GitHub Actions et
-en production Railway (SHA + test navigateur réel).
+## Verdict
+PASS local (typecheck + build API + build frontend + 12 smoke checks, chemin
+hash scrypt inclus). Reste : CI GitHub success + validation prod Railway.
 
----
-
-## 1. Ce qui est ajouté
-
-| Élément | Fichier | Rôle |
-|---|---|---|
-| Middleware + handlers | `artifacts/api-server/src/middlewares/personal-access.ts` | Gate, login page, submit, logout |
-| Câblage | `artifacts/api-server/src/app.ts` | Routes `/personal-access*` + `app.use(personalAccessGate)` |
-| Smoke CI | `.github/workflows/ci.yml` | Étape « Smoke Personal Access Gate » |
-| Doc env | `.env.example` | Variables `TAMS_PERSONAL_ACCESS_*` |
-
-**Réutilisation, pas réécriture** : le middleware provient de la branche
-`redteam/personal-access-gate` (travail déjà commencé), finalisé + câblé ici.
-
-## 2. Comportement
-
-- **Actif uniquement si `TAMS_PERSONAL_ACCESS_ENABLED=true`.** Sinon 100 % no-op :
-  comportement historique strictement inchangé (prouvé : `/mon-agent`=200,
-  `/api/operator/status`=200 en mode désactivé).
-- Quand actif, le gate protège **tout** sauf les chemins publics.
-
-### Chemins toujours publics (`isPublicPath`)
-- `/personal-access`, `/personal-access/logout`, `/favicon.ico`
-- `/api/health`, `/api/healthz` (+ sous-chemins) — health checks Railway
-- `/api/auth` (+ sous-chemins) — flux Supabase
-
-### Routes
-- `GET /personal-access` → page de login (HTML autoportée, inline CSS).
-- `POST /personal-access` → vérifie identifiants, pose le cookie, redirige `next`.
-- `POST /personal-access/logout` → efface le cookie, redirige vers le login.
-
-### Réponses du gate sans session
-- Chemin `/api/*` → **401 JSON** `{ error: "Acces personnel requis", login: "/personal-access" }`.
-- Autre chemin (UI/SPA) → **302** vers `/personal-access?next=…`.
-
-## 3. Sécurité (analyse adversariale)
-
-| Menace | Mitigation |
+## Fichiers modifiés / ajoutés
+| Fichier | Rôle |
 |---|---|
-| Vol de session / lecture JS du cookie | Cookie **HttpOnly** |
-| CSRF | **SameSite=Strict** |
-| Interception réseau | **Secure** en production (`NODE_ENV==='production'`) |
-| Forge de token | Token signé **HMAC-SHA256** (`TAMS_PERSONAL_ACCESS_SECRET`), vérifié à chaque requête |
-| Timing attack sur mdp/username | `crypto.timingSafeEqual` (comparaison à temps constant) |
-| Session éternelle | Expiration `iat + MAX_AGE_MS` (défaut 12 h), configurable |
-| Open redirect via `?next=` | `internalNext()` : refuse tout ce qui ne commence pas par `/`, bloque `//`, borne à 256 chars, exclut `/personal-access` |
-| XSS dans le message d'erreur | Échappement `< > & "` avant rendu |
-| Fail-open si mal configuré | **Fail-closed** : `ENABLED=true` sans PASSWORD+SECRET → 503 partout, jamais d'accès |
-| Fuite de secret | Aucun secret rendu ni loggé (vérifié : grep sur les logs du serveur = 0 occurrence) |
+| `artifacts/api-server/src/middlewares/personal-access.ts` | Gate + login/submit/logout, email + hash scrypt, cookie signé |
+| `artifacts/api-server/src/app.ts` | (déjà câblé) routes `/personal-access*` + `app.use(personalAccessGate)` |
+| `scripts/hash-admin-password.mjs` | Génère `TAMS_ADMIN_PASSWORD_HASH` (scrypt) |
+| `.github/workflows/ci.yml` | Smoke gate admin (email + hash + logout) |
+| `.env.example` | Variables `TAMS_ADMIN_*` / `TAMS_SESSION_*` |
 
-### Limites honnêtes / résidus
-- **Un seul utilisateur** (username/password unique) — c'est voulu (projet
-  personnel, pas multi-tenant).
-- Pas de rate-limit dédié sur le login au-delà du `defaultRateLimit` global —
-  acceptable pour un usage perso ; à durcir si l'URL devient publiquement connue.
-- Le mdp est comparé en clair via `timingSafeEqual` (pas de hash type bcrypt) :
-  suffisant pour un secret d'env perso, mais ce n'est pas une base d'utilisateurs.
-- Le token n'a pas de révocation côté serveur (stateless HMAC) : un logout efface
-  le cookie mais un token volé reste valide jusqu'à expiration. Réduire
-  `TAMS_PERSONAL_ACCESS_MAX_AGE_MS` si besoin.
-
-## 4. `REQUIRE_AUTH` — NON touché (règle critique)
-
-Ce gate est **indépendant** de `REQUIRE_AUTH` (auth Supabase par JWT). Le code
-**ne met PAS** `REQUIRE_AUTH=false`.
-
-**Quand mettre `REQUIRE_AUTH=false` ?** Seulement **après** avoir validé le
-Personal Access Gate **en production** (login OK, cookie posé, `/mon-agent`
-accessible connecté, `/api/operator/*` en 401 sans session). Le gate devient
-alors la couche de confidentialité, et `REQUIRE_AUTH` (JWT) peut rester off tant
-qu'il n'y a pas d'UI de login Supabase — sans exposer TAMS publiquement. À ne
-faire qu'après le test prod réel.
-
-## 5. Preuves (local, ce commit)
-
-- `pnpm run typecheck` → **Done** (api-server inclus).
-- Build frontend (`@workspace/tams`) → **built**. Build API → **Done**.
-- Serveur `NODE_ENV=production` **gate activé** (port 4002), 11/11 checks PASS :
-  - `/api/healthz` public (200)
-  - `/personal-access` affiche le login
-  - `/mon-agent` sans session → 302
-  - `/api/operator/status` sans session → 401
-  - mauvais mot de passe → 401
-  - login OK → `Set-Cookie: tams_personal_session … HttpOnly; Secure; SameSite=Strict`
-  - avec session → `/api/operator/status` ≠ 401
-  - logout → 302
-  - aucun secret dans les logs
-- Serveur **gate désactivé** (port 4003) : `/mon-agent`=200, `/api/operator/status`=200,
-  `/personal-access`→302 vers `/` → **non-régression confirmée**.
-
-## 6. Configuration Railway (à faire par le propriétaire)
-
+## Variables Railway à configurer
 ```
 TAMS_PERSONAL_ACCESS_ENABLED=true
-TAMS_PERSONAL_ACCESS_USERNAME=admin
-TAMS_PERSONAL_ACCESS_PASSWORD=<un mot de passe fort>
-TAMS_PERSONAL_ACCESS_SECRET=<openssl rand -base64 48>
-# optionnel :
-TAMS_PERSONAL_ACCESS_MAX_AGE_MS=43200000
+TAMS_ADMIN_EMAIL=<ton-email-admin>
+TAMS_ADMIN_PASSWORD_HASH=<sortie de: node scripts/hash-admin-password.mjs 'mdp'>
+TAMS_SESSION_SECRET=<openssl rand -base64 48>
+TAMS_SESSION_MAX_AGE_MS=43200000   # optionnel (défaut 12h)
 ```
+Dev local seulement (déconseillé en prod) : `TAMS_ADMIN_PASSWORD=<clair>` à la
+place du hash. Le hash est prioritaire s'il est présent.
 
-Ne jamais committer les vraies valeurs. `NODE_ENV=production` garantit le flag
-`Secure` sur le cookie (donc HTTPS obligatoire).
+## Comportement
+- **Actif uniquement** si `TAMS_PERSONAL_ACCESS_ENABLED=true` ; sinon **no-op**
+  total (aucune régression).
+- Publics : `/api/health`, `/api/healthz` (+ sous-chemins), la page de login,
+  `/favicon.ico`. La page de login est **autoportée** (CSS inline) → aucun asset
+  statique à ouvrir.
+- Protégés : `/mon-agent`, `/api/operator/*`, Studio, tout le reste.
+- Sans session : `/api/*` → **401** `Acces admin requis` ; UI → **302** vers
+  `/personal-access?next=…`.
+- `GET /personal-access` (login), `POST /personal-access` (connexion),
+  `POST /personal-access/logout` (déconnexion, efface le cookie).
+
+## Sécurité (analyse adversariale)
+| Menace | Mitigation |
+|---|---|
+| Mot de passe en clair au repos | **scrypt** (`TAMS_ADMIN_PASSWORD_HASH`), clair seulement en dev |
+| Vol de cookie via JS | **HttpOnly** |
+| CSRF | **SameSite=Strict** |
+| Interception réseau | **Secure** en production (HTTPS obligatoire) |
+| Forge de session | Token **HMAC-SHA256** (`TAMS_SESSION_SECRET`), vérifié à chaque requête |
+| Timing attack email/mdp | `timingSafeEqual` + email et mot de passe **toujours** vérifiés (pas de court-circuit révélateur) |
+| Énumération (quel champ est faux ?) | Message unique « Email ou mot de passe incorrect » |
+| Session éternelle | Expiration `iat + MAX_AGE_MS` (défaut 12h) |
+| Open redirect via `?next=` | `internalNext()` : interne relatif only, bloque `//`, borne 256, exclut `/personal-access` |
+| XSS message d'erreur | Échappement `< > & "` |
+| Mauvaise config = ouvert | **Fail-closed** : 503 partout, jamais d'accès |
+| Fuite de secret | Aucun secret rendu ni loggé (vérifié par grep sur logs serveur) |
+| Hash mal formé | Fail-closed (refus) |
+
+## Direction produit — conformité
+- ✅ 1 seul admin (email + mot de passe) · ✅ pas de JWT public comme gate
+- ✅ pas de token/x-api-key utilisateur · ✅ pas de multi-tenant / tenantId
+- ✅ pas de register / invite / rôles owner/admin/member/viewer
+- Inspiration de l'ancien `auth-jwt.ts` limitée à : `timingSafeEqual`, logs
+  unauthorized, public paths. Rien repris de tenant/role/register/invite/x-api-key.
+
+## Tests lancés (local)
+`typecheck API` · `build API` · `build frontend` · serveur gate activé :
+- GET `/personal-access` = 200 (login admin)
+- POST mauvais mot de passe = 401 · POST mauvais email = 401
+- POST bon email + **hash scrypt** = 200 + `Set-Cookie tams_admin_session … HttpOnly; Secure; SameSite=Strict`
+- `/api/operator/readiness` sans session = 401 · avec session ≠ 401
+- `/mon-agent` sans session = 302 · `/api/health` public = 200
+- logout = 302 · **aucun secret loggé**
+- non-régression (gate off) : `/mon-agent`=200, `/api/operator/*`=200
+- `/api/operator/capabilities` + `/api/operator/readiness` intacts · Studio intact
+
+## Limites
+- **Un seul admin** (voulu). Pas de reset mot de passe self-service (régénérer le
+  hash + redéployer). Token stateless : logout efface le cookie mais un token
+  volé reste valide jusqu'à expiration → réduire `TAMS_SESSION_MAX_AGE_MS` si besoin.
+- Pas de rate-limit dédié au login au-delà du `defaultRateLimit` global.
+
+## Procédure de validation production
+1. Générer le hash : `node scripts/hash-admin-password.mjs 'mdp-fort'`.
+2. Poser les variables `TAMS_*` sur Railway (ci-dessus), `NODE_ENV=production`.
+3. Redéployer. Vérifier : `/mon-agent` → redirige login ; login → accès OK ;
+   `/api/operator/readiness` sans cookie = 401 ; `/api/healthz` = 200.
+4. Vérifier le cookie `tams_admin_session` : `HttpOnly; Secure; SameSite=Strict`.
+
+## Quand basculer REQUIRE_AUTH=false
+`REQUIRE_AUTH` (auth Supabase JWT) et ce gate sont **indépendants**. Le code ne
+met **jamais** `REQUIRE_AUTH=false`. Ne le passer à `false` **sur Railway
+uniquement** qu'**après** avoir validé le gate admin en prod (étape 3 ci-dessus).
+Le gate admin devient alors la couche de confidentialité ; `REQUIRE_AUTH` peut
+rester off sans exposer TAMS publiquement.
+
+## Rollback
+- Immédiat : `TAMS_PERSONAL_ACCESS_ENABLED=false` sur Railway → gate no-op,
+  comportement d'avant restauré (aucun redéploiement de code requis).
+- Code : revert du commit / de la PR #2 (le gate est additif et isolé).
