@@ -585,13 +585,14 @@ function StructuredContent({ content }: { content: string }) {
 }
 
 interface ContentBlockType {
-  type: "text" | "code" | "table" | "quote" | "list" | "heading";
+  type: "text" | "code" | "table" | "quote" | "list" | "heading" | "media";
   content: string;
   language?: string;
   headers?: string[];
   rows?: string[][];
   items?: string[];
   level?: number;
+  mediaKind?: "video" | "image" | "audio";
 }
 
 function parseContent(content: string): ContentBlockType[] {
@@ -601,6 +602,14 @@ function parseContent(content: string): ContentBlockType[] {
 
   while (i < lines.length) {
     const line = lines[i];
+
+    // Média : VIDEO:<url> / IMAGE:<url> / AUDIO:<url> (une ligne = un lecteur).
+    const media = line.match(/^(VIDEO|IMAGE|AUDIO):(\S+)$/);
+    if (media) {
+      blocks.push({ type: "media", content: media[2], mediaKind: media[1].toLowerCase() as "video" | "image" | "audio" });
+      i++;
+      continue;
+    }
 
     // Code block
     if (line.startsWith("```")) {
@@ -719,6 +728,21 @@ function highlightCode(code: string, language?: string): React.ReactNode {
 
 function ContentBlock({ block }: { block: ContentBlockType }) {
   switch (block.type) {
+    case "media":
+      if (block.mediaKind === "video") {
+        return (
+          <video src={block.content} controls playsInline className="my-2 rounded-xl w-full max-w-[280px] aspect-[9/16] object-cover border border-border bg-black" />
+        );
+      }
+      if (block.mediaKind === "audio") {
+        return <audio src={block.content} controls className="my-2 w-full max-w-[320px]" />;
+      }
+      return (
+        <a href={block.content} target="_blank" rel="noreferrer">
+          <img src={block.content} alt="Média généré" loading="lazy" className="my-2 rounded-xl w-full max-w-[280px] object-cover border border-border" />
+        </a>
+      );
+
     case "code":
       return (
         <div className="rounded-xl overflow-hidden bg-[#1e1e2e] border border-border/50 my-2">
@@ -1364,38 +1388,53 @@ export default function Chat() {
             }),
             signal: abortRef.current.signal,
           });
-          if (!studioResponse.ok) throw new Error(`Studio HTTP ${studioResponse.status}`);
-          const plan = await studioResponse.json() as {
+          const plan = studioResponse.ok ? await studioResponse.json() as {
             creativeBrief?: string; scriptPlan?: string; storyboardPlan?: string;
-            assetPlan?: unknown[]; productionSteps?: Array<{ order?: number; name?: string; notes?: string }>; exportTargets?: string[];
-            honestLimitations?: string[]; missingCapabilities?: string[];
-          };
-          const videoPrompt = [
-            "Create a production-ready video from this brief:",
-            plan.creativeBrief,
-            plan.scriptPlan,
-            plan.storyboardPlan,
-            "Respect the target platform, pacing, shots and CTA. Do not invent product claims.",
-          ].filter(Boolean).join("\n\n");
-          const videoPlan = [
-            "Plan vidéo préparé par TAMS Studio",
+          } : {};
+
+          // GÉNÈRE RÉELLEMENT le MP4 (diaporama composé FFmpeg + images Pollinations).
+          setThinkingSteps(["Génération des visuels...", "Assemblage vidéo (FFmpeg)..."]);
+          let videoUrl = "";
+          let genError = "";
+          try {
+            const gen = await fetch(`${API_BASE}/api/capabilities/execute`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ capabilityId: "video.generate", input: content }),
+              signal: abortRef.current.signal,
+            });
+            const genData = await gen.json().catch(() => ({})) as { artifact?: { url?: string }; result?: string; error?: string };
+            const rawUrl = genData.artifact?.url;
+            if (gen.ok && typeof rawUrl === "string" && rawUrl.length > 0) {
+              videoUrl = rawUrl.startsWith("http") ? rawUrl : `${API_BASE}${rawUrl}`;
+            } else {
+              genError = genData.error || `échec (HTTP ${gen.status})`;
+            }
+          } catch (e) {
+            genError = e instanceof Error ? e.message : "erreur réseau";
+          }
+
+          const shortPlan = [
             plan.creativeBrief && `BRIEF\n${plan.creativeBrief}`,
-            "HOOK\n« Le legging qui suit ton rythme, dans une démonstration UGC naturelle. »",
-            plan.scriptPlan && `SCRIPT / PLAN DE TOURNAGE\n${plan.scriptPlan}`,
-            plan.storyboardPlan && `STORYBOARD\n${plan.storyboardPlan}`,
-            "SHOT LIST\n1. Gros plan produit/matière.\n2. Mise en situation activewear.\n3. Mouvement en plan large.\n4. Détail coupe et confort.\n5. Résultat puis CTA.",
-            `PROMPT KLING / RUNWAY / VEO\n${videoPrompt}`,
-            "CAPTIONS\nBouge librement. Reste toi-même. Découvre la collection. #activewear #tiktokfashion #movement",
-            "CTA\nDécouvre le legging et vérifie les détails produit avant de commander.",
-            plan.productionSteps?.length ? `PLAN DE MONTAGE\n${plan.productionSteps.map(step => `${step.order ?? "-"}. ${step.name ?? "Étape"} — ${step.notes ?? ""}`).join("\n")}` : "",
-            plan.exportTargets?.length ? `EXPORTS\n- ${plan.exportTargets.join("\n- ")}` : "",
-            "LIMITES\nLa génération vidéo réelle n’est pas encore connectée. Aucun fichier vidéo n’a été généré. Je peux préparer le plan complet et le prompt utilisable dans un générateur vidéo externe.",
-            ...(plan.honestLimitations ?? []),
-            ...(plan.missingCapabilities ?? []),
-            "PROCHAINE ACTION\nOuvrez Studio pour ajuster le plan ou copiez le prompt dans Kling, Runway ou Veo.",
+            plan.scriptPlan && `SCRIPT\n${plan.scriptPlan}`,
           ].filter(Boolean).join("\n\n");
-          setStreamingContent(videoPlan);
-          appendDurableMessage(selectedId, "assistant", videoPlan);
+
+          const videoMessage = videoUrl
+            ? [
+                "🎬 Vidéo générée (diaporama composé FFmpeg — pas de l'IA vidéo type Veo/Runway, mais un vrai fichier).",
+                `VIDEO:${videoUrl}`,
+                shortPlan,
+                "Astuce : pour un rendu plus fort, fournis tes vraies photos produit.",
+              ].filter(Boolean).join("\n\n")
+            : [
+                "Je n'ai pas pu générer le fichier vidéo maintenant.",
+                genError ? `Raison : ${genError}` : "",
+                shortPlan,
+                "Réessaie, ou ouvre le Studio pour ajuster.",
+              ].filter(Boolean).join("\n\n");
+
+          setStreamingContent(videoMessage);
+          appendDurableMessage(selectedId, "assistant", videoMessage);
           doneReceived = false;
           return;
         }
@@ -1503,8 +1542,8 @@ export default function Chat() {
             "CTA",
             "Découvre le legging et vérifie les détails produit.",
             "",
-            "LIMITATION",
-            "La génération vidéo réelle n’est pas encore connectée. Ce résultat est un plan de secours, aucun fichier vidéo n’a été généré.",
+            "NOTE",
+            "Le serveur vidéo était injoignable à l’instant : voici un plan de secours. Réessaie ta demande pour générer le fichier MP4 (diaporama composé FFmpeg).",
             "",
             `DÉTAIL TECHNIQUE : ${technicalReason}`,
           ].join("\n")
