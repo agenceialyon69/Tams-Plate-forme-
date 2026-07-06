@@ -52,6 +52,39 @@ type DurableChatMessage = {
   createdAt: string;
 };
 
+// Persistance locale RÉELLE des messages du Chat. Avant, `durableLocalMessages`
+// n'était jamais sauvegardé → au moindre rechargement/navigation, les messages
+// disparaissaient. On les garde en localStorage (dernier 500) pour qu'ils
+// survivent même si la base serveur est momentanément indisponible.
+const DURABLE_MESSAGES_KEY = "tams.chat.durableMessages.v1";
+const DURABLE_MESSAGES_CAP = 500;
+
+function loadDurableMessages(): DurableChatMessage[] {
+  try {
+    const raw = localStorage.getItem(DURABLE_MESSAGES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (m): m is DurableChatMessage =>
+        m && typeof m.id === "string" && typeof m.conversationId === "number" &&
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string" && typeof m.createdAt === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveDurableMessages(messages: DurableChatMessage[]): void {
+  try {
+    const trimmed = messages.slice(-DURABLE_MESSAGES_CAP);
+    localStorage.setItem(DURABLE_MESSAGES_KEY, JSON.stringify(trimmed));
+  } catch {
+    /* quota plein ou storage indisponible : on n'échoue jamais le chat */
+  }
+}
+
 const MODES = [
   { value: "chat", label: "Conversation", icon: MessageSquare },
   { value: "chief_of_staff", label: "Chef de Cabinet", icon: Zap },
@@ -1155,7 +1188,7 @@ export default function Chat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [pendingUser, setPendingUser] = useState<string | null>(null);
-  const [durableLocalMessages, setDurableLocalMessages] = useState<DurableChatMessage[]>([]);
+  const [durableLocalMessages, setDurableLocalMessages] = useState<DurableChatMessage[]>(loadDurableMessages);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [showSlashPicker, setShowSlashPicker] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
@@ -1180,6 +1213,11 @@ export default function Chat() {
 
   // Pièces jointes image (vision) : data URLs base64 envoyées à Gemini (gratuit).
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  // Pièces jointes document (PDF/DOCX/CSV/TXT) : texte extrait localement et
+  // injecté comme contexte dans le message (endpoint /api/documents/analyze).
+  const [attachedDocs, setAttachedDocs] = useState<{ name: string; text: string; chars: number }[]>([]);
+  const [docBusy, setDocBusy] = useState(false);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/")).slice(0, 4);
@@ -1196,6 +1234,55 @@ export default function Chat() {
       reader.readAsDataURL(file);
     });
     e.target.value = "";
+  }
+
+  async function handleDocsSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []).slice(0, 3);
+    e.target.value = "";
+    for (const file of files) {
+      if (attachedDocs.length >= 3) break;
+      if (file.size > 8_000_000) {
+        toast({ title: "Document trop lourd", description: "Maximum ~8 Mo par fichier.", variant: "destructive" });
+        continue;
+      }
+      setDocBusy(true);
+      try {
+        const contentBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.includes(",") ? result.split(",")[1] : result);
+          };
+          reader.onerror = () => reject(new Error("lecture impossible"));
+          reader.readAsDataURL(file);
+        });
+        const res = await fetch(`${API_BASE}/api/documents/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name, contentBase64, analyze: false }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+        const text: string = data.extraction?.text || data.extraction?.preview || "";
+        if (!text.trim()) {
+          toast({ title: "Aucun texte extractible", description: data.extraction?.note || `${file.name} : rien à lire (PDF scanné ?).`, variant: "destructive" });
+          continue;
+        }
+        setAttachedDocs((prev) => [...prev, { name: file.name, text, chars: data.extraction?.chars ?? text.length }]);
+      } catch (err) {
+        toast({ title: "Document illisible", description: `${file.name} : ${err instanceof Error ? err.message : "erreur"}`, variant: "destructive" });
+      } finally {
+        setDocBusy(false);
+      }
+    }
+  }
+
+  function buildContentWithDocs(base: string): string {
+    if (attachedDocs.length === 0) return base;
+    const blocks = attachedDocs
+      .map((d) => `--- Document joint : ${d.name} (${d.chars} caractères) ---\n${d.text}`)
+      .join("\n\n");
+    return `${base}\n\n${blocks}`;
   }
 
   const { data: conversations = [], isLoading: convLoading } = useListConversations();
@@ -1232,6 +1319,12 @@ export default function Chat() {
       },
     ]);
   }, []);
+
+  // Sauvegarde locale à chaque changement → les messages survivent au
+  // rechargement et à la navigation (fin des "messages qui disparaissent").
+  useEffect(() => {
+    saveDurableMessages(durableLocalMessages);
+  }, [durableLocalMessages]);
 
   // Filter conversations by search query
   const filteredConversations = useMemo(() => {
@@ -1568,11 +1661,14 @@ export default function Chat() {
   }, [selectedId, isStreaming, qc, toast, appendDurableMessage]);
 
   function handleSend() {
-    if ((!message.trim() && attachedImages.length === 0) || !selectedId || isStreaming) return;
-    const content = message.trim() || "Analyse cette image et décris ce que tu vois.";
+    if ((!message.trim() && attachedImages.length === 0 && attachedDocs.length === 0) || !selectedId || isStreaming) return;
+    const base = message.trim()
+      || (attachedDocs.length > 0 ? "Analyse le(s) document(s) joint(s) et donne-moi l'essentiel." : "Analyse cette image et décris ce que tu vois.");
+    const content = buildContentWithDocs(base);
     const imgs = attachedImages;
     setMessage("");
     setAttachedImages([]);
+    setAttachedDocs([]);
     if (inputRef.current) inputRef.current.style.height = "auto";
     streamMessage(content, imgs);
   }
@@ -1998,6 +2094,29 @@ export default function Chat() {
                     ))}
                   </div>
                 )}
+                {/* Aperçu des documents joints (texte extrait injecté au message) */}
+                {(attachedDocs.length > 0 || docBusy) && (
+                  <div className="flex gap-2 flex-wrap mb-2">
+                    {attachedDocs.map((doc, i) => (
+                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary border border-border text-xs text-foreground max-w-[200px]">
+                        <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{doc.name}</span>
+                        <button
+                          onClick={() => setAttachedDocs((prev) => prev.filter((_, j) => j !== i))}
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          aria-label="Retirer le document"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {docBusy && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary border border-border text-xs text-muted-foreground">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Lecture du document…
+                      </div>
+                    )}
+                  </div>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -2005,6 +2124,14 @@ export default function Chat() {
                   multiple
                   className="hidden"
                   onChange={handleFilesSelected}
+                />
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.csv,.txt,.md,.json,text/*,application/pdf"
+                  multiple
+                  className="hidden"
+                  onChange={handleDocsSelected}
                 />
                 <div className="flex gap-2 items-end">
                   <button
@@ -2015,6 +2142,15 @@ export default function Chat() {
                     aria-label="Joindre une image"
                   >
                     <Paperclip className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => docInputRef.current?.click()}
+                    disabled={isStreaming || docBusy || attachedDocs.length >= 3}
+                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-secondary text-muted-foreground border border-border/50 transition-all hover:text-foreground hover:bg-accent active:scale-[0.98] disabled:opacity-40"
+                    title="Joindre un document (PDF, DOCX, CSV, TXT)"
+                    aria-label="Joindre un document"
+                  >
+                    <FileText className="w-4 h-4" />
                   </button>
                   <div className="flex-1 relative">
                     <textarea
@@ -2049,10 +2185,10 @@ export default function Chat() {
                   ) : (
                     <button
                       onClick={handleSend}
-                      disabled={!message.trim() && attachedImages.length === 0}
+                      disabled={!message.trim() && attachedImages.length === 0 && attachedDocs.length === 0}
                       className={cn(
                         "shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 transition-all hover:bg-primary/90 active:scale-[0.98] shadow-lg shadow-primary/20 ripple-btn",
-                        (message.trim() || attachedImages.length > 0) && "animate-glow-pulse"
+                        (message.trim() || attachedImages.length > 0 || attachedDocs.length > 0) && "animate-glow-pulse"
                       )}
                       aria-label="Envoyer"
                     >

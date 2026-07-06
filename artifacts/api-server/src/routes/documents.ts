@@ -69,7 +69,16 @@ router.post("/documents/analyze", async (req, res) => {
 
     return res.json({
       ok: true,
-      extraction: { type: extraction.type, chars: extraction.chars, truncated: extraction.truncated, note: extraction.note, preview: extraction.text.slice(0, 2000) },
+      extraction: {
+        type: extraction.type,
+        chars: extraction.chars,
+        truncated: extraction.truncated,
+        note: extraction.note,
+        preview: extraction.text.slice(0, 2000),
+        // Texte borné réellement exploitable (ex. injection dans le Chat comme
+        // contexte). Plafonné pour ne pas exploser la charge / le prompt.
+        text: extraction.text.slice(0, 16000),
+      },
       analysis,
       analysisAvailable: analysis !== null,
     });
