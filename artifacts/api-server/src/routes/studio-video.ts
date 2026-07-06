@@ -309,7 +309,19 @@ router.post("/studio/generate-video", async (req, res) => {
     // UNIQUEMENT `caption` : par défaut vide → pas de texte technique estampillé
     // sur la vidéo (correction du prompt brut affiché à l'écran).
     const overlay = typeof caption === "string" ? caption.trim() : "";
-    const sourceImages = Array.isArray(images) && images.length > 0 ? images : autoImages(text, imageCount ?? 4);
+    const rawImages = Array.isArray(images) && images.length > 0 ? images : autoImages(text, imageCount ?? 4);
+    // Les photos uploadées ont une URL /api/studio/upload/<fichier> (relative ou
+    // absolue) : on les résout en chemin disque local (file://) pour que FFmpeg
+    // les lise vraiment — sinon elles étaient rejetées et la vidéo tombait sur le
+    // fallback texte "Vidéo générée par TAMS Studio".
+    const sourceImages = rawImages.map((u) => {
+      const m = typeof u === "string" ? u.match(/\/api\/studio\/upload\/([\w.-]+)$/) : null;
+      if (m) {
+        const local = path.join(UPLOAD_DIR, m[1]);
+        if (existsSync(local)) return `file://${local}`;
+      }
+      return u;
+    });
     const gpu = await tryGpuVideo(text, sourceImages);
     if (gpu?.url) {
       return res.json({
