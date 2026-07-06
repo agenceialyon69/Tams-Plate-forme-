@@ -27,7 +27,7 @@ Le gate est **indépendant** de l'auth Supabase et n'est actif que si activé.
 | Variable | Valeur | Rôle |
 |---|---|---|
 | `TAMS_PERSONAL_ACCESS_ENABLED` | `true` | Active le gate (sinon 100% no-op) |
-| `TAMS_ADMIN_EMAIL` | `fremannaz13@gmail.com` | Seul email autorisé |
+| `TAMS_ADMIN_EMAIL` | *(l'email exact de connexion, ex. `tamsplateforme@gmail.com`)* | Seul email autorisé — **doit correspondre à l'email avec lequel tu te connectes** |
 | `TAMS_ADMIN_PASSWORD` | *(mot de passe fort)* | Mot de passe (repli simple, sans hash) |
 | `TAMS_SESSION_SECRET` | *(chaîne aléatoire 40+ car.)* | Signe le cookie de session |
 
