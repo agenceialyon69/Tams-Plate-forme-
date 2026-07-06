@@ -1219,6 +1219,15 @@ export default function Chat() {
   const [docBusy, setDocBusy] = useState(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
+  // Mode "Agent" (niveau Claude) : l'IA choisit ses outils (web, url, tâches,
+  // mémoire, image) via /api/agent/chat. Activé par défaut, mémorisé.
+  const [agentMode, setAgentMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("tams.chat.agentMode") !== "false"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("tams.chat.agentMode", agentMode ? "true" : "false"); } catch { /* ignore */ }
+  }, [agentMode]);
+
   function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/")).slice(0, 4);
     files.forEach((file) => {
@@ -1451,6 +1460,48 @@ export default function Chat() {
     setIsError(false);
     setLastFailedMessage(null);
 
+    // ─── Mode Agent : vrai moteur agentique (l'IA choisit ses outils) ───
+    if (agentMode) {
+      setThinkingSteps(["Analyse de ta demande…", "Choix des outils…", "Rédaction de la réponse…"]);
+      const controller = new AbortController();
+      const agentTimeout = window.setTimeout(() => controller.abort(), 120_000);
+      try {
+        const history = displayedMessages
+          .slice(-12)
+          .map(m => ({ role: m.role, content: m.content }))
+          .filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim());
+        const res = await fetch(`${API_BASE}/api/agent/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: content, history }),
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => ({} as Record<string, unknown>));
+        if (res.ok && (data as { ok?: boolean }).ok) {
+          const steps = Array.isArray((data as { steps?: { tool: string }[] }).steps) ? (data as { steps: { tool: string }[] }).steps : [];
+          const tools = [...new Set(steps.map(s => s.tool))];
+          const suffix = tools.length ? `\n\n_🛠️ Outils utilisés : ${tools.join(", ")}_` : "";
+          appendDurableMessage(selectedId, "assistant", `${(data as { message?: string }).message || ""}${suffix}`);
+        } else if (res.status === 503) {
+          appendDurableMessage(selectedId, "assistant", (data as { error?: string }).error || "IA non configurée. Ajoute GROQ_API_KEY (gratuit) sur Railway pour activer l'agent.");
+        } else {
+          setIsError(true);
+          setLastFailedMessage(content);
+          appendDurableMessage(selectedId, "assistant", (data as { error?: string }).error || "L'agent n'a pas pu répondre. Réessaie.");
+        }
+      } catch {
+        setIsError(true);
+        setLastFailedMessage(content);
+        appendDurableMessage(selectedId, "assistant", "L'agent a mis trop de temps ou le réseau a coupé. Réessaie.");
+      } finally {
+        window.clearTimeout(agentTimeout);
+        setIsStreaming(false);
+        setThinkingSteps([]);
+        setPendingUser(null);
+      }
+      return;
+    }
+
     abortRef.current = new AbortController();
     let doneReceived = false;
     let assembledContent = "";
@@ -1658,7 +1709,7 @@ export default function Chat() {
       setPendingUser(null);
       setThinkingSteps([]);
     }
-  }, [selectedId, isStreaming, qc, toast, appendDurableMessage]);
+  }, [selectedId, isStreaming, qc, toast, appendDurableMessage, agentMode, displayedMessages]);
 
   function handleSend() {
     if ((!message.trim() && attachedImages.length === 0 && attachedDocs.length === 0) || !selectedId || isStreaming) return;
@@ -2134,6 +2185,21 @@ export default function Chat() {
                   onChange={handleDocsSelected}
                 />
                 <div className="flex gap-2 items-end">
+                  <button
+                    onClick={() => setAgentMode(v => !v)}
+                    disabled={isStreaming}
+                    className={cn(
+                      "shrink-0 h-9 px-2.5 flex items-center gap-1.5 rounded-xl border text-xs font-medium transition-all active:scale-[0.98] disabled:opacity-40",
+                      agentMode
+                        ? "bg-primary/15 text-primary border-primary/30"
+                        : "bg-secondary text-muted-foreground border-border/50 hover:text-foreground hover:bg-accent",
+                    )}
+                    title={agentMode ? "Mode Agent activé : l'IA utilise ses outils (web, documents, mémoire…)" : "Mode Agent désactivé"}
+                    aria-pressed={agentMode}
+                    aria-label="Basculer le mode Agent"
+                  >
+                    <Bot className="w-4 h-4" /> Agent
+                  </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isStreaming || attachedImages.length >= 4}

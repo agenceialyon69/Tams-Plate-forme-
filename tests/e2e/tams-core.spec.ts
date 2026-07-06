@@ -46,6 +46,10 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   await page.goto("/chat", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /E2E vidéo/ }).click();
 
+  // Ce test couvre le flux LEGACY (Kernel route-intent → plan Studio de secours).
+  // Le mode Agent est activé par défaut : on le désactive pour cibler ce flux.
+  await page.getByLabel("Basculer le mode Agent").click();
+
   const composer = page.getByPlaceholder(/Envoyer un message/);
   await composer.fill(prompt);
   await page.getByRole("button", { name: "Envoyer" }).click();
