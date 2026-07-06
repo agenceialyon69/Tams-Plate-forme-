@@ -406,7 +406,9 @@ export default function Studio() {
           // la vidéo (fin du texte brut estampillé à l'écran).
           text: `${cleanPrompt}, style ${videoStyle}, e-commerce activewear, photoréaliste, lumière naturelle`,
           caption: "",
-          images: [],
+          // Si tu as ajouté tes vraies photos produit, on les utilise comme
+          // source du diaporama (bien meilleur que les images IA génériques).
+          images: photos.filter(p => p.type === "image").map(p => absoluteUrl(p.url)),
           imageCount: 4,
           secondsPerImage: Math.max(1.5, durationNumber / 4),
         });
@@ -742,6 +744,33 @@ export default function Studio() {
                     {['vendre', 'présenter', 'story', 'pub TikTok'].map(value => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </label>
+              </div>
+            )}
+
+            {genMode === "video" && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Images className="h-4 w-4" /> Tes vraies photos produit
+                    <span className="text-xs text-muted-foreground">({photos.filter(p => p.type === "image").length})</span>
+                  </div>
+                  <label className={cn(buttonClass, "cursor-pointer border border-white/10 bg-white/5 text-foreground hover:bg-white/10 !py-1.5 !px-3 text-xs")}>
+                    <Images className="h-3.5 w-3.5" /> Ajouter mes photos
+                    <input className="hidden" type="file" accept="image/*" multiple onChange={e => void handleUpload(e.target.files, "image")} />
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {photos.filter(p => p.type === "image").length > 0
+                    ? "✅ La vidéo utilisera TES photos (bien meilleur qu'une image IA générique)."
+                    : "Sans photos, la vidéo utilise des images IA génériques (Pollinations). Ajoute tes vraies photos pour un rendu boutique."}
+                </p>
+                {photos.filter(p => p.type === "image").length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {photos.filter(p => p.type === "image").slice(0, 8).map(p => (
+                      <img key={p.id} src={absoluteUrl(p.url)} alt={p.filename} className="h-12 w-12 rounded-lg object-cover border border-white/10" />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
