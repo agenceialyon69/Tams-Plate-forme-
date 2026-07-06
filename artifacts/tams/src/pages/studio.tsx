@@ -401,7 +401,11 @@ export default function Studio() {
       if (genMode === "video") {
         const durationNumber = Number(videoDuration.replace("s", "")) || 30;
         data = await postJson("/api/studio/generate-video", {
-          text: `${cleanPrompt}\nStyle: ${videoStyle}. Objectif: ${videoObjective}. Format: ${format}. Durée cible: ${videoDuration}.`,
+          // `text` sert UNIQUEMENT à générer les images (prompt propre, sans
+          // méta technique). `caption` vide = aucune incrustation du prompt sur
+          // la vidéo (fin du texte brut estampillé à l'écran).
+          text: `${cleanPrompt}, style ${videoStyle}, e-commerce activewear, photoréaliste, lumière naturelle`,
+          caption: "",
           images: [],
           imageCount: 4,
           secondsPerImage: Math.max(1.5, durationNumber / 4),

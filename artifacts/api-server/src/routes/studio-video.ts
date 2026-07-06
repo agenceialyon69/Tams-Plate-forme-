@@ -296,14 +296,19 @@ async function renderPhotoVideo(opts: {
 }
 
 router.post("/studio/generate-video", async (req, res) => {
-  const { images, text, secondsPerImage, musicUrl, imageCount } = req.body as {
-    images?: string[]; text?: string; secondsPerImage?: number; musicUrl?: string; imageCount?: number;
+  const { images, text, caption, secondsPerImage, musicUrl, imageCount } = req.body as {
+    images?: string[]; text?: string; caption?: string; secondsPerImage?: number; musicUrl?: string; imageCount?: number;
   };
   try {
     // VÉRITÉ : on ne refuse plus. On livre TOUJOURS un vrai fichier MP4 (worker
     // GPU si configuré, sinon diaporama composé FFmpeg), avec un label honnête.
     // Le refus mensonger « je ne peux pas générer une vraie vidéo » est supprimé :
     // un diaporama MP4 EST une vraie vidéo, simplement pas de l'IA premium type Veo.
+    //
+    // `text` = prompt SERVANT AUX IMAGES. L'incrustation (overlay) utilise
+    // UNIQUEMENT `caption` : par défaut vide → pas de texte technique estampillé
+    // sur la vidéo (correction du prompt brut affiché à l'écran).
+    const overlay = typeof caption === "string" ? caption.trim() : "";
     const sourceImages = Array.isArray(images) && images.length > 0 ? images : autoImages(text, imageCount ?? 4);
     const gpu = await tryGpuVideo(text, sourceImages);
     if (gpu?.url) {
@@ -320,7 +325,7 @@ router.post("/studio/generate-video", async (req, res) => {
     }
     const result = await generateSlideshowVideo({
       images: sourceImages,
-      text,
+      text: overlay, // overlay = caption uniquement (vide = pas d'incrustation)
       secondsPerImage: secondsPerImage ?? 2.5,
       musicUrl,
     });
