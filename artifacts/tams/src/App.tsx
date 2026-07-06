@@ -8,7 +8,6 @@ import { ErrorBoundary } from "@/components/error-boundary";
 
 const Accueil = lazy(() => import("@/pages/accueil"));
 const Chat = lazy(() => import("@/pages/chat"));
-const Agents = lazy(() => import("@/pages/agents"));
 const Travail = lazy(() => import("@/pages/travail"));
 const Vie = lazy(() => import("@/pages/vie"));
 const Studio = lazy(() => import("@/pages/studio"));
@@ -45,7 +44,6 @@ function Router() {
         <Switch>
           <Route path="/" component={Accueil} />
           <Route path="/chat" component={Chat} />
-          <Route path="/agents" component={Agents} />
           <Route path="/travail" component={Travail} />
           <Route path="/vie" component={Vie} />
           <Route path="/studio" component={Studio} />

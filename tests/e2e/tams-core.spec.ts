@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const routes = ["/chat", "/studio", "/capabilities", "/agents", "/systeme", "/vie", "/dev-agent-pro"];
+const routes = ["/chat", "/studio", "/capabilities", "/mon-agent", "/systeme", "/vie", "/dev-agent-pro"];
 
 for (const route of routes) {
   test(`${route} page loads`, async ({ page }) => {
