@@ -971,11 +971,30 @@ export async function handleOperatorChat(message: string, params: Record<string,
         nextStep: enabled ? "Dis-moi quelle automatisation créer (confirmation demandée)." : "Activer TAMS_DEV_AGENT_SCHEDULER=true, ou utiliser un workflow GitHub Actions cron (gratuit).",
       });
     }
-    default:
+    default: {
+      // Aucune action déterministe détectée → on ne se défile plus : on passe la
+      // main au VRAI moteur agentique (recherche web, lecture, mémoire, image…),
+      // exactement comme le Chat "niveau Claude". Repli honnête si IA absente.
+      try {
+        const { aiConfigured } = await import("./ai.js");
+        if (aiConfigured()) {
+          const { runAgentChat } = await import("./agent-runtime.js");
+          const result = await runAgentChat([], message);
+          const tools = [...new Set(result.steps.map(s => s.tool))];
+          return reply({
+            message: result.message || "Je n'ai pas pu formuler de réponse cette fois — reformule.",
+            intent: "unknown",
+            capabilityId: null,
+            evidence: result.steps,
+            nextStep: tools.length ? `Outils utilisés : ${tools.join(", ")}.` : "Tu peux aussi demander une action précise (tâche, image, statut CI…).",
+          });
+        }
+      } catch { /* toute erreur agent → message honnête ci-dessous */ }
       return reply({
-        message: "Je n'ai pas identifié d'action précise. Je suis UN agent avec plusieurs modes : Recherche, GitHub/CI, Red Team, Mémoire, Tâches, Décisions, Studio, Fichiers (bientôt), Gmail/Calendar (bientôt), Automatisations.",
+        message: "Je n'ai pas pu répondre (IA non configurée ou indisponible). Je suis UN agent avec plusieurs modes : Recherche, GitHub/CI, Red Team, Mémoire, Tâches, Décisions, Studio. Ajoute une clé gratuite (GROQ_API_KEY) sur Railway pour activer la réflexion libre.",
         intent: "unknown",
         nextStep: "Reformule, ou demande « mes capacités » pour la liste complète.",
       });
+    }
   }
 }
