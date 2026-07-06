@@ -59,7 +59,9 @@ test("chat keeps a TikTok video request visible when APIs fail", async ({ page }
   expect(bodyText).toContain("SCRIPT");
   expect(bodyText).toContain("CAPTIONS");
   expect(bodyText).toContain("CTA");
-  expect(bodyText.toLowerCase()).toContain("aucun fichier vidéo");
+  // Le message de secours réseau est désormais honnête (plus de faux « aucun
+  // fichier vidéo / pas connecté ») : il invite à réessayer pour générer le MP4.
+  expect(bodyText.toLowerCase()).toContain("plan de secours");
   expect(pageErrors).toEqual([]);
 });
 
