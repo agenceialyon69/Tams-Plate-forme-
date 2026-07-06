@@ -51,6 +51,7 @@ import chatCapabilitiesRouter from "./chat-capabilities.js";
 import n8nWebhookRouter from "./n8n-webhook.js";
 import operatorRouter from "./operator.js";
 import agentChatRouter from "./agent.js";
+import rssRouter from "./rss.js";
 
 const router: IRouter = Router();
 
@@ -111,6 +112,8 @@ router.use(operatorRouter);
 // Chat agentique "niveau Claude" (boucle tool-calling free-first).
 router.use("/agent", aiRateLimit);
 router.use(agentChatRouter);
+// Veille RSS/Atom (free-first).
+router.use(rssRouter);
 router.use(defaultRateLimit);
 
 export default router;

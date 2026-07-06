@@ -13,7 +13,7 @@ export class BlockedUrl extends Error {
 }
 
 /** Rejette localhost, IP privées/link-local, metadata cloud, hôtes mono-label. */
-function assertPublicUrl(raw: string): URL {
+export function assertPublicUrl(raw: string): URL {
   let u: URL;
   try {
     u = new URL(raw);
