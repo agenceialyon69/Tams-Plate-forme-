@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { aiChat, aiConfigured, aiProviders } from "../lib/ai";
+import { webSearch } from "../lib/web-search";
 import { orchestrate } from "../lib/agents";
 import { StudioOrchestrator } from "../lib/studio/studio-orchestrator";
 import { generateSlideshowVideo } from "../lib/video";
@@ -159,42 +160,6 @@ async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs = 
   try { return JSON.parse(text); } catch { return { text }; }
 }
 
-async function runDuckDuckGoSearch(query: string): Promise<{ text: string; data: unknown }> {
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-  const data = await fetchJsonWithTimeout(url, { method: "GET" }, 12_000) as {
-    AbstractText?: string;
-    AbstractURL?: string;
-    Heading?: string;
-    RelatedTopics?: Array<{ Text?: string; FirstURL?: string }>;
-  };
-  const related = (data.RelatedTopics ?? []).filter(item => item.Text).slice(0, 5);
-  const lines = [
-    `RECHERCHE WEB — DuckDuckGo`,
-    data.Heading ? `Sujet : ${data.Heading}` : "Sujet : résultat direct non garanti",
-    data.AbstractText ? `Résumé : ${data.AbstractText}` : "Résumé : aucun instant answer complet. Utilise les pistes ci-dessous.",
-    data.AbstractURL ? `Source principale : ${data.AbstractURL}` : "",
-    related.length ? "Pistes" : "",
-    ...related.map((item, index) => `${index + 1}. ${item.Text}${item.FirstURL ? ` — ${item.FirstURL}` : ""}`),
-  ].filter(Boolean).join("\n");
-  return { text: lines, data };
-}
-
-async function runTavilySearch(query: string): Promise<{ text: string; data: unknown } | null> {
-  const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) return null;
-  const data = await fetchJsonWithTimeout("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ query, search_depth: "basic", max_results: 5, include_answer: true }),
-  }, 20_000) as { answer?: string; results?: Array<{ title?: string; url?: string; content?: string }> };
-  const lines = [
-    "RECHERCHE WEB — Tavily",
-    data.answer ? `Réponse : ${data.answer}` : "Réponse synthétique indisponible.",
-    ...(data.results ?? []).slice(0, 5).map((item, index) => `${index + 1}. ${item.title ?? "Source"} — ${item.url ?? "URL absente"}\n${item.content ?? ""}`),
-  ];
-  return { text: lines.join("\n"), data };
-}
-
 async function callJsonWorker(url: string, payload: unknown, timeoutMs = 120_000): Promise<unknown> {
   return fetchJsonWithTimeout(url, {
     method: "POST",
@@ -351,9 +316,9 @@ router.post("/capabilities/execute", async (req, res) => {
       }
 
       case "search.web": {
-        const tavily = await runTavilySearch(input).catch(() => null);
-        const result = tavily ?? await runDuckDuckGoSearch(input);
-        return res.json(response({ capabilityId, status: "success", mode: "real", title: tavily ? "Recherche web Tavily" : "Recherche web DuckDuckGo", result: result.text, artifact: { type: "json", content: result.text, data: result.data }, limitations: [tavily ? "Tavily utilise une clé configurée." : "DuckDuckGo Instant Answer est gratuit mais peut retourner peu de résultats."], nextActions: ["Vérifier les sources importantes", "Relancer avec une requête plus précise si nécessaire"], providerUsed: tavily ? "tavily" : "duckduckgo" }));
+        const result = await webSearch(input);
+        const isTavily = result.provider === "tavily";
+        return res.json(response({ capabilityId, status: "success", mode: "real", title: isTavily ? "Recherche web Tavily" : "Recherche web DuckDuckGo", result: result.text, artifact: { type: "json", content: result.text, data: result.data }, limitations: [isTavily ? "Tavily utilise une clé configurée." : "DuckDuckGo Instant Answer est gratuit mais peut retourner peu de résultats."], nextActions: ["Vérifier les sources importantes", "Relancer avec une requête plus précise si nécessaire"], providerUsed: result.provider }));
       }
 
       case "memory.query":

@@ -50,6 +50,7 @@ import capabilityActionsRouter from "./capability-actions.js";
 import chatCapabilitiesRouter from "./chat-capabilities.js";
 import n8nWebhookRouter from "./n8n-webhook.js";
 import operatorRouter from "./operator.js";
+import agentChatRouter from "./agent.js";
 
 const router: IRouter = Router();
 
@@ -107,6 +108,9 @@ router.use(chatCapabilitiesRouter);
 router.use(n8nWebhookRouter);
 // Mon Agent — control plane du chat (operator). Voir REDTEAM_OPERATOR_FREE_FIRST.md.
 router.use(operatorRouter);
+// Chat agentique "niveau Claude" (boucle tool-calling free-first).
+router.use("/agent", aiRateLimit);
+router.use(agentChatRouter);
 router.use(defaultRateLimit);
 
 export default router;
