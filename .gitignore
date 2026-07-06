@@ -27,3 +27,6 @@ dist-ssr
 
 # Artefacts générés au boot par le dev-runtime (état machine, jamais commité)
 .tams/runtime/
+
+# Artefacts de boot éphémères (runtime-check) — jamais versionnés
+**/.tams/
