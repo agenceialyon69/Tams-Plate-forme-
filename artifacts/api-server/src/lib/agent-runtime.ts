@@ -16,6 +16,7 @@
 import { aiChat, aiConfigured } from "./ai.js";
 import { webSearch } from "./web-search.js";
 import { readUrl } from "./web-read.js";
+import { fetchFeed } from "./rss.js";
 import { getAllTools, runTool } from "./agents/orchestrator.js";
 
 // Outils sûrs réutilisés du registre existant (schémas identiques garantis).
@@ -38,6 +39,14 @@ const WEB_TOOLS = [
       parameters: { type: "object", properties: { url: { type: "string", description: "L'URL http(s) à lire" } }, required: ["url"] },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "read_feed",
+      description: "Lit un flux RSS/Atom et renvoie les derniers articles (veille concurrentielle/sectorielle). Utilise-le quand l'utilisateur veut suivre l'actualité d'une source.",
+      parameters: { type: "object", properties: { url: { type: "string", description: "L'URL du flux RSS/Atom" } }, required: ["url"] },
+    },
+  },
 ];
 
 function buildTools(): unknown[] {
@@ -48,7 +57,7 @@ function buildTools(): unknown[] {
 
 const SYSTEM_PROMPT = [
   "Tu es TAMS, l'agent personnel privé et unique de Mohamed. Tu agis comme une équipe d'ingénieurs seniors en posture RED TEAM : franc, priorisé par impact, jamais flatteur.",
-  "Tu disposes d'OUTILS que tu peux appeler toi-même : web_search (recherche web), read_url (lire une page), create_task (créer une tâche), search_memories (chercher en mémoire), generate_image (générer une image gratuite).",
+  "Tu disposes d'OUTILS que tu peux appeler toi-même : web_search (recherche web), read_url (lire une page), read_feed (veille RSS/Atom d'une source), create_task (créer une tâche), search_memories (chercher en mémoire), generate_image (générer une image gratuite).",
   "RÈGLES ABSOLUES :",
   "- N'invente JAMAIS un fait, une source, un chiffre. Si tu as besoin d'une info récente ou vérifiable, appelle web_search puis, si utile, read_url sur la meilleure source.",
   "- Dis honnêtement ce qui n'est PAS branché : Gmail, Google Agenda et WhatsApp ne sont pas connectés aujourd'hui ; ne prétends pas y accéder.",
@@ -65,6 +74,11 @@ async function dispatchTool(name: string, args: Record<string, unknown>): Promis
   if (name === "read_url") {
     const page = await readUrl(String(args.url ?? ""));
     return `TITRE: ${page.title}\n\n${page.text.slice(0, 6000)}`;
+  }
+  if (name === "read_feed") {
+    const feed = await fetchFeed(String(args.url ?? ""));
+    const lines = [`FLUX: ${feed.title}`, ...feed.items.slice(0, 10).map(it => `- ${it.title}${it.date ? ` (${it.date})` : ""}${it.link ? `\n  ${it.link}` : ""}`)];
+    return lines.join("\n");
   }
   // Outils du registre existant (create_task, search_memories, generate_image).
   return runTool(name, args);
