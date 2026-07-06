@@ -15,11 +15,6 @@ type StudioFormat = "9:16" | "1:1" | "16:9";
 const UPLOAD_DIR = path.join(os.tmpdir(), "tams-studio-uploads");
 const MAX_UPLOAD_BYTES = 90_000_000;
 
-// HOTFIX MINIMAL: Premium keywords for video honesty
-const PREMIUM_VIDEO_KEYWORDS = ["tiktok naturel", "ugc naturel", "réaliste", "premium", "vraie vidéo", "pub tiktok", "haute conversion"];
-function isPremiumVideoExpectation(text: string) { return PREMIUM_VIDEO_KEYWORDS.some(k => text.toLowerCase().includes(k)); }
-// ─────────────────────────────────────────────────────────────────────────────
-
 const FORMAT_SIZE: Record<StudioFormat, { w: number; h: number }> = {
   "9:16": { w: 720, h: 1280 },
   "1:1": { w: 1080, h: 1080 },
@@ -305,18 +300,10 @@ router.post("/studio/generate-video", async (req, res) => {
     images?: string[]; text?: string; secondsPerImage?: number; musicUrl?: string; imageCount?: number;
   };
   try {
-    // HOTFIX MINIMAL: Video honesty - refuse premium expectations without provider
-    if (!gpuVideoUrl() && text && isPremiumVideoExpectation(text)) {
-      return res.status(503).json({
-        ok: false,
-        error: "Je ne peux pas générer une vraie vidéo IA réaliste sans provider vidéo premium.",
-        provider: null,
-        premiumRequired: true,
-        alternatives: ["Demander un script/storyboard", "Demander des prompts Kling/Runway/Veo", "Fournir des images produit pour un prototype"],
-      });
-    }
-    // ─────────────────────────────────────────────────────────────────────────────
-
+    // VÉRITÉ : on ne refuse plus. On livre TOUJOURS un vrai fichier MP4 (worker
+    // GPU si configuré, sinon diaporama composé FFmpeg), avec un label honnête.
+    // Le refus mensonger « je ne peux pas générer une vraie vidéo » est supprimé :
+    // un diaporama MP4 EST une vraie vidéo, simplement pas de l'IA premium type Veo.
     const sourceImages = Array.isArray(images) && images.length > 0 ? images : autoImages(text, imageCount ?? 4);
     const gpu = await tryGpuVideo(text, sourceImages);
     if (gpu?.url) {
@@ -348,7 +335,7 @@ router.post("/studio/generate-video", async (req, res) => {
       badge: "fallback",
       premiumAvailable: Boolean(gpuVideoUrl()),
       premiumStatus: gpuVideoUrl() ? "configured" : "missing_config",
-      honesty: "Prototype vidéo local / slideshow FFmpeg. Ce rendu n'est PAS adapté pour une publicité TikTok haute conversion.",
+      honesty: "Vrai fichier MP4 (diaporama composé FFmpeg). Ce n'est pas de l'IA vidéo premium type Veo/Runway ; pour un meilleur rendu, fournis de vraies photos produit.",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
