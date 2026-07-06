@@ -17,6 +17,7 @@ import { aiChat, aiConfigured } from "./ai.js";
 import { webSearch } from "./web-search.js";
 import { readUrl } from "./web-read.js";
 import { fetchFeed } from "./rss.js";
+import { readFile as ghReadFile, listTree, searchCode } from "./github-code-operator.js";
 import { getAllTools, runTool } from "./agents/orchestrator.js";
 
 // Outils sûrs réutilisés du registre existant (schémas identiques garantis).
@@ -51,15 +52,44 @@ const WEB_TOOLS = [
   },
 ];
 
+// Lecture SEULE du dépôt GitHub (aucune écriture ici). Permet un vrai "audit du repo".
+const GITHUB_READ_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "list_repo",
+      description: "Liste l'arborescence des fichiers du dépôt GitHub connecté (pour comprendre la structure, auditer). Lecture seule.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_repo_file",
+      description: "Lit le contenu d'un fichier du dépôt GitHub connecté (secrets caviardés). Lecture seule.",
+      parameters: { type: "object", properties: { path: { type: "string", description: "Chemin du fichier dans le repo (ex. artifacts/api-server/src/app.ts)" } }, required: ["path"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_repo",
+      description: "Recherche du code/texte dans le dépôt GitHub connecté (GitHub Code Search). Lecture seule.",
+      parameters: { type: "object", properties: { query: { type: "string", description: "Termes à rechercher dans le code" } }, required: ["query"] },
+    },
+  },
+];
+
 function buildTools(): unknown[] {
   const registry = getAllTools().filter((t: { function?: { name?: string } }) =>
     SAFE_REGISTRY_TOOLS.includes(t.function?.name ?? ""));
-  return [...WEB_TOOLS, ...registry];
+  return [...WEB_TOOLS, ...GITHUB_READ_TOOLS, ...registry];
 }
 
 const SYSTEM_PROMPT = [
   "Tu es TAMS, l'agent personnel privé et unique de Mohamed. Tu agis comme une équipe d'ingénieurs seniors en posture RED TEAM : franc, priorisé par impact, jamais flatteur.",
   "Tu disposes d'OUTILS que tu peux appeler toi-même : web_search (recherche web), read_url (lire une page), read_feed (veille RSS/Atom), create_task (créer une tâche = confier une mission), search_memories (chercher en mémoire), generate_image (image gratuite), create_video (vraie vidéo MP4 diaporama), generate_music (musique).",
+  "Tu peux aussi LIRE le dépôt GitHub connecté (lecture seule) : list_repo (arborescence), read_repo_file (contenu d'un fichier), search_repo (recherche). Utilise-les pour un vrai audit du code. Tu n'écris/ne modifies rien ici : l'écriture passe par l'agent codeur avec confirmation.",
   "Le Chat est le poste de commande : tu peux exécuter des missions ET créer des médias directement ici. Quand tu génères une image/vidéo/musique, le fichier est affiché automatiquement à l'utilisateur — inutile de coller l'URL toi-même.",
   "Pour la vidéo : c'est un diaporama MP4 composé (pas de l'IA vidéo premium type Veo). Préviens que fournir de vraies photos produit améliore nettement le rendu.",
   "RÈGLES ABSOLUES :",
@@ -82,6 +112,19 @@ async function dispatchTool(name: string, args: Record<string, unknown>): Promis
     const feed = await fetchFeed(String(args.url ?? ""));
     const lines = [`FLUX: ${feed.title}`, ...feed.items.slice(0, 10).map(it => `- ${it.title}${it.date ? ` (${it.date})` : ""}${it.link ? `\n  ${it.link}` : ""}`)];
     return lines.join("\n");
+  }
+  if (name === "list_repo") {
+    const tree = await listTree({ limit: 2000 });
+    const files = tree.entries.filter(e => e.type === "blob").map(e => e.path).slice(0, 500);
+    return `REPO ${tree.repo} (${files.length} fichiers${tree.truncated ? "+" : ""}) :\n${files.join("\n")}`;
+  }
+  if (name === "read_repo_file") {
+    const f = await ghReadFile({ path: String(args.path ?? "") });
+    return `FICHIER ${f.path} (${f.size} octets${f.truncated ? ", tronqué" : ""}) :\n\n${f.content}`;
+  }
+  if (name === "search_repo") {
+    const r = await searchCode({ query: String(args.query ?? ""), limit: 20 });
+    return `RECHERCHE "${r.query}" — ${r.total} résultat(s) :\n${r.hits.map(h => h.path).join("\n")}`;
   }
   // Outils du registre existant (create_task, search_memories, generate_image).
   return runTool(name, args);
