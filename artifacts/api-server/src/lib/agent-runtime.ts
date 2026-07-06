@@ -20,7 +20,9 @@ import { fetchFeed } from "./rss.js";
 import { getAllTools, runTool } from "./agents/orchestrator.js";
 
 // Outils sûrs réutilisés du registre existant (schémas identiques garantis).
-const SAFE_REGISTRY_TOOLS = ["create_task", "search_memories", "generate_image"];
+// Inclut la génération de MÉDIA (image/vidéo/musique) : produit des fichiers,
+// non destructif → l'agent peut créer une vidéo directement depuis le Chat.
+const SAFE_REGISTRY_TOOLS = ["create_task", "search_memories", "generate_image", "create_video", "generate_music"];
 
 const WEB_TOOLS = [
   {
@@ -57,11 +59,12 @@ function buildTools(): unknown[] {
 
 const SYSTEM_PROMPT = [
   "Tu es TAMS, l'agent personnel privé et unique de Mohamed. Tu agis comme une équipe d'ingénieurs seniors en posture RED TEAM : franc, priorisé par impact, jamais flatteur.",
-  "Tu disposes d'OUTILS que tu peux appeler toi-même : web_search (recherche web), read_url (lire une page), read_feed (veille RSS/Atom d'une source), create_task (créer une tâche), search_memories (chercher en mémoire), generate_image (générer une image gratuite).",
+  "Tu disposes d'OUTILS que tu peux appeler toi-même : web_search (recherche web), read_url (lire une page), read_feed (veille RSS/Atom), create_task (créer une tâche = confier une mission), search_memories (chercher en mémoire), generate_image (image gratuite), create_video (vraie vidéo MP4 diaporama), generate_music (musique).",
+  "Le Chat est le poste de commande : tu peux exécuter des missions ET créer des médias directement ici. Quand tu génères une image/vidéo/musique, le fichier est affiché automatiquement à l'utilisateur — inutile de coller l'URL toi-même.",
+  "Pour la vidéo : c'est un diaporama MP4 composé (pas de l'IA vidéo premium type Veo). Préviens que fournir de vraies photos produit améliore nettement le rendu.",
   "RÈGLES ABSOLUES :",
   "- N'invente JAMAIS un fait, une source, un chiffre. Si tu as besoin d'une info récente ou vérifiable, appelle web_search puis, si utile, read_url sur la meilleure source.",
   "- Dis honnêtement ce qui n'est PAS branché : Gmail, Google Agenda et WhatsApp ne sont pas connectés aujourd'hui ; ne prétends pas y accéder.",
-  "- Pour la vidéo : tu produis un vrai MP4 diaporama (pas de l'IA vidéo premium type Veo/Runway) — via le Studio, pas ici.",
   "- Réponds en français, clair, concret, priorisé par impact. Cite tes sources (URL) quand tu utilises le web.",
   "- Enchaîne les outils si nécessaire, puis termine par une réponse rédigée et utile.",
 ].join("\n");
@@ -102,6 +105,20 @@ export async function runAgentChat(history: AgentTurnMessage[], userMessage: str
   ];
   const steps: AgentStep[] = [];
 
+  // Rattache les médias produits (IMAGE:/VIDEO:/AUDIO:) à la réponse finale, pour
+  // qu'ils s'affichent dans le Chat même si le LLM ne recopie pas le marqueur.
+  const withMedia = (message: string): string => {
+    const markers = new Set<string>();
+    const re = /(?:^|\s)(VIDEO|IMAGE|AUDIO):(https?:\/\/\S+|\/\S+)/g;
+    for (const step of steps) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(step.output))) markers.add(`${m[1]}:${m[2]}`);
+    }
+    if (markers.size === 0) return message;
+    const missing = [...markers].filter(mk => !message.includes(mk));
+    return missing.length ? `${message}\n\n${missing.join("\n")}` : message;
+  };
+
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const resp = await aiChat({ messages, tools, tool_choice: "auto", temperature: 0.4, max_tokens: 1200 }, "reasoning");
     const msg = resp?.choices?.[0]?.message;
@@ -110,7 +127,7 @@ export async function runAgentChat(history: AgentTurnMessage[], userMessage: str
 
     const calls = msg.tool_calls as Array<{ id: string; function: { name: string; arguments: string } }> | undefined;
     if (!calls || calls.length === 0) {
-      return { message: typeof msg.content === "string" ? msg.content : "", steps };
+      return { message: withMedia(typeof msg.content === "string" ? msg.content : ""), steps };
     }
 
     for (const call of calls) {
@@ -132,5 +149,5 @@ export async function runAgentChat(history: AgentTurnMessage[], userMessage: str
     messages: [...messages, { role: "user", content: "Réponds maintenant avec ce que tu as recueilli, sans appeler de nouvel outil." }],
     temperature: 0.4, max_tokens: 1200,
   }, "reasoning");
-  return { message: final?.choices?.[0]?.message?.content ?? "Je n'ai pas pu finaliser cette demande.", steps };
+  return { message: withMedia(final?.choices?.[0]?.message?.content ?? "Je n'ai pas pu finaliser cette demande."), steps };
 }
