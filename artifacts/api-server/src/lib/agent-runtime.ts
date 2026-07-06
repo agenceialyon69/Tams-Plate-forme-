@@ -152,13 +152,17 @@ export async function runAgentChat(history: AgentTurnMessage[], userMessage: str
   // qu'ils s'affichent dans le Chat même si le LLM ne recopie pas le marqueur.
   const withMedia = (message: string): string => {
     const markers = new Set<string>();
-    const re = /(?:^|\s)(VIDEO|IMAGE|AUDIO):(https?:\/\/\S+|\/\S+)/g;
+    const re = /(VIDEO|IMAGE|AUDIO):(https?:\/\/[^\s\])>;,]+|\/[^\s\])>;,]+)/g;
     for (const step of steps) {
       let m: RegExpExecArray | null;
       while ((m = re.exec(step.output))) markers.add(`${m[1]}:${m[2]}`);
     }
     if (markers.size === 0) return message;
-    const missing = [...markers].filter(mk => !message.includes(mk));
+    // On garantit chaque marqueur sur SA PROPRE LIGNE (le Chat n'affiche le
+    // lecteur que dans ce cas). Si le LLM l'a mis en ligne / entre crochets, on
+    // ajoute quand même une ligne propre.
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const missing = [...markers].filter(mk => !new RegExp(`(^|\\n)${esc(mk)}(\\s|$)`).test(message));
     return missing.length ? `${message}\n\n${missing.join("\n")}` : message;
   };
 

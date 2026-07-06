@@ -636,9 +636,13 @@ function parseContent(content: string): ContentBlockType[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Média : VIDEO:<url> / IMAGE:<url> / AUDIO:<url> (une ligne = un lecteur).
-    const media = line.match(/^(VIDEO|IMAGE|AUDIO):(\S+)$/);
+    // Média : VIDEO:/IMAGE:/AUDIO: — robuste : détecté même entre crochets
+    // ([VIDEO:url]) ou en ligne avec du texte autour. L'URL s'arrête aux
+    // séparateurs ] ) espace ; , (sinon un ']' collé cassait le lecteur).
+    const media = line.match(/(VIDEO|IMAGE|AUDIO):(https?:\/\/[^\s\])>;,]+|\/[^\s\])>;,]+)/i);
     if (media) {
+      const before = line.slice(0, media.index).replace(/[[(<«"'\s]+$/u, "").trim();
+      if (before) blocks.push({ type: "text", content: before });
       blocks.push({ type: "media", content: media[2], mediaKind: media[1].toLowerCase() as "video" | "image" | "audio" });
       i++;
       continue;

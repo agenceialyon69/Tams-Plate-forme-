@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path, { dirname } from "node:path";
@@ -34,6 +34,14 @@ export function spawnFfmpeg(args: string[], timeoutMs = 120_000): Promise<void> 
 }
 
 async function download(url: string, dest: string): Promise<void> {
+  // Fichier local (photo uploadée servie en file://) : lecture disque directe,
+  // pas de fetch réseau → tes vraies photos produit sont utilisables.
+  if (url.startsWith("file://")) {
+    const buf = await readFile(fileURLToPath(url));
+    if (buf.length > 25_000_000) throw new Error("fichier trop volumineux");
+    await writeFile(dest, buf);
+    return;
+  }
   const r = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!r.ok) throw new Error(`download ${r.status}`);
   const buf = Buffer.from(await r.arrayBuffer());
@@ -100,7 +108,7 @@ export async function generateSlideshowVideo(opts: {
   secondsPerImage?: number;
   musicUrl?: string;
 }): Promise<VideoResult> {
-  const urls = (opts.images || []).filter((u) => typeof u === "string" && /^https?:\/\//.test(u)).slice(0, 8);
+  const urls = (opts.images || []).filter((u) => typeof u === "string" && (/^https?:\/\//.test(u) || u.startsWith("file://"))).slice(0, 8);
   const spi = Math.min(Math.max(Number(opts.secondsPerImage) || 2.5, 1), 6);
 
   await mkdir(VIDEO_DIR, { recursive: true });
