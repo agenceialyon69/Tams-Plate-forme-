@@ -1,13 +1,14 @@
 import { Link, useLocation } from "wouter";
-import { Home, MessageSquare, Briefcase, Layers, Cpu, Users, Heart, WifiOff, RefreshCw, ListChecks } from "lucide-react";
+import { Home, Bot, MessageSquare, Briefcase, Layers, Cpu, Users, Heart, WifiOff, RefreshCw, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./notifications-panel";
 import { useOffline } from "@/hooks/useOffline";
 
 const navItems = [
-  { href: "/",        label: "Accueil", icon: Home },
-  { href: "/chat",    label: "Chat",    icon: MessageSquare },
-  { href: "/agents",  label: "Agents",  icon: Users },
+  { href: "/",          label: "Accueil",   icon: Home },
+  { href: "/mon-agent", label: "Mon Agent", icon: Bot },
+  { href: "/chat",      label: "Chat",      icon: MessageSquare },
+  { href: "/agents",    label: "Agents",    icon: Users },
   { href: "/travail", label: "Travail", icon: Briefcase },
   { href: "/vie",     label: "Vie",     icon: Heart },
   { href: "/studio",  label: "Studio",  icon: Layers },

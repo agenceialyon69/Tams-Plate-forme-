@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
  * MON AGENT — cockpit minimal du Personal Operator (PR #1, issue #94).
  * Un seul agent, plusieurs modes internes. Chat control-plane branché sur
  * POST /api/operator/chat + cycle confirm/cancel pour les actions sensibles.
- * Volontairement simple : pas de refonte UI, pas de nouvel item de nav.
+ * Volontairement simple : pas de refonte UI. Surfacé dans la navigation
+ * principale (« Mon Agent ») comme l'unique agent capable de la plateforme.
  */
 
 interface OperatorReply {

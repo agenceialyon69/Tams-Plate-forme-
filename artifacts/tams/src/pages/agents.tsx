@@ -273,7 +273,9 @@ export default function Agents() {
         </div>
 
         <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          Mode plan : les agents produisent des analyses et des plans structurés via le backend. Ils ne réalisent aucune action externe ni autonome sans outil explicitement connecté.
+          Mode plan : ces rôles produisent des <strong>analyses et des plans</strong> structurés. Ils ne réalisent aucune action réelle.
+          Pour l'agent qui <strong>agit vraiment</strong> (GitHub/PR, recherche web, documents, Studio, avec confirmation),
+          va sur <a href="/mon-agent" className="underline font-medium hover:text-amber-100">Mon Agent</a>.
         </div>
 
         {/* Tabs */}
