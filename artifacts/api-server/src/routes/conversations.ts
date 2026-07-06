@@ -57,31 +57,26 @@ function isCapabilitiesQuery(msg: string) {
   const n = msg.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return CAPABILITIES_KEYWORDS.some(k => n.includes(k.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
 }
-const CAPABILITIES_RESPONSE = `## Mes capacités TAMS AI
+const CAPABILITIES_RESPONSE = `## Mes capacités
 
-Je suis votre AI Operating System personnel. Voici ce que je peux faire :
+Je suis **Mon Agent**, ton agent personnel privé (un seul agent, plusieurs modes — pas d'anciens « agents » qui ne font que des plans). Je privilégie toujours le gratuit et je te dis honnêtement ce qui est branché ou non.
 
-### Gestion des tâches et projets
-- Créer des tâches — "/tâche Appeler le client demain"
-- Créer des projets — "/projet Refonte du site web"
+### Ce que je fais vraiment, maintenant
+- **Recherche web** — je cherche sur le web (DuckDuckGo gratuit, ou Tavily si une clé est configurée).
+- **Lire une page / un lien** — je récupère et résume une URL que tu me donnes.
+- **Analyser tes documents** — PDF, DOCX, CSV, TXT (extraction locale, sans service payant).
+- **Coder & GitHub** — je lis le dépôt, j'écris du code et j'**ouvre une Pull Request** pour validation. Jamais directement sur \`main\`, jamais de merge automatique, confirmation avant toute action sensible.
+- **Studio** — images (Pollinations, gratuit) et **vraie vidéo MP4** (diaporama composé FFmpeg : ce n'est pas de l'IA vidéo type Veo/Runway, mais un vrai fichier livré).
+- **Musique** — génération d'un vrai fichier via Hugging Face MusicGen *si HF_TOKEN est configuré* (sinon je te le dis, je n'invente rien).
+- **Tâches, projets, contacts, mémoire** — j'organise et je garde le contexte.
+- **Statut & santé** — je regarde l'état CI/déploiement et je te réponds en red team (franc, priorisé par impact).
 
-### Gestion des contacts
-- Ajouter des contacts — "/contact Jean Dupont, Acme Corp"
+### Pas encore branché (je ne fais pas semblant)
+- **Gmail / Google Agenda** — non connectés.
+- **IA vidéo premium** (Veo / Runway / Kling) — nécessite un provider GPU payant, non activé.
+- **WhatsApp** — pas disponible pour l'instant.
 
-### Mémoire et connaissances
-- Enregistrer des informations — Personnes, entreprises, notes
-- Rechercher dans la mémoire — "Souviens-toi de..."
-
-### Studio créatif
-- Générer des images — Via Pollinations (gratuit)
-- Scripts et storyboards
-
-### Ce qui n'est PAS encore configuré :
-- Vidéo IA premium — Nécessite un provider GPU (Kling, Runway, Veo)
-- Audio IA premium — Nécessite un provider audio externe
-- Intégrations Gmail/Calendar — Non connectées
-
-Que puis-je faire pour vous maintenant ?`;
+👉 Pour piloter tout ça avec confirmation des actions sensibles, ouvre **Mon Agent** dans le menu. Que veux-tu faire maintenant ?`;
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── List conversations ─────────────────────────────────────────────────────
