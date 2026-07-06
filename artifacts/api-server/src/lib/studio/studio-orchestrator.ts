@@ -21,7 +21,10 @@ const PROVIDER_STATUS = {
   huggingface: "available",
   ffmpeg: "available",
   remotion: "planned",
-  musicgen: "requires_local_gpu",
+  // VÉRITÉ : la génération musicale passe par Hugging Face MusicGen (gratuit si
+  // HF_TOKEN configuré) avec repli WAV local — un vrai fichier est toujours
+  // produit, sans GPU local. Ce n'était donc PAS "requires_local_gpu".
+  musicgen: "available",
   riffusion: "experimental",
   whisper: "planned",
   piper: "planned",
@@ -164,7 +167,7 @@ export class StudioOrchestrator {
       return "No storyboard required for document format.";
     }
     if (format === "music_track" || platform === "podcast") {
-      return `Audio storyboard: mood → build → drop → resolution. Music direction: ${objective}. Generation: MusicGen (requires_local_gpu).`;
+      return `Audio storyboard: mood → build → drop → resolution. Music direction: ${objective}. Generation: MusicGen via Hugging Face (free-first, HF_TOKEN) with local WAV fallback.`;
     }
     return [
       `**Storyboard** (${platform})`,
@@ -224,8 +227,8 @@ export class StudioOrchestrator {
           type: "audio",
           description: "Background music / soundtrack",
           provider: "musicgen",
-          providerStatus: "requires_local_gpu",
-          honestNote: "MusicGen requires local GPU. Not available on Railway. Use royalty-free music as alternative.",
+          providerStatus: "available",
+          honestNote: "MusicGen via Hugging Face (free-first, needs HF_TOKEN) with local WAV fallback — a real file is produced, no local GPU required.",
         },
       );
     }
@@ -236,8 +239,8 @@ export class StudioOrchestrator {
           type: "audio",
           description: "Generated music track",
           provider: "musicgen",
-          providerStatus: "requires_local_gpu",
-          honestNote: "MusicGen requires local GPU. Not available on Railway.",
+          providerStatus: "available",
+          honestNote: "MusicGen via Hugging Face (free-first, needs HF_TOKEN) with local WAV fallback — real audio file, no local GPU required.",
         },
         {
           type: "audio",
@@ -313,7 +316,7 @@ export class StudioOrchestrator {
           capability: "audio.music.generate",
           provider: "musicgen",
           providerStatus: providerStatus("musicgen"),
-          notes: "PLANNED: requires local GPU. Not available on Railway.",
+          notes: "MusicGen via Hugging Face (free-first, HF_TOKEN) with local WAV fallback — real file, no local GPU.",
         },
       );
     }
@@ -326,7 +329,7 @@ export class StudioOrchestrator {
           capability: "audio.music.generate",
           provider: "musicgen",
           providerStatus: providerStatus("musicgen"),
-          notes: "REQUIRES LOCAL GPU. Plan only on Railway.",
+          notes: "MusicGen via Hugging Face (free-first, HF_TOKEN) with local WAV fallback — real file, no local GPU.",
         },
         {
           order: 4,
