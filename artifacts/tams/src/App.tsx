@@ -11,6 +11,9 @@ const Chat = lazy(() => import("@/pages/chat"));
 const Capture = lazy(() => import("@/pages/capture"));
 const Travail = lazy(() => import("@/pages/travail"));
 const Vie = lazy(() => import("@/pages/vie"));
+const Missions = lazy(() => import("@/pages/missions"));
+const Approvals = lazy(() => import("@/pages/approvals"));
+const Settings = lazy(() => import("@/pages/settings"));
 const Studio = lazy(() => import("@/pages/studio"));
 const Systeme = lazy(() => import("@/pages/systeme"));
 const Capabilities = lazy(() => import("@/pages/capabilities"));
@@ -49,6 +52,10 @@ function Router() {
           <Route path="/dossiers" component={Travail} />
           <Route path="/vie" component={Vie} />
           <Route path="/memory" component={Systeme} />
+          <Route path="/missions" component={Missions} />
+          <Route path="/approvals" component={Approvals} />
+          <Route path="/system" component={Systeme} />
+          <Route path="/settings" component={Settings} />
           <Route path="/studio" component={Studio} />
           <Route path="/systeme" component={Systeme} />
           <Route path="/capabilities" component={Capabilities} />

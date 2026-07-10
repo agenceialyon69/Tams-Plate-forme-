@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+﻿import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   useListMemories, useCreateMemory, useDeleteMemory,
   useListDecisions, useCreateDecision, useUpdateDecision, useDeleteDecision,
@@ -10,8 +10,9 @@ import {
   type Memory, type MemoryEdgeType, type SystemStats,
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
-// ─── Custom hooks for new semantic search / auto-link / centered graph ───────
+// â”€â”€â”€ Custom hooks for new semantic search / auto-link / centered graph â”€â”€â”€â”€â”€â”€â”€
 
 interface SemanticSearchResult {
   data: Array<{
@@ -99,7 +100,7 @@ function useGetMemoryGraphWithParams(params?: CenteredGraphParams) {
   });
 }
 
-// ─── Workflow hooks ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Workflow hooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface WorkflowRuleItem {
   id: string;
@@ -215,16 +216,16 @@ import { useToast } from "@/hooks/use-toast";
 
 type Tab = "memoire" | "decisions" | "systeme" | "graphe" | "workflows";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const MEMORY_TYPES = [
   { value: "person",   label: "Personne",   color: "text-blue-400 bg-blue-500/10", nodeColor: "#3b82f6" },
   { value: "project",  label: "Projet",     color: "text-violet-400 bg-violet-500/10", nodeColor: "#8b5cf6" },
   { value: "company",  label: "Entreprise", color: "text-emerald-400 bg-emerald-500/10", nodeColor: "#10b981" },
-  { value: "decision", label: "Décision",   color: "text-amber-400 bg-amber-500/10", nodeColor: "#f59e0b" },
+  { value: "decision", label: "DÃ©cision",   color: "text-amber-400 bg-amber-500/10", nodeColor: "#f59e0b" },
   { value: "note",     label: "Note",       color: "text-cyan-400 bg-cyan-500/10", nodeColor: "#06b6d4" },
   { value: "goal",     label: "Objectif",   color: "text-pink-400 bg-pink-500/10", nodeColor: "#ec4899" },
-  { value: "event",    label: "Événement",  color: "text-orange-400 bg-orange-500/10", nodeColor: "#f97316" },
+  { value: "event",    label: "Ã‰vÃ©nement",  color: "text-orange-400 bg-orange-500/10", nodeColor: "#f97316" },
 ];
 
 const EDGE_COLORS: Record<string, string> = {
@@ -242,24 +243,24 @@ const EDGE_COLORS: Record<string, string> = {
 };
 
 const EDGE_LABELS: Record<string, string> = {
-  related_to: "lié à",
+  related_to: "liÃ© Ã ",
   supports: "soutient",
   contradicts: "contredit",
-  caused_by: "causé par",
-  leads_to: "mène à",
+  caused_by: "causÃ© par",
+  leads_to: "mÃ¨ne Ã ",
   part_of: "fait partie de",
   works_on: "travaille sur",
-  knows: "connaît",
-  decided_about: "décide de",
-  references: "référence",
+  knows: "connaÃ®t",
+  decided_about: "dÃ©cide de",
+  references: "rÃ©fÃ©rence",
   collaborates_with: "collabore avec",
 };
 
 const DECISION_STATUS: Record<string, { label: string; color: string; dot: string }> = {
   pending:   { label: "En attente",  color: "text-slate-400 bg-slate-500/10 border-slate-500/20", dot: "#94a3b8" },
   analyzing: { label: "Analyse...",  color: "text-amber-400 bg-amber-500/10 border-amber-500/20", dot: "#fbbf24" },
-  decided:   { label: "Décidé",      color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", dot: "#34d399" },
-  archived:  { label: "Archivé",     color: "text-muted-foreground bg-secondary border-border", dot: "#6b7280" },
+  decided:   { label: "DÃ©cidÃ©",      color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", dot: "#34d399" },
+  archived:  { label: "ArchivÃ©",     color: "text-muted-foreground bg-secondary border-border", dot: "#6b7280" },
 };
 
 const PRIORITY_BADGES: Record<string, { label: string; color: string }> = {
@@ -283,28 +284,35 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function initialSystemTab(pathname: string): Tab {
+  if (pathname === "/system" || pathname.startsWith("/system/")) return "systeme";
+  if (pathname === "/memory" || pathname.startsWith("/memory/")) return "memoire";
+  return "memoire";
+}
+
 function formatMonthYear(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Root â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function Systeme() {
-  const [tab, setTab] = useState<Tab>("memoire");
+  const [location] = useLocation();
+  const [tab, setTab] = useState<Tab>(() => initialSystemTab(location));
 
   const tabs: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: "memoire",   label: "Mémoire",    icon: Brain },
-    { id: "decisions", label: "Décisions",  icon: GitFork },
+    { id: "memoire",   label: "MÃ©moire",    icon: Brain },
+    { id: "decisions", label: "DÃ©cisions",  icon: GitFork },
     { id: "graphe",    label: "Graphe",     icon: Network },
     { id: "workflows", label: "Workflows",  icon: Workflow },
-    { id: "systeme",   label: "Système",    icon: Activity },
+    { id: "systeme",   label: "SystÃ¨me",    icon: Activity },
   ];
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden animate-fade-in pb-28 md:pb-6 stagger-up">
       <div className="px-4 pt-6 pb-4 shrink-0">
-        <h1 className="text-xl font-semibold text-foreground tracking-tight mb-4">Système</h1>
+        <h1 className="text-xl font-semibold text-foreground tracking-tight mb-4">SystÃ¨me</h1>
         <div className="flex gap-1 bg-secondary rounded-xl p-1">
           {tabs.map(t => (
             <button
@@ -332,7 +340,7 @@ export default function Systeme() {
   );
 }
 
-// ─── Mémoire Tab ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ MÃ©moire Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function MemoireTab() {
   const qc = useQueryClient();
@@ -386,7 +394,7 @@ function MemoireTab() {
         qc.invalidateQueries({ queryKey: getListMemoriesQueryKey() });
         qc.invalidateQueries({ queryKey: getGetMemoryGraphQueryKey() });
         setTitle(""); setContent(""); setShowForm(false);
-        toast({ title: "Mémoire enregistrée" });
+        toast({ title: "MÃ©moire enregistrÃ©e" });
       },
     },
   });
@@ -396,7 +404,7 @@ function MemoireTab() {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListMemoriesQueryKey() });
         qc.invalidateQueries({ queryKey: getGetMemoryGraphQueryKey() });
-        toast({ title: "Mémoire supprimée" });
+        toast({ title: "MÃ©moire supprimÃ©e" });
       },
     },
   });
@@ -413,7 +421,7 @@ function MemoireTab() {
           <input
             className="w-full bg-secondary rounded-lg pl-9 pr-3 py-2 text-base text-foreground placeholder:text-muted-foreground outline-none"
             style={{ fontSize: "16px" }}
-            placeholder="Recherche sémantique..."
+            placeholder="Recherche sÃ©mantique..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -432,7 +440,7 @@ function MemoireTab() {
                 data.links.forEach((l) => { ids.add(l.sourceId); ids.add(l.targetId); });
                 setAutoLinkedIds(ids);
                 qc.invalidateQueries({ queryKey: getGetMemoryGraphQueryKey() });
-                toast({ title: `${data.created} liens créés automatiquement` });
+                toast({ title: `${data.created} liens crÃ©Ã©s automatiquement` });
               },
             });
           }}
@@ -519,7 +527,7 @@ function MemoireTab() {
             {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-secondary rounded-xl animate-pulse shimmer" />)}
           </div>
         ) : memories.length === 0 ? (
-          <EmptyState icon={Brain} title="Aucune mémoire" sub={debouncedSearch.trim() ? "Aucun résultat sémantique" : "Ajoutez des informations à retenir"} />
+          <EmptyState icon={Brain} title="Aucune mÃ©moire" sub={debouncedSearch.trim() ? "Aucun rÃ©sultat sÃ©mantique" : "Ajoutez des informations Ã  retenir"} />
         ) : (
           memories.map((m) => {
             const typeInfo = getTypeInfo(m.type);
@@ -569,7 +577,7 @@ function MemoireTab() {
   );
 }
 
-// ─── Graphe Tab (Memory Graph) ────────────────────────────────────────────────
+// â”€â”€â”€ Graphe Tab (Memory Graph) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SimNode {
   id: string;
@@ -917,7 +925,7 @@ function GrapheTab() {
   if (!nodes.length) {
     return (
       <div className="flex-1 flex flex-col px-4 pb-4">
-        <EmptyState icon={Network} title="Graphe vide" sub="Ajoutez des mémoires pour les voir ici" />
+        <EmptyState icon={Network} title="Graphe vide" sub="Ajoutez des mÃ©moires pour les voir ici" />
       </div>
     );
   }
@@ -931,7 +939,7 @@ function GrapheTab() {
           <input
             className="w-full bg-secondary rounded-lg pl-9 pr-3 py-2 text-base text-foreground placeholder:text-muted-foreground outline-none"
             style={{ fontSize: "16px" }}
-            placeholder="Rechercher un nœud..."
+            placeholder="Rechercher un nÅ“ud..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -945,7 +953,7 @@ function GrapheTab() {
             <button
               onClick={() => { setCenterNodeId(undefined); setDepth(1); }}
               className="p-0.5 rounded hover:bg-background text-muted-foreground hover:text-foreground"
-              title="Réinitialiser le centre"
+              title="RÃ©initialiser le centre"
             >
               <X className="w-3 h-3" />
             </button>
@@ -970,10 +978,10 @@ function GrapheTab() {
           onClick={() => setDepth(prev => Math.min(prev + 1, 2))}
           disabled={depth >= 2 || centerNodeId === undefined}
           className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground text-xs font-medium disabled:opacity-40 transition-all shrink-0"
-          title="Étendre la profondeur"
+          title="Ã‰tendre la profondeur"
         >
           <Maximize2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Étendre</span>
+          <span className="hidden sm:inline">Ã‰tendre</span>
         </button>
         <button
           onClick={() => setShowLabels(prev => !prev)}
@@ -992,7 +1000,7 @@ function GrapheTab() {
         <button
           onClick={() => setTransform({ x: 0, y: 0, k: 1 })}
           className="p-2 rounded-lg bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0"
-          title="Réinitialiser le zoom"
+          title="RÃ©initialiser le zoom"
         >
           <Maximize2 className="w-4 h-4" />
         </button>
@@ -1001,7 +1009,7 @@ function GrapheTab() {
       {/* Filters panel */}
       {showFilters && (
         <div className="mb-2 bg-secondary rounded-xl p-3 space-y-2 shrink-0">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Types de nœuds</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Types de nÅ“uds</div>
           <div className="flex gap-1.5 flex-wrap">
             {MEMORY_TYPES.map(t => (
               <button
@@ -1049,7 +1057,7 @@ function GrapheTab() {
           height="100%"
           style={{ touchAction: "none", cursor: isPanning ? "grabbing" : "grab" }}
           role="img"
-          aria-label="Graphe de mémoire interactif"
+          aria-label="Graphe de mÃ©moire interactif"
           onWheel={onWheel}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
@@ -1099,7 +1107,7 @@ function GrapheTab() {
                   style={{ cursor: "pointer" }}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Mémoire : ${n.title}, type ${n.type}`}
+                  aria-label={`MÃ©moire : ${n.title}, type ${n.type}`}
                   onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onNodeClick(n); }}
                 >
                   <circle
@@ -1120,7 +1128,7 @@ function GrapheTab() {
                       className="pointer-events-none select-none"
                       style={{ transition: "font-size 0.15s" }}
                     >
-                      {n.title.length > 18 ? n.title.slice(0, 17) + "…" : n.title}
+                      {n.title.length > 18 ? n.title.slice(0, 17) + "â€¦" : n.title}
                     </text>
                   )}
                 </g>
@@ -1131,7 +1139,7 @@ function GrapheTab() {
 
         {/* Legend */}
         <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur rounded-lg p-2 space-y-1 border border-border">
-          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Légende</div>
+          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">LÃ©gende</div>
           {MEMORY_TYPES.map(t => (
             <div key={t.value} className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.nodeColor }} />
@@ -1148,7 +1156,7 @@ function GrapheTab() {
         {/* Search results count */}
         {searchQuery.trim() && (
           <div className="absolute top-2 left-2 bg-background/90 backdrop-blur rounded-lg px-2 py-1 border border-border">
-            <span className="text-[10px] text-amber-400">{searchMatches.size} résultat{searchMatches.size > 1 ? 's' : ''}</span>
+            <span className="text-[10px] text-amber-400">{searchMatches.size} rÃ©sultat{searchMatches.size > 1 ? 's' : ''}</span>
           </div>
         )}
       </div>
@@ -1180,7 +1188,7 @@ function GrapheTab() {
   );
 }
 
-// ─── Node Detail Drawer ───────────────────────────────────────────────────────
+// â”€â”€â”€ Node Detail Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function NodeDetailDrawer({
   node,
@@ -1210,7 +1218,7 @@ function NodeDetailDrawer({
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetMemoryGraphQueryKey() });
-        toast({ title: "Relation créée" });
+        toast({ title: "Relation crÃ©Ã©e" });
         setShowCreateEdge(false);
         setTargetNodeId("");
         setEdgeNote("");
@@ -1222,7 +1230,7 @@ function NodeDetailDrawer({
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetMemoryGraphQueryKey() });
-        toast({ title: "Relation supprimée" });
+        toast({ title: "Relation supprimÃ©e" });
       },
     },
   });
@@ -1302,7 +1310,7 @@ function NodeDetailDrawer({
                     <ArrowRight className="w-3 h-3 rotate-180 shrink-0" />
                     <span className="truncate">{getNodeTitle(e.source)}</span>
                   </button>
-                  <span className="text-muted-foreground shrink-0">→</span>
+                  <span className="text-muted-foreground shrink-0">â†’</span>
                   <span className="text-[10px] text-muted-foreground shrink-0 px-1 py-0.5 rounded bg-background">
                     {EDGE_LABELS[e.type] ?? e.type}
                   </span>
@@ -1313,7 +1321,7 @@ function NodeDetailDrawer({
                   <span className="text-[10px] text-muted-foreground shrink-0 px-1 py-0.5 rounded bg-background">
                     {EDGE_LABELS[e.type] ?? e.type}
                   </span>
-                  <span className="text-muted-foreground shrink-0">→</span>
+                  <span className="text-muted-foreground shrink-0">â†’</span>
                   <button
                     onClick={() => onNavigate(e.target)}
                     className="text-foreground hover:text-primary truncate flex items-center gap-1 min-w-0"
@@ -1336,7 +1344,7 @@ function NodeDetailDrawer({
               value={targetNodeId}
               onChange={e => setTargetNodeId(e.target.value)}
             >
-              <option value="">Choisir un nœud cible...</option>
+              <option value="">Choisir un nÅ“ud cible...</option>
               {availableTargets.map(n => (
                 <option key={n.id} value={n.id}>{n.title} ({n.type})</option>
               ))}
@@ -1372,7 +1380,7 @@ function NodeDetailDrawer({
                 disabled={!targetNodeId || createEdge.isPending}
                 className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
               >
-                {createEdge.isPending ? "Création..." : "Créer"}
+                {createEdge.isPending ? "CrÃ©ation..." : "CrÃ©er"}
               </button>
               <button onClick={() => setShowCreateEdge(false)} className="px-3 py-2 rounded-lg bg-background text-muted-foreground text-xs">
                 Annuler
@@ -1385,7 +1393,7 @@ function NodeDetailDrawer({
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-secondary text-foreground text-xs font-medium hover:bg-secondary/80 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
-            Créer une relation
+            CrÃ©er une relation
           </button>
         )}
       </div>
@@ -1393,9 +1401,9 @@ function NodeDetailDrawer({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── DÉCISIONS TAB (NOUVEAU) ──────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€â”€ DÃ‰CISIONS TAB (NOUVEAU) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface Decision {
   id: number;
@@ -1414,7 +1422,7 @@ interface Decision {
   updatedAt: string;
 }
 
-// ─── CircularGauge ────────────────────────────────────────────────────────────
+// â”€â”€â”€ CircularGauge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CircularGauge({ score, size = 44 }: { score: number; size?: number }) {
   const stroke = 4;
@@ -1438,7 +1446,7 @@ function CircularGauge({ score, size = 44 }: { score: number; size?: number }) {
   );
 }
 
-// ─── CollapsibleSection ───────────────────────────────────────────────────────
+// â”€â”€â”€ CollapsibleSection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CollapsibleSection({
   title, icon: Icon, children, defaultOpen = false, colorClass = "text-muted-foreground"
@@ -1477,7 +1485,7 @@ function CollapsibleSection({
   );
 }
 
-// ─── ExportMenu ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ ExportMenu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ExportMenu({ decision, onClose }: { decision: Decision; onClose: () => void }) {
   const { toast } = useToast();
@@ -1503,7 +1511,7 @@ function ExportMenu({ decision, onClose }: { decision: Decision; onClose: () => 
     if (decision.risks?.length) md += `## Risques\n\n${decision.risks.map(r => `- ${r}`).join("\n")}\n\n`;
     if (decision.aiAdvice) md += `## Conseil IA\n\n${decision.aiAdvice}\n\n`;
     if (decision.redTeamAdvice) md += `## Red Team Advice\n\n${decision.redTeamAdvice}\n\n`;
-    if (decision.result) md += `## Résultat\n\n${decision.result}\n\n`;
+    if (decision.result) md += `## RÃ©sultat\n\n${decision.result}\n\n`;
     if (decision.learnings) md += `## Apprentissages\n\n${decision.learnings}\n\n`;
     return md;
   };
@@ -1511,7 +1519,7 @@ function ExportMenu({ decision, onClose }: { decision: Decision; onClose: () => 
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast({ title: `${label} copié dans le presse-papiers` });
+      toast({ title: `${label} copiÃ© dans le presse-papiers` });
     } catch {
       toast({ title: "Erreur", description: "Impossible de copier" });
     }
@@ -1526,7 +1534,7 @@ function ExportMenu({ decision, onClose }: { decision: Decision; onClose: () => 
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: `${filename} téléchargé` });
+    toast({ title: `${filename} tÃ©lÃ©chargÃ©` });
     onClose();
   };
 
@@ -1544,7 +1552,7 @@ function ExportMenu({ decision, onClose }: { decision: Decision; onClose: () => 
         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-foreground hover:bg-secondary transition-colors"
       >
         <ScrollText className="w-3.5 h-3.5 text-muted-foreground" />
-        Télécharger Markdown
+        TÃ©lÃ©charger Markdown
       </button>
       <button
         onClick={() => copyToClipboard(JSON.stringify(decision, null, 2), "JSON")}
@@ -1558,13 +1566,13 @@ function ExportMenu({ decision, onClose }: { decision: Decision; onClose: () => 
         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-foreground hover:bg-secondary transition-colors"
       >
         <FileJson className="w-3.5 h-3.5 text-muted-foreground" />
-        Télécharger JSON
+        TÃ©lÃ©charger JSON
       </button>
     </div>
   );
 }
 
-// ─── DecisionCard ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ DecisionCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function DecisionCard({
   decision,
@@ -1596,16 +1604,16 @@ function DecisionCard({
   const handleCreateTasks = () => {
     const tasks = [];
     if (decision.result) {
-      tasks.push({ title: `Mettre en œuvre : ${decision.result.slice(0, 80)}`, priority: "high" as const });
+      tasks.push({ title: `Mettre en Å“uvre : ${decision.result.slice(0, 80)}`, priority: "high" as const });
     }
     if (decision.aiAdvice) {
       tasks.push({ title: `Suivre conseil IA : ${decision.aiAdvice.slice(0, 80)}`, priority: "medium" as const });
     }
     if (decision.risks?.length) {
-      tasks.push({ title: `Atténuer risque : ${decision.risks[0].slice(0, 80)}`, priority: "high" as const });
+      tasks.push({ title: `AttÃ©nuer risque : ${decision.risks[0].slice(0, 80)}`, priority: "high" as const });
     }
     if (tasks.length === 0) {
-      tasks.push({ title: `Suivi décision : ${decision.title.slice(0, 80)}`, priority: "medium" as const });
+      tasks.push({ title: `Suivi dÃ©cision : ${decision.title.slice(0, 80)}`, priority: "medium" as const });
     }
     createTasks.mutate({ id: decision.id, data: { tasks } });
     setShowCreateTasksConfirm(false);
@@ -1656,7 +1664,7 @@ function DecisionCard({
               )}
             >
               {isSelected ? <Check className="w-3 h-3" /> : <Scale className="w-3 h-3" />}
-              {isSelected ? "Sélectionnée" : "Comparer"}
+              {isSelected ? "SÃ©lectionnÃ©e" : "Comparer"}
             </button>
           </div>
           <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">{decision.title}</h3>
@@ -1773,7 +1781,7 @@ function DecisionCard({
                   <ul className="space-y-1">
                     {decision.risks.map((r, i) => (
                       <li key={i} className="text-xs text-foreground/80 flex items-start gap-1.5">
-                        <span className="text-red-400 shrink-0 mt-0.5">−</span>
+                        <span className="text-red-400 shrink-0 mt-0.5">âˆ’</span>
                         <span className="leading-relaxed">{r}</span>
                       </li>
                     ))}
@@ -1783,7 +1791,7 @@ function DecisionCard({
 
               {/* Result */}
               {decision.result && (
-                <CollapsibleSection title="Résultat" icon={Lightbulb} colorClass="text-blue-400" defaultOpen={true}>
+                <CollapsibleSection title="RÃ©sultat" icon={Lightbulb} colorClass="text-blue-400" defaultOpen={true}>
                   <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{decision.result}</p>
                 </CollapsibleSection>
               )}
@@ -1813,7 +1821,7 @@ function DecisionCard({
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-all active:scale-[0.98] disabled:opacity-50 border border-primary/20"
                 >
                   <ListChecks className="w-4 h-4" />
-                  {createTasks.isPending ? "Création..." : "Créer tâches"}
+                  {createTasks.isPending ? "CrÃ©ation..." : "CrÃ©er tÃ¢ches"}
                 </button>
               </div>
 
@@ -1827,7 +1835,7 @@ function DecisionCard({
                     className="overflow-hidden"
                   >
                     <div className="bg-secondary/60 rounded-xl p-3 space-y-2">
-                      <p className="text-xs text-muted-foreground">Générer des tâches à partir de cette décision ?</p>
+                      <p className="text-xs text-muted-foreground">GÃ©nÃ©rer des tÃ¢ches Ã  partir de cette dÃ©cision ?</p>
                       <div className="flex gap-2">
                         <button
                           onClick={handleCreateTasks}
@@ -1854,7 +1862,7 @@ function DecisionCard({
   );
 }
 
-// ─── CompareModal ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ CompareModal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CompareModal({
   decisions,
@@ -1894,7 +1902,7 @@ function CompareModal({
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <Scale className="w-5 h-5 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Comparaison de décisions</h2>
+            <h2 className="text-sm font-semibold text-foreground">Comparaison de dÃ©cisions</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
             <X className="w-4 h-4" />
@@ -1906,11 +1914,11 @@ function CompareModal({
           {/* Titles */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-secondary rounded-xl p-3">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Décision 1</div>
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">DÃ©cision 1</div>
               <div className="text-sm font-semibold text-foreground">{d1.title}</div>
             </div>
             <div className="bg-secondary rounded-xl p-3">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Décision 2</div>
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">DÃ©cision 2</div>
               <div className="text-sm font-semibold text-foreground">{d2.title}</div>
             </div>
           </div>
@@ -1978,10 +1986,10 @@ function CompareModal({
           {/* Risks */}
           {(d1.risks?.length || d2.risks?.length) && renderSection("Risques",
             d1.risks?.length ? (
-              <ul className="space-y-0.5">{d1.risks.map((r, i) => <li key={i} className="text-red-400">− {r}</li>)}</ul>
+              <ul className="space-y-0.5">{d1.risks.map((r, i) => <li key={i} className="text-red-400">âˆ’ {r}</li>)}</ul>
             ) : <span className="text-muted-foreground/50 italic">Aucun</span>,
             d2.risks?.length ? (
-              <ul className="space-y-0.5">{d2.risks.map((r, i) => <li key={i} className="text-red-400">− {r}</li>)}</ul>
+              <ul className="space-y-0.5">{d2.risks.map((r, i) => <li key={i} className="text-red-400">âˆ’ {r}</li>)}</ul>
             ) : <span className="text-muted-foreground/50 italic">Aucun</span>
           )}
         </div>
@@ -1990,7 +1998,7 @@ function CompareModal({
   );
 }
 
-// ─── DecisionsTab ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ DecisionsTab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function DecisionsTab() {
   const qc = useQueryClient();
@@ -2029,7 +2037,7 @@ function DecisionsTab() {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListDecisionsQueryKey() });
         setQuestion(""); setContext(""); setShowForm(false);
-        toast({ title: "Décision créée" });
+        toast({ title: "DÃ©cision crÃ©Ã©e" });
       },
     },
   });
@@ -2038,7 +2046,7 @@ function DecisionsTab() {
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListDecisionsQueryKey() });
-        toast({ title: "Décision supprimée" });
+        toast({ title: "DÃ©cision supprimÃ©e" });
       },
     },
   });
@@ -2048,7 +2056,7 @@ function DecisionsTab() {
       onSuccess: (data: Decision) => {
         qc.invalidateQueries({ queryKey: getListDecisionsQueryKey() });
         qc.invalidateQueries({ queryKey: getGetDecisionQueryKey(data.id) });
-        toast({ title: "Analyse terminée ✨" });
+        toast({ title: "Analyse terminÃ©e âœ¨" });
       },
     },
   });
@@ -2057,7 +2065,7 @@ function DecisionsTab() {
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListDecisionsQueryKey() });
-        toast({ title: "Décision mise à jour" });
+        toast({ title: "DÃ©cision mise Ã  jour" });
       },
     },
   });
@@ -2067,7 +2075,7 @@ function DecisionsTab() {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListDecisionsQueryKey() });
         qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
-        toast({ title: "Tâches créées ✅" });
+        toast({ title: "TÃ¢ches crÃ©Ã©es âœ…" });
       },
     },
   });
@@ -2148,7 +2156,7 @@ function DecisionsTab() {
               <textarea
                 className="w-full bg-background rounded-lg px-3 py-2 text-base text-foreground placeholder:text-muted-foreground outline-none resize-none"
                 style={{ fontSize: "16px" }}
-                placeholder="Question de décision *"
+                placeholder="Question de dÃ©cision *"
                 rows={2}
                 value={question}
                 onChange={e => setQuestion(e.target.value)}
@@ -2170,7 +2178,7 @@ function DecisionsTab() {
                   disabled={!question.trim() || create.isPending}
                   className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
                 >
-                  {create.isPending ? "Création..." : "Créer"}
+                  {create.isPending ? "CrÃ©ation..." : "CrÃ©er"}
                 </button>
                 <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg bg-background text-muted-foreground text-sm">
                   Annuler
@@ -2193,7 +2201,7 @@ function DecisionsTab() {
             ))}
           </div>
         ) : decisions.length === 0 ? (
-          <EmptyState icon={GitFork} title="Aucune décision" sub="Créez des décisions à analyser par l'IA" />
+          <EmptyState icon={GitFork} title="Aucune dÃ©cision" sub="CrÃ©ez des dÃ©cisions Ã  analyser par l'IA" />
         ) : (
           <div className="relative py-2">
             {/* Timeline vertical line */}
@@ -2206,7 +2214,7 @@ function DecisionsTab() {
                   <div className="w-3 h-3 rounded-full bg-primary/80 border-2 border-background shadow-sm shrink-0 ml-0.5" />
                   <span className="text-xs font-bold text-foreground uppercase tracking-wider">{month}</span>
                   <div className="flex-1 h-px bg-border/40" />
-                  <span className="text-[10px] text-muted-foreground font-medium">{items.length} décision{items.length > 1 ? 's' : ''}</span>
+                  <span className="text-[10px] text-muted-foreground font-medium">{items.length} dÃ©cision{items.length > 1 ? 's' : ''}</span>
                 </div>
 
                 {/* Cards */}
@@ -2248,7 +2256,7 @@ function DecisionsTab() {
   );
 }
 
-// ─── Système Tab ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ SystÃ¨me Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ACTIVITY_COLORS: Record<string, string> = {
   task: "bg-blue-500/10 text-blue-400",
@@ -2260,7 +2268,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
   asset: "bg-orange-500/10 text-orange-400",
 };
 
-// ─── SystemeTab (Dashboard système enrichi) ───────────────────────────────────
+// â”€â”€â”€ SystemeTab (Dashboard systÃ¨me enrichi) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SystemMetrics {
   requestsPerMinute: number;
@@ -2278,8 +2286,8 @@ interface HealthCheck {
   checks: Record<string, { status: "ok" | "error"; message?: string }>;
 }
 
-// VIS — Validation & Integration System : teste chaque sous-système et affiche
-// un rapport PASS/WARN/FAIL (preuve de l'état runtime, Railway inclus).
+// VIS â€” Validation & Integration System : teste chaque sous-systÃ¨me et affiche
+// un rapport PASS/WARN/FAIL (preuve de l'Ã©tat runtime, Railway inclus).
 interface VisCheck { category: string; name: string; status: "PASS" | "WARN" | "FAIL"; detail: string; }
 interface VisReport { overall: "PASS" | "WARN" | "FAIL"; summary: { pass: number; warn: number; fail: number }; checks: VisCheck[]; }
 function ValidationCard() {
@@ -2333,11 +2341,11 @@ function ValidationCard() {
     <div className="bg-gradient-to-br from-sky-500/[0.07] to-cyan-500/[0.07] border border-sky-500/20 rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-base">🩺</span>
+          <span className="text-base">ðŸ©º</span>
           <span className="text-sm font-semibold text-foreground">Diagnostic plateforme (VIS)</span>
         </div>
         <button onClick={run} disabled={loading} className="text-xs px-2.5 py-1 rounded-lg bg-secondary border border-border text-muted-foreground disabled:opacity-50">
-          {loading ? "…" : "Relancer"}
+          {loading ? "â€¦" : "Relancer"}
         </button>
       </div>
       {report && (
@@ -2354,30 +2362,30 @@ function ValidationCard() {
             <span className={cn("w-2 h-2 rounded-full mt-1 shrink-0", dot(c.status))} />
             <div className="min-w-0">
               <span className="text-foreground">{c.name}</span>
-              <span className="text-muted-foreground"> — {c.detail}</span>
+              <span className="text-muted-foreground"> â€” {c.detail}</span>
             </div>
           </div>
         ))}
         {!report && !loading && <p className="text-xs text-muted-foreground">Diagnostic indisponible.</p>}
       </div>
 
-      {/* Self-test fonctionnel : exécute réellement l'IA + l'encodage vidéo */}
+      {/* Self-test fonctionnel : exÃ©cute rÃ©ellement l'IA + l'encodage vidÃ©o */}
       <div className="pt-2 border-t border-border/50 space-y-2">
         <button onClick={runSelftest} disabled={testing} className="text-xs px-3 py-1.5 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/25 disabled:opacity-50">
-          {testing ? "Test en cours (IA + vidéo)…" : "▶ Test fonctionnel réel (IA + encodage vidéo)"}
+          {testing ? "Test en cours (IA + vidÃ©o)â€¦" : "â–¶ Test fonctionnel rÃ©el (IA + encodage vidÃ©o)"}
         </button>
         {selftest?.checks.map((c, i) => (
           <div key={i} className="flex items-start gap-2 text-xs">
             <span className={cn("w-2 h-2 rounded-full mt-1 shrink-0", dot(c.status))} />
-            <div className="min-w-0"><span className="text-foreground">{c.name}</span><span className="text-muted-foreground"> — {c.detail}</span></div>
+            <div className="min-w-0"><span className="text-foreground">{c.name}</span><span className="text-muted-foreground"> â€” {c.detail}</span></div>
           </div>
         ))}
       </div>
 
-      {/* End-to-End Scenarios : exécute réellement chaque parcours utilisateur */}
+      {/* End-to-End Scenarios : exÃ©cute rÃ©ellement chaque parcours utilisateur */}
       <div className="pt-2 border-t border-border/50 space-y-2">
         <button onClick={runScenarios} disabled={running} className="text-xs px-3 py-1.5 rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/25 disabled:opacity-50">
-          {running ? "Parcours en cours (1-2 min : IA + vidéo)…" : "▶ Scénarios bout-en-bout (parcours réels)"}
+          {running ? "Parcours en cours (1-2 min : IA + vidÃ©o)â€¦" : "â–¶ ScÃ©narios bout-en-bout (parcours rÃ©els)"}
         </button>
         {scenarios && (
           <div className="space-y-1">
@@ -2394,14 +2402,14 @@ function ValidationCard() {
         )}
       </div>
 
-      {/* Observabilité métier : composants réellement utilisés */}
+      {/* ObservabilitÃ© mÃ©tier : composants rÃ©ellement utilisÃ©s */}
       {usage && usage.length > 0 && (
         <div className="pt-2 border-t border-border/50 space-y-1.5">
-          <div className="text-xs font-medium text-muted-foreground">Composants utilisés (réel)</div>
+          <div className="text-xs font-medium text-muted-foreground">Composants utilisÃ©s (rÃ©el)</div>
           {usage.slice(0, 10).map((u, i) => (
             <div key={i} className="flex items-center justify-between text-xs gap-2">
               <span className="text-foreground truncate">{u.title}</span>
-              <span className="text-muted-foreground shrink-0">{u.count}× · il y a {ago(u.last_used)}</span>
+              <span className="text-muted-foreground shrink-0">{u.count}Ã— Â· il y a {ago(u.last_used)}</span>
             </div>
           ))}
         </div>
@@ -2410,7 +2418,7 @@ function ValidationCard() {
   );
 }
 
-// Cerveau autonome — déclenche un cycle de l'organisation d'agents (Chief of
+// Cerveau autonome â€” dÃ©clenche un cycle de l'organisation d'agents (Chief of
 // Staff + Council + Red Team + Planner + Reflection) sur le projet.
 interface ContinueResult {
   synthesis?: string;
@@ -2438,13 +2446,13 @@ function ContinueTamsCard() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Cycle échoué", description: data.detail || data.error || `HTTP ${res.status}`, variant: "destructive" });
+        toast({ title: "Cycle Ã©chouÃ©", description: data.detail || data.error || `HTTP ${res.status}`, variant: "destructive" });
       } else {
         setResult(data);
-        toast({ title: "Cycle autonome terminé 🧠", description: `${data.agentsConsulted ?? 0} agents consultés` });
+        toast({ title: "Cycle autonome terminÃ© ðŸ§ ", description: `${data.agentsConsulted ?? 0} agents consultÃ©s` });
       }
     } catch {
-      toast({ title: "Cycle échoué", description: "Vérifie ta connexion.", variant: "destructive" });
+      toast({ title: "Cycle Ã©chouÃ©", description: "VÃ©rifie ta connexion.", variant: "destructive" });
     } finally {
       setRunning(false);
     }
@@ -2453,17 +2461,17 @@ function ContinueTamsCard() {
   return (
     <div className="bg-gradient-to-br from-indigo-500/[0.08] to-violet-500/[0.08] border border-indigo-500/20 rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-base">🧠</span>
-        <span className="text-sm font-semibold text-foreground">Cerveau autonome — « Continue TAMS »</span>
+        <span className="text-base">ðŸ§ </span>
+        <span className="text-sm font-semibold text-foreground">Cerveau autonome â€” Â« Continue TAMS Â»</span>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        L'organisation d'agents (Chief of Staff · Council multi-agents · Red Team · Planner · Reflection)
-        analyse le projet, débat, critique et propose la prochaine étape. Le résultat est mémorisé (Décisions).
+        L'organisation d'agents (Chief of Staff Â· Council multi-agents Â· Red Team Â· Planner Â· Reflection)
+        analyse le projet, dÃ©bat, critique et propose la prochaine Ã©tape. Le rÃ©sultat est mÃ©morisÃ© (DÃ©cisions).
       </p>
       <input
         value={goal}
         onChange={(e) => setGoal(e.target.value)}
-        placeholder="Objectif précis (laisse vide = analyse autonome)"
+        placeholder="Objectif prÃ©cis (laisse vide = analyse autonome)"
         className="w-full bg-background rounded-lg px-3 py-2 text-sm border border-border outline-none focus:border-indigo-500/40"
         style={{ fontSize: "16px" }}
       />
@@ -2472,19 +2480,19 @@ function ContinueTamsCard() {
         disabled={running}
         className="w-full py-2.5 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-sm font-medium disabled:opacity-50 active:scale-[0.99] transition-all"
       >
-        {running ? "Les agents réfléchissent (10-30s)…" : "Lancer un cycle autonome"}
+        {running ? "Les agents rÃ©flÃ©chissent (10-30s)â€¦" : "Lancer un cycle autonome"}
       </button>
       {result && (
         <div className="space-y-3 text-xs pt-1">
           {result.synthesis && (
             <div>
-              <div className="font-semibold text-foreground mb-1">🎯 Synthèse (Chief of Staff)</div>
+              <div className="font-semibold text-foreground mb-1">ðŸŽ¯ SynthÃ¨se (Chief of Staff)</div>
               <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.synthesis}</p>
             </div>
           )}
           {result.analysis?.priorities && result.analysis.priorities.length > 0 && (
             <div>
-              <div className="font-semibold text-foreground mb-1">📊 Priorités</div>
+              <div className="font-semibold text-foreground mb-1">ðŸ“Š PrioritÃ©s</div>
               <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
                 {result.analysis.priorities.slice(0, 6).map((p, i) => <li key={i}>{p}</li>)}
               </ul>
@@ -2492,17 +2500,17 @@ function ContinueTamsCard() {
           )}
           {result.plan?.steps && result.plan.steps.length > 0 && (
             <div>
-              <div className="font-semibold text-emerald-400 mb-1">📋 Plan (Mission Planner)</div>
+              <div className="font-semibold text-emerald-400 mb-1">ðŸ“‹ Plan (Mission Planner)</div>
               <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
                 {result.plan.steps.slice(0, 8).map((s, i) => (
-                  <li key={i}><span className="text-foreground">{s.title}</span>{s.role ? <span className="text-violet-400"> · {s.role}</span> : null}</li>
+                  <li key={i}><span className="text-foreground">{s.title}</span>{s.role ? <span className="text-violet-400"> Â· {s.role}</span> : null}</li>
                 ))}
               </ol>
             </div>
           )}
           {result.architecture?.objections && result.architecture.objections.length > 0 && (
             <div>
-              <div className="font-semibold text-amber-400 mb-1">🏛️ Architect {result.architecture.approved === false ? "(veto)" : ""}</div>
+              <div className="font-semibold text-amber-400 mb-1">ðŸ›ï¸ Architect {result.architecture.approved === false ? "(veto)" : ""}</div>
               <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
                 {result.architecture.objections.slice(0, 5).map((o, i) => <li key={i}>{o}</li>)}
               </ul>
@@ -2510,7 +2518,7 @@ function ContinueTamsCard() {
           )}
           {result.redTeam && (
             <div>
-              <div className="font-semibold text-red-400 mb-1">🔴 Red Team — {result.redTeam.verdict ?? "—"}</div>
+              <div className="font-semibold text-red-400 mb-1">ðŸ”´ Red Team â€” {result.redTeam.verdict ?? "â€”"}</div>
               <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
                 {(result.redTeam.attacks ?? []).slice(0, 5).map((a, i) => <li key={i}>{a}</li>)}
               </ul>
@@ -2518,7 +2526,7 @@ function ContinueTamsCard() {
           )}
           {result.validation?.humanGates && result.validation.humanGates.length > 0 && (
             <div>
-              <div className="font-semibold text-sky-400 mb-1">🔐 Portes de validation humaine</div>
+              <div className="font-semibold text-sky-400 mb-1">ðŸ” Portes de validation humaine</div>
               <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
                 {result.validation.humanGates.slice(0, 5).map((g, i) => <li key={i}>{g}</li>)}
               </ul>
@@ -2530,7 +2538,7 @@ function ContinueTamsCard() {
   );
 }
 
-// Connecteur Shopify : import des produits dans les Assets (gratuit, jeton app privée).
+// Connecteur Shopify : import des produits dans les Assets (gratuit, jeton app privÃ©e).
 function ShopifyImportCard() {
   const { toast } = useToast();
   const [shop, setShop] = useState("");
@@ -2550,13 +2558,13 @@ function ShopifyImportCard() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Import échoué", description: data.hint || data.error || `HTTP ${res.status}`, variant: "destructive" });
+        toast({ title: "Import Ã©chouÃ©", description: data.hint || data.error || `HTTP ${res.status}`, variant: "destructive" });
       } else {
         setResult({ imported: data.imported, total: data.total });
-        toast({ title: `${data.imported} produit(s) importé(s)`, description: "Disponibles dans tes Assets (Studio)." });
+        toast({ title: `${data.imported} produit(s) importÃ©(s)`, description: "Disponibles dans tes Assets (Studio)." });
       }
     } catch {
-      toast({ title: "Import échoué", description: "Vérifie ta connexion.", variant: "destructive" });
+      toast({ title: "Import Ã©chouÃ©", description: "VÃ©rifie ta connexion.", variant: "destructive" });
     } finally {
       setImporting(false);
     }
@@ -2565,12 +2573,12 @@ function ShopifyImportCard() {
   return (
     <div className="bg-secondary rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-base">🛍️</span>
+        <span className="text-base">ðŸ›ï¸</span>
         <span className="text-sm font-semibold text-foreground">Connecter Shopify</span>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Importe tes produits (image + description) dans tes Assets. Dans Shopify : crée une
-        <span className="font-medium"> app personnalisée</span> avec le scope <span className="font-mono">read_products</span>, puis colle le jeton <span className="font-mono">shpat_…</span>.
+        Importe tes produits (image + description) dans tes Assets. Dans Shopify : crÃ©e une
+        <span className="font-medium"> app personnalisÃ©e</span> avec le scope <span className="font-mono">read_products</span>, puis colle le jeton <span className="font-mono">shpat_â€¦</span>.
       </p>
       <input
         value={shop}
@@ -2598,7 +2606,7 @@ function ShopifyImportCard() {
       </button>
       {result && (
         <p className="text-xs text-emerald-400">
-          ✅ {result.imported}/{result.total} produit(s) importé(s) → Studio → Assets.
+          âœ… {result.imported}/{result.total} produit(s) importÃ©(s) â†’ Studio â†’ Assets.
         </p>
       )}
     </div>
@@ -2613,7 +2621,7 @@ function SystemeTab() {
     query: { enabled: false } as { enabled: boolean; queryKey: readonly unknown[] },
   });
 
-  // Nouveaux états pour les métriques temps réel
+  // Nouveaux Ã©tats pour les mÃ©triques temps rÃ©el
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [health, setHealth] = useState<HealthCheck | null>(null);
   const [metricsHistory, setMetricsHistory] = useState<Array<{ time: string; rpm: number; latency: number }>>([]);
@@ -2732,10 +2740,10 @@ function SystemeTab() {
         a.download = `tams-export-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        toast({ title: "Export téléchargé" });
+        toast({ title: "Export tÃ©lÃ©chargÃ©" });
       }
     } catch (_e) {
-      toast({ title: "Erreur export", description: "Impossible d'exporter les données" });
+      toast({ title: "Erreur export", description: "Impossible d'exporter les donnÃ©es" });
     }
   };
 
@@ -2762,18 +2770,18 @@ function SystemeTab() {
       a.download = `tams-logs-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "Logs exportés" });
+      toast({ title: "Logs exportÃ©s" });
     } catch (_e) {
       toast({ title: "Erreur export logs", description: "Impossible d'exporter les logs" });
     }
   };
 
   const statCards = stats ? [
-    { label: "Tâches", value: (stats as SystemStats & { taskCount?: number }).taskCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.tasks ?? 0,       icon: CheckSquare, color: "text-blue-400" },
+    { label: "TÃ¢ches", value: (stats as SystemStats & { taskCount?: number }).taskCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.tasks ?? 0,       icon: CheckSquare, color: "text-blue-400" },
     { label: "Projets", value: (stats as SystemStats & { projectCount?: number }).projectCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.projects ?? 0,   icon: FolderOpen,  color: "text-violet-400" },
     { label: "Contacts", value: (stats as SystemStats & { contactCount?: number }).contactCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.contacts ?? 0,  icon: Users,       color: "text-emerald-400" },
-    { label: "Mémoires", value: (stats as SystemStats & { memoryCount?: number }).memoryCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.memories ?? 0,   icon: Brain,       color: "text-amber-400" },
-    { label: "Décisions", value: (stats as SystemStats & { decisionCount?: number }).decisionCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.decisions ?? 0, icon: GitFork,    color: "text-rose-400" },
+    { label: "MÃ©moires", value: (stats as SystemStats & { memoryCount?: number }).memoryCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.memories ?? 0,   icon: Brain,       color: "text-amber-400" },
+    { label: "DÃ©cisions", value: (stats as SystemStats & { decisionCount?: number }).decisionCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.decisions ?? 0, icon: GitFork,    color: "text-rose-400" },
     { label: "Assets", value: (stats as SystemStats & { assetCount?: number }).assetCount ?? (stats as SystemStats & { tables?: Record<string, number> }).tables?.assets ?? 0,      icon: Layers,      color: "text-cyan-400" },
   ] : [];
 
@@ -2781,7 +2789,7 @@ function SystemeTab() {
     <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
       <div className="bg-secondary rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold">Réalité plateforme</span>
+          <span className="text-sm font-semibold">RÃ©alitÃ© plateforme</span>
           <button onClick={fetchPlatformReality} className="text-xs text-primary hover:underline">Actualiser</button>
         </div>
         {platformReality.error ? (
@@ -2789,30 +2797,30 @@ function SystemeTab() {
         ) : platformReality.readiness ? (
           <div className="grid gap-2 text-xs sm:grid-cols-2">
             <div>API : <strong className="text-emerald-400">online</strong></div>
-            <div>Base de données : <strong>{platformReality.readiness.checks?.database?.status ?? "non communiqué"}</strong></div>
-            <div>Runtime : <strong>{platformReality.readiness.checks?.dev_runtime?.status ?? "non communiqué"}</strong></div>
-            <div>Railway détecté : <strong>{platformReality.readiness.checks?.railway?.status === "detected" ? "oui" : "non"}</strong></div>
-            <div className="sm:col-span-2">Providers : <strong>{platformReality.readiness.checks?.providers_configured?.status ?? "non communiqué"}</strong></div>
+            <div>Base de donnÃ©es : <strong>{platformReality.readiness.checks?.database?.status ?? "non communiquÃ©"}</strong></div>
+            <div>Runtime : <strong>{platformReality.readiness.checks?.dev_runtime?.status ?? "non communiquÃ©"}</strong></div>
+            <div>Railway dÃ©tectÃ© : <strong>{platformReality.readiness.checks?.railway?.status === "detected" ? "oui" : "non"}</strong></div>
+            <div className="sm:col-span-2">Providers : <strong>{platformReality.readiness.checks?.providers_configured?.status ?? "non communiquÃ©"}</strong></div>
             <div className="sm:col-span-2">Registry : <strong>{platformReality.registry?.status ?? "disponible"}</strong></div>
             <div className="sm:col-span-2 rounded-lg bg-background/60 p-2 font-mono">
               Version : <strong>{platformReality.version?.commit ?? "unknown"}</strong>
-              <span className="block text-muted-foreground">Environnement : {platformReality.version?.environment ?? "unknown"} · Build : {platformReality.version?.buildTime ?? "unknown"} · Frontend : {platformReality.version?.frontendBuild ?? "unknown"}</span>
+              <span className="block text-muted-foreground">Environnement : {platformReality.version?.environment ?? "unknown"} Â· Build : {platformReality.version?.buildTime ?? "unknown"} Â· Frontend : {platformReality.version?.frontendBuild ?? "unknown"}</span>
             </div>
-            <div>FFmpeg : <strong>{platformReality.readiness.checks?.ffmpeg?.status ?? "non communiqué"}</strong></div>
-            <div>Actions dangereuses : <strong>{platformReality.readiness.checks?.unsafe_actions?.status ?? "non communiqué"}</strong></div>
+            <div>FFmpeg : <strong>{platformReality.readiness.checks?.ffmpeg?.status ?? "non communiquÃ©"}</strong></div>
+            <div>Actions dangereuses : <strong>{platformReality.readiness.checks?.unsafe_actions?.status ?? "non communiquÃ©"}</strong></div>
             <div className="sm:col-span-2">Configuration manquante : <strong>{platformReality.readiness.checks?.providers_missing?.status ?? "aucune information"}</strong></div>
             {(platformReality.readiness.limitations ?? []).length > 0 && (
-              <div className="sm:col-span-2 text-muted-foreground">Limites : {(platformReality.readiness.limitations as string[]).join(" · ")}</div>
+              <div className="sm:col-span-2 text-muted-foreground">Limites : {(platformReality.readiness.limitations as string[]).join(" Â· ")}</div>
             )}
             {(platformReality.readiness.recommendedFixes ?? []).length > 0 && (
-              <div className="sm:col-span-2 text-muted-foreground">Correctifs recommandés : {(platformReality.readiness.recommendedFixes as string[]).join(" · ")}</div>
+              <div className="sm:col-span-2 text-muted-foreground">Correctifs recommandÃ©s : {(platformReality.readiness.recommendedFixes as string[]).join(" Â· ")}</div>
             )}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground">Chargement des statuts réels…</div>
+          <div className="text-sm text-muted-foreground">Chargement des statuts rÃ©elsâ€¦</div>
         )}
       </div>
-      {/* VIS — Diagnostic plateforme */}
+      {/* VIS â€” Diagnostic plateforme */}
       <ValidationCard />
       {/* Cerveau autonome */}
       <ContinueTamsCard />
@@ -2820,7 +2828,7 @@ function SystemeTab() {
       <ShopifyImportCard />
       {/* Actions header */}
       <div className="flex items-center justify-between shrink-0">
-        <span className="text-xs font-medium text-muted-foreground">Observabilité</span>
+        <span className="text-xs font-medium text-muted-foreground">ObservabilitÃ©</span>
         <div className="flex gap-2">
           <button
             onClick={() => { refetchStats(); refetchAudit(); fetchMetrics(); fetchHealth(); fetchErrors(); }}
@@ -2869,10 +2877,10 @@ function SystemeTab() {
         </div>
       )}
 
-      {/* Métriques temps réel */}
+      {/* MÃ©triques temps rÃ©el */}
       <div className="bg-secondary rounded-xl p-3.5 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold text-foreground">Métriques temps réel</div>
+          <div className="text-xs font-semibold text-foreground">MÃ©triques temps rÃ©el</div>
           {loadingMetrics && <RefreshCw className="w-3 h-3 text-muted-foreground animate-spin" />}
         </div>
         {metrics ? (
@@ -2886,10 +2894,10 @@ function SystemeTab() {
               <MetricCard label="Appels outils" value={metrics.toolCallsCount} icon={Zap} color="text-violet-400" />
               <MetricCard label="Conversations" value={metrics.activeConversations} icon={Users} color="text-cyan-400" />
             </div>
-            {/* Graphique requêtes */}
+            {/* Graphique requÃªtes */}
             {metricsHistory.length > 1 && (
               <div className="bg-background rounded-lg p-2">
-                <div className="text-[10px] text-muted-foreground mb-1">Requêtes / min</div>
+                <div className="text-[10px] text-muted-foreground mb-1">RequÃªtes / min</div>
                 <div className="h-24">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metricsHistory}>
@@ -2920,7 +2928,7 @@ function SystemeTab() {
                 </div>
               </div>
             )}
-            {/* Taux de succès IA par fournisseur */}
+            {/* Taux de succÃ¨s IA par fournisseur */}
             {Object.keys(metrics.aiSuccessRateByProvider).length > 0 && (
               <div className="bg-background rounded-lg p-2">
                 <div className="text-[10px] text-muted-foreground mb-1">IA par fournisseur</div>
@@ -2942,7 +2950,7 @@ function SystemeTab() {
             )}
           </div>
         ) : (
-          <div className="text-xs text-muted-foreground text-center py-4">Métriques indisponibles</div>
+          <div className="text-xs text-muted-foreground text-center py-4">MÃ©triques indisponibles</div>
         )}
       </div>
 
@@ -2955,7 +2963,7 @@ function SystemeTab() {
         {health ? (
           <div className="space-y-1.5">
             <ServiceStatusRow
-              name="Base de données"
+              name="Base de donnÃ©es"
               status={health.checks?.database?.status === "ok"}
               message={health.checks?.database?.message}
               icon={Server}
@@ -2973,7 +2981,7 @@ function SystemeTab() {
               icon={HardDrive}
             />
             <ServiceStatusRow
-              name="Mémoire"
+              name="MÃ©moire"
               status={health.checks?.memory?.status === "ok"}
               message={health.checks?.memory?.message}
               icon={Cpu}
@@ -2988,9 +2996,9 @@ function SystemeTab() {
         )}
       </div>
 
-      {/* Dernières erreurs */}
+      {/* DerniÃ¨res erreurs */}
       <div className="bg-secondary rounded-xl p-3.5 space-y-2">
-        <div className="text-xs font-semibold text-foreground">Dernières erreurs</div>
+        <div className="text-xs font-semibold text-foreground">DerniÃ¨res erreurs</div>
         {errors.length > 0 ? (
           <div className="space-y-1.5">
             {errors.map((err, i) => (
@@ -3005,7 +3013,7 @@ function SystemeTab() {
             ))}
           </div>
         ) : (
-          <div className="text-xs text-muted-foreground text-center py-2">Aucune erreur récente</div>
+          <div className="text-xs text-muted-foreground text-center py-2">Aucune erreur rÃ©cente</div>
         )}
       </div>
 
@@ -3013,7 +3021,7 @@ function SystemeTab() {
       <div className="bg-secondary rounded-xl p-3.5">
         <div className="flex items-center gap-2 mb-3">
           <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold text-foreground">Journal d'activité</span>
+          <span className="text-xs font-semibold text-foreground">Journal d'activitÃ©</span>
           {auditLoading && <RefreshCw className="w-3 h-3 text-muted-foreground animate-spin ml-auto" />}
         </div>
         {auditLoading ? (
@@ -3021,7 +3029,7 @@ function SystemeTab() {
             {[...Array(5)].map((_, i) => <div key={i} className="h-8 bg-background rounded-lg animate-pulse" />)}
           </div>
         ) : !audit || audit.length === 0 ? (
-          <div className="text-xs text-muted-foreground text-center py-4">Aucune activité récente</div>
+          <div className="text-xs text-muted-foreground text-center py-4">Aucune activitÃ© rÃ©cente</div>
         ) : (
           <div className="space-y-2">
             {audit.map((item) => (
@@ -3080,7 +3088,7 @@ function ServiceStatusRow({ name, status, message, icon: Icon }: { name: string;
   );
 }
 
-// ─── Workflows Tab ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Workflows Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function WorkflowsTab() {
   const { data, isLoading } = useListWorkflows();
@@ -3097,14 +3105,14 @@ function WorkflowsTab() {
 
   const handleToggle = (rule: WorkflowRuleItem) => {
     toggle.mutate({ id: rule.id, enabled: !rule.enabled }, {
-      onSuccess: () => toast({ title: rule.enabled ? "Règle désactivée" : "Règle activée" }),
+      onSuccess: () => toast({ title: rule.enabled ? "RÃ¨gle dÃ©sactivÃ©e" : "RÃ¨gle activÃ©e" }),
       onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
     });
   };
 
   const handleRun = (id: string) => {
     run.mutate(id, {
-      onSuccess: (res) => toast({ title: "Exécution", description: res.data.message }),
+      onSuccess: (res) => toast({ title: "ExÃ©cution", description: res.data.message }),
       onError: (err) => toast({ title: "Erreur", description: err.message, variant: "destructive" }),
     });
   };
@@ -3114,7 +3122,7 @@ function WorkflowsTab() {
     if (!newRule.id || !newRule.name) return;
     create.mutate(newRule, {
       onSuccess: () => {
-        toast({ title: "Règle créée" });
+        toast({ title: "RÃ¨gle crÃ©Ã©e" });
         setShowCreate(false);
         setNewRule({ id: "", name: "", description: "", trigger: "scheduled" });
       },
@@ -3127,21 +3135,21 @@ function WorkflowsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          {rules.length} règle{rules.length > 1 ? "s" : ""} · {rules.filter(r => r.enabled).length} active{rules.filter(r => r.enabled).length > 1 ? "s" : ""}
+          {rules.length} rÃ¨gle{rules.length > 1 ? "s" : ""} Â· {rules.filter(r => r.enabled).length} active{rules.filter(r => r.enabled).length > 1 ? "s" : ""}
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
         >
           <Plus className="w-3.5 h-3.5" />
-          Nouvelle règle
+          Nouvelle rÃ¨gle
         </button>
       </div>
 
       {/* Create form */}
       {showCreate && (
         <form onSubmit={handleCreate} className="bg-secondary rounded-xl p-4 space-y-3">
-          <div className="text-xs font-semibold text-foreground">Nouvelle règle personnalisée</div>
+          <div className="text-xs font-semibold text-foreground">Nouvelle rÃ¨gle personnalisÃ©e</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               value={newRule.id}
@@ -3181,7 +3189,7 @@ function WorkflowsTab() {
           </select>
           <div className="flex gap-2">
             <button type="submit" className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity">
-              Créer
+              CrÃ©er
             </button>
             <button type="button" onClick={() => setShowCreate(false)} className="px-3 py-1.5 bg-background text-foreground rounded-lg text-xs border border-border hover:bg-secondary transition-colors">
               Annuler
@@ -3197,7 +3205,7 @@ function WorkflowsTab() {
             {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-secondary rounded-xl animate-pulse" />)}
           </div>
         ) : rules.length === 0 ? (
-          <EmptyState icon={Workflow} title="Aucune règle" sub="Les règles workflows apparaîtront ici" />
+          <EmptyState icon={Workflow} title="Aucune rÃ¨gle" sub="Les rÃ¨gles workflows apparaÃ®tront ici" />
         ) : (
           rules.map(rule => (
             <div key={rule.id} className="bg-secondary rounded-xl p-3.5 space-y-2">
@@ -3211,7 +3219,7 @@ function WorkflowsTab() {
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-foreground">{rule.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{rule.id} · {rule.trigger}</div>
+                    <div className="text-[10px] text-muted-foreground">{rule.id} Â· {rule.trigger}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -3219,7 +3227,7 @@ function WorkflowsTab() {
                     onClick={() => handleRun(rule.id)}
                     disabled={run.isPending}
                     className="p-1.5 rounded-lg bg-background text-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
-                    title="Exécuter maintenant"
+                    title="ExÃ©cuter maintenant"
                   >
                     <Play className="w-3.5 h-3.5" />
                   </button>
@@ -3231,7 +3239,7 @@ function WorkflowsTab() {
                         ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                         : "bg-background text-muted-foreground hover:bg-primary/10 hover:text-primary"
                     )}
-                    title={rule.enabled ? "Désactiver" : "Activer"}
+                    title={rule.enabled ? "DÃ©sactiver" : "Activer"}
                   >
                     {rule.enabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                   </button>
@@ -3244,17 +3252,17 @@ function WorkflowsTab() {
                 {rule.lastRun ? (
                   <span className="flex items-center gap-1">
                     <History className="w-3 h-3" />
-                    Dernière exécution : {timeAgo(rule.lastRun)}
+                    DerniÃ¨re exÃ©cution : {timeAgo(rule.lastRun)}
                     {rule.lastSuccess !== null && (
                       <span className={rule.lastSuccess ? "text-emerald-400" : "text-rose-400"}>
-                        {rule.lastSuccess ? " ✓" : " ✗"}
+                        {rule.lastSuccess ? " âœ“" : " âœ—"}
                       </span>
                     )}
                   </span>
                 ) : (
-                  <span>Jamais exécutée</span>
+                  <span>Jamais exÃ©cutÃ©e</span>
                 )}
-                <span>· {rule.runCount} exécution{rule.runCount > 1 ? "s" : ""}</span>
+                <span>Â· {rule.runCount} exÃ©cution{rule.runCount > 1 ? "s" : ""}</span>
               </div>
             </div>
           ))
@@ -3265,10 +3273,10 @@ function WorkflowsTab() {
       <div className="bg-secondary rounded-xl p-3.5 space-y-2">
         <div className="flex items-center gap-2">
           <History className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold text-foreground">Historique des exécutions</span>
+          <span className="text-xs font-semibold text-foreground">Historique des exÃ©cutions</span>
         </div>
         {history.length === 0 ? (
-          <div className="text-xs text-muted-foreground text-center py-4">Aucune exécution enregistrée</div>
+          <div className="text-xs text-muted-foreground text-center py-4">Aucune exÃ©cution enregistrÃ©e</div>
         ) : (
           <div className="space-y-1.5 max-h-64 overflow-y-auto">
             {history.map(h => (
@@ -3288,7 +3296,7 @@ function WorkflowsTab() {
   );
 }
 
-// ─── Shared ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Shared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EmptyState({
   icon: Icon,
@@ -3307,3 +3315,4 @@ function EmptyState({
     </div>
   );
 }
+
