@@ -7,7 +7,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { AppShell } from "@/components/layout/AppShell";
 
 const Accueil = lazy(() => import("@/pages/accueil"));
-const Chat = lazy(() => import("@/pages/chat"));
+const ChatWorkspace = lazy(() => import("@/components/chat/ChatWorkspace"));
 const Capture = lazy(() => import("@/pages/capture"));
 const Travail = lazy(() => import("@/pages/travail"));
 const Vie = lazy(() => import("@/pages/vie"));
@@ -46,7 +46,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Accueil} />
           <Route path="/today" component={Accueil} />
-          <Route path="/chat" component={Chat} />
+          <Route path="/chat" component={ChatWorkspace} />
           <Route path="/capture" component={Capture} />
           <Route path="/travail" component={Travail} />
           <Route path="/dossiers" component={Travail} />
@@ -84,3 +84,4 @@ function App() {
 }
 
 export default App;
+

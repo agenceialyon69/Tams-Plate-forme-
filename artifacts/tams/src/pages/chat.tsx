@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   useListConversations, useCreateConversation,
   useDeleteConversation, useListMessages,
@@ -52,10 +52,10 @@ type DurableChatMessage = {
   createdAt: string;
 };
 
-// Persistance locale RÉELLE des messages du Chat. Avant, `durableLocalMessages`
-// n'était jamais sauvegardé → au moindre rechargement/navigation, les messages
+// Persistance locale RÃ‰ELLE des messages du Chat. Avant, `durableLocalMessages`
+// n'Ã©tait jamais sauvegardÃ© â†’ au moindre rechargement/navigation, les messages
 // disparaissaient. On les garde en localStorage (dernier 500) pour qu'ils
-// survivent même si la base serveur est momentanément indisponible.
+// survivent mÃªme si la base serveur est momentanÃ©ment indisponible.
 const DURABLE_MESSAGES_KEY = "tams.chat.durableMessages.v1";
 const DURABLE_MESSAGES_CAP = 500;
 
@@ -81,16 +81,16 @@ function saveDurableMessages(messages: DurableChatMessage[]): void {
     const trimmed = messages.slice(-DURABLE_MESSAGES_CAP);
     localStorage.setItem(DURABLE_MESSAGES_KEY, JSON.stringify(trimmed));
   } catch {
-    /* quota plein ou storage indisponible : on n'échoue jamais le chat */
+    /* quota plein ou storage indisponible : on n'Ã©choue jamais le chat */
   }
 }
 
 const MODES = [
   { value: "chat", label: "Conversation", icon: MessageSquare },
   { value: "chief_of_staff", label: "Chef de Cabinet", icon: Zap },
-  { value: "decision", label: "Décision", icon: Lightbulb },
+  { value: "decision", label: "DÃ©cision", icon: Lightbulb },
   { value: "red_team", label: "Red Team", icon: Shield },
-  { value: "execution", label: "Exécution", icon: CheckCircle2 },
+  { value: "execution", label: "ExÃ©cution", icon: CheckCircle2 },
 ] as const;
 
 type Mode = typeof MODES[number]["value"];
@@ -111,24 +111,24 @@ const modeGradient: Record<Mode, string> = {
   execution: "from-emerald-500/5 to-transparent",
 };
 
-/* ─── Thinking steps ─── */
+/* â”€â”€â”€ Thinking steps â”€â”€â”€ */
 const THINKING_STEPS = [
   { icon: BrainCircuit, text: "Analyse du contexte..." },
-  { icon: Database, text: "Recherche dans la mémoire..." },
+  { icon: Database, text: "Recherche dans la mÃ©moire..." },
   { icon: Wrench, text: "Appel d'outils..." },
-  { icon: Sparkles, text: "Génération de la réponse..." },
+  { icon: Sparkles, text: "GÃ©nÃ©ration de la rÃ©ponse..." },
 ];
 
-/* ─── Slash commands ─── */
+/* â”€â”€â”€ Slash commands â”€â”€â”€ */
 const SLASH_COMMANDS = [
-  { command: "/tâche", label: "Créer une tâche", icon: CheckCircle2, color: "text-emerald-400", example: "/tâche Appeler le client demain à 14h" },
-  { command: "/projet", label: "Créer un projet", icon: FolderOpen, color: "text-blue-400", example: "/projet Refonte du site web" },
+  { command: "/tÃ¢che", label: "CrÃ©er une tÃ¢che", icon: CheckCircle2, color: "text-emerald-400", example: "/tÃ¢che Appeler le client demain Ã  14h" },
+  { command: "/projet", label: "CrÃ©er un projet", icon: FolderOpen, color: "text-blue-400", example: "/projet Refonte du site web" },
   { command: "/contact", label: "Ajouter un contact", icon: UserPlus, color: "text-violet-400", example: "/contact Jean Dupont, Acme Corp, jean@acme.com" },
-  { command: "/studio", label: "Générer dans Studio", icon: Palette, color: "text-pink-400", example: "/studio image un portrait cyberpunk" },
-  { command: "/décision", label: "Analyser une décision", icon: Lightbulb, color: "text-amber-400", example: "/décision Dois-je changer de fournisseur ?" },
+  { command: "/studio", label: "GÃ©nÃ©rer dans Studio", icon: Palette, color: "text-pink-400", example: "/studio image un portrait cyberpunk" },
+  { command: "/dÃ©cision", label: "Analyser une dÃ©cision", icon: Lightbulb, color: "text-amber-400", example: "/dÃ©cision Dois-je changer de fournisseur ?" },
 ];
 
-/* ─── Tool call cards ─── */
+/* â”€â”€â”€ Tool call cards â”€â”€â”€ */
 interface ToolCall {
   name: string;
   result: string;
@@ -141,17 +141,17 @@ interface ToolCall {
 /* Tool icon mapping */
 function getToolMeta(name: string) {
   const lower = name.toLowerCase();
-  if (lower.includes("task") || lower.includes("tâche")) return { icon: CheckCircle2, label: "Tâche créée", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail", actionLabel: "Création d'une tâche..." };
-  if (lower.includes("project") || lower.includes("projet")) return { icon: FolderOpen, label: "Projet créé", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/travail", actionLabel: "Création d'un projet..." };
-  if (lower.includes("contact")) return { icon: UserPlus, label: "Contact ajouté", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/travail", actionLabel: "Ajout d'un contact..." };
-  if (lower.includes("memory") || lower.includes("mémoire")) return { icon: MessageSquare, label: "Mémoire enregistrée", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: "/systeme", actionLabel: "Enregistrement mémoire..." };
-  if (lower.includes("decision") || lower.includes("décision")) return { icon: Lightbulb, label: "Décision analysée", color: "bg-orange-500/10 text-orange-400 border-orange-500/20", link: "/systeme", actionLabel: "Création d'une décision..." };
-  if (lower.includes("image") || lower.includes("studio")) return { icon: Image, label: "Asset Studio créé", color: "bg-pink-500/10 text-pink-400 border-pink-500/20", link: "/studio", actionLabel: "Génération Studio..." };
-  if (lower.includes("briefing")) return { icon: BarChart3, label: "Briefing du jour", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/systeme", actionLabel: "Récupération du briefing..." };
-  if (lower.includes("update_task_status")) return { icon: ListChecks, label: "Statut mis à jour", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail", actionLabel: "Mise à jour du statut..." };
-  if (lower.includes("project_contact")) return { icon: UserPlus, label: "Contact lié au projet", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/travail", actionLabel: "Liaison contact-projet..." };
-  if (lower.includes("reminder") || lower.includes("rappel")) return { icon: BrainCircuit, label: "Rappel programmé", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: undefined, actionLabel: "Programmation du rappel..." };
-  return { icon: Zap, label: "Action effectuée", color: "bg-primary/10 text-primary border-primary/20", link: undefined, actionLabel: "Exécution..." };
+  if (lower.includes("task") || lower.includes("tÃ¢che")) return { icon: CheckCircle2, label: "TÃ¢che crÃ©Ã©e", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail", actionLabel: "CrÃ©ation d'une tÃ¢che..." };
+  if (lower.includes("project") || lower.includes("projet")) return { icon: FolderOpen, label: "Projet crÃ©Ã©", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/travail", actionLabel: "CrÃ©ation d'un projet..." };
+  if (lower.includes("contact")) return { icon: UserPlus, label: "Contact ajoutÃ©", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/travail", actionLabel: "Ajout d'un contact..." };
+  if (lower.includes("memory") || lower.includes("mÃ©moire")) return { icon: MessageSquare, label: "MÃ©moire enregistrÃ©e", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: "/systeme", actionLabel: "Enregistrement mÃ©moire..." };
+  if (lower.includes("decision") || lower.includes("dÃ©cision")) return { icon: Lightbulb, label: "DÃ©cision analysÃ©e", color: "bg-orange-500/10 text-orange-400 border-orange-500/20", link: "/systeme", actionLabel: "CrÃ©ation d'une dÃ©cision..." };
+  if (lower.includes("image") || lower.includes("studio")) return { icon: Image, label: "Asset Studio crÃ©Ã©", color: "bg-pink-500/10 text-pink-400 border-pink-500/20", link: "/studio", actionLabel: "GÃ©nÃ©ration Studio..." };
+  if (lower.includes("briefing")) return { icon: BarChart3, label: "Briefing du jour", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", link: "/systeme", actionLabel: "RÃ©cupÃ©ration du briefing..." };
+  if (lower.includes("update_task_status")) return { icon: ListChecks, label: "Statut mis Ã  jour", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", link: "/travail", actionLabel: "Mise Ã  jour du statut..." };
+  if (lower.includes("project_contact")) return { icon: UserPlus, label: "Contact liÃ© au projet", color: "bg-violet-500/10 text-violet-400 border-violet-500/20", link: "/travail", actionLabel: "Liaison contact-projet..." };
+  if (lower.includes("reminder") || lower.includes("rappel")) return { icon: BrainCircuit, label: "Rappel programmÃ©", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", link: undefined, actionLabel: "Programmation du rappel..." };
+  return { icon: Zap, label: "Action effectuÃ©e", color: "bg-primary/10 text-primary border-primary/20", link: undefined, actionLabel: "ExÃ©cution..." };
 }
 
 /* Enriched Tool Call Card with animation */
@@ -214,7 +214,7 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
             <a href={tool.result.slice(6)} target="_blank" rel="noreferrer">
               <img
                 src={tool.result.slice(6)}
-                alt="Image générée"
+                alt="Image gÃ©nÃ©rÃ©e"
                 className="mt-1.5 rounded-lg w-full max-w-[220px] aspect-square object-cover border border-border"
                 loading="lazy"
               />
@@ -250,13 +250,13 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
         <div className="mt-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 animate-scale-in">
           <div className="text-xs text-red-300 flex items-start gap-2">
             <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span className="flex-1">{tool.error || "Une erreur est survenue lors de l'exécution de l'outil."}</span>
+            <span className="flex-1">{tool.error || "Une erreur est survenue lors de l'exÃ©cution de l'outil."}</span>
           </div>
           <button
             className="mt-2 text-[10px] px-2.5 py-1 rounded-md bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors"
             onClick={() => window.location.reload()}
           >
-            Réessayer
+            RÃ©essayer
           </button>
         </div>
       )}
@@ -264,32 +264,32 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
   );
 }
 
-/* ─── Quick action buttons ─── */
+/* â”€â”€â”€ Quick action buttons â”€â”€â”€ */
 function QuickActions({ mode, onAction }: { mode: Mode; onAction: (text: string) => void }) {
   const actions: Record<Mode, { label: string; icon: React.ElementType; text: string }[]> = {
     chat: [
-      { label: "Créer tâche", icon: CheckCircle2, text: "Crée une tâche pour moi" },
-      { label: "Nouveau projet", icon: FolderOpen, text: "Crée un nouveau projet" },
-      { label: "Générer image", icon: Image, text: "Génère une image de..." },
+      { label: "CrÃ©er tÃ¢che", icon: CheckCircle2, text: "CrÃ©e une tÃ¢che pour moi" },
+      { label: "Nouveau projet", icon: FolderOpen, text: "CrÃ©e un nouveau projet" },
+      { label: "GÃ©nÃ©rer image", icon: Image, text: "GÃ©nÃ¨re une image de..." },
     ],
     chief_of_staff: [
       { label: "Briefing du jour", icon: Zap, text: "Quel est mon briefing du jour ?" },
-      { label: "Priorités", icon: CheckCircle2, text: "Quelles sont mes priorités ?" },
+      { label: "PrioritÃ©s", icon: CheckCircle2, text: "Quelles sont mes prioritÃ©s ?" },
       { label: "Risques", icon: Shield, text: "Quels risques dois-je surveiller ?" },
     ],
     decision: [
-      { label: "Analyser", icon: Lightbulb, text: "Aide-moi à décider : " },
-      { label: "Pros/Cons", icon: FileText, text: "Liste les avantages et inconvénients de..." },
+      { label: "Analyser", icon: Lightbulb, text: "Aide-moi Ã  dÃ©cider : " },
+      { label: "Pros/Cons", icon: FileText, text: "Liste les avantages et inconvÃ©nients de..." },
       { label: "Recommandation", icon: Zap, text: "Que me recommandes-tu ?" },
     ],
     red_team: [
-      { label: "Vérifier", icon: Shield, text: "Analyse les risques de..." },
+      { label: "VÃ©rifier", icon: Shield, text: "Analyse les risques de..." },
       { label: "Challenge", icon: Zap, text: "Qu'est-ce qui pourrait mal tourner ?" },
       { label: "Alternatives", icon: Lightbulb, text: "Quelles sont les alternatives ?" },
     ],
     execution: [
-      { label: "Créer tâche", icon: CheckCircle2, text: "/tâche " },
-      { label: "Créer projet", icon: FolderOpen, text: "/projet " },
+      { label: "CrÃ©er tÃ¢che", icon: CheckCircle2, text: "/tÃ¢che " },
+      { label: "CrÃ©er projet", icon: FolderOpen, text: "/projet " },
       { label: "Ajouter contact", icon: UserPlus, text: "/contact " },
     ],
   };
@@ -313,7 +313,7 @@ function QuickActions({ mode, onAction }: { mode: Mode; onAction: (text: string)
   );
 }
 
-/* ─── Slash command picker ─── */
+/* â”€â”€â”€ Slash command picker â”€â”€â”€ */
 function SlashCommandPicker({ query, onSelect, onClose }: { query: string; onSelect: (cmd: string) => void; onClose: () => void }) {
   const [selected, setSelected] = useState(0);
   const filtered = SLASH_COMMANDS.filter(c => c.command.includes(query.toLowerCase()));
@@ -357,7 +357,7 @@ function SlashCommandPicker({ query, onSelect, onClose }: { query: string; onSel
   );
 }
 
-/* ─── Date separator ─── */
+/* â”€â”€â”€ Date separator â”€â”€â”€ */
 function DateSeparator({ date }: { date: string }) {
   const d = new Date(date);
   let label: string;
@@ -374,14 +374,14 @@ function DateSeparator({ date }: { date: string }) {
   );
 }
 
-/* ─── Thinking indicator ─── */
+/* â”€â”€â”€ Thinking indicator â”€â”€â”€ */
 function ThinkingIndicator({ steps }: { steps: string[] }) {
   return (
     <div className="flex justify-start">
       <div className="max-w-[80%] bg-secondary/60 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm text-foreground border border-border/50">
         <div className="flex items-center gap-2 mb-1.5">
           <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-          <span className="text-xs font-medium text-muted-foreground">Réflexion...</span>
+          <span className="text-xs font-medium text-muted-foreground">RÃ©flexion...</span>
         </div>
         <div className="space-y-1">
           {steps.map((step, i) => (
@@ -396,7 +396,7 @@ function ThinkingIndicator({ steps }: { steps: string[] }) {
   );
 }
 
-/* ─── Typing indicator with wave ─── */
+/* â”€â”€â”€ Typing indicator with wave â”€â”€â”€ */
 function TypingIndicator() {
   return (
     <div className="flex gap-1 items-center py-1">
@@ -411,7 +411,7 @@ function TypingIndicator() {
   );
 }
 
-/* ─── Action status bar ─── */
+/* â”€â”€â”€ Action status bar â”€â”€â”€ */
 function ActionStatusBar({
   mode,
   messageCount,
@@ -453,7 +453,7 @@ function ActionStatusBar({
               className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
-              Réessayer
+              RÃ©essayer
             </button>
             <button
               onClick={onNewConversation}
@@ -466,7 +466,7 @@ function ActionStatusBar({
         ) : (
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Wifi className="w-3 h-3 text-emerald-400" />
-            <span>Connecté</span>
+            <span>ConnectÃ©</span>
           </div>
         )}
         {isStreaming && (
@@ -479,7 +479,7 @@ function ActionStatusBar({
   );
 }
 
-/* ─── Memory badge ─── */
+/* â”€â”€â”€ Memory badge â”€â”€â”€ */
 function MemoryBadge({ count, memories, onToggleContext }: { count: number; memories: string[]; onToggleContext?: () => void }) {
   if (count === 0) return null;
 
@@ -492,12 +492,12 @@ function MemoryBadge({ count, memories, onToggleContext }: { count: number; memo
             className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full hover:bg-amber-500/20 transition-colors"
           >
             <MemoryStick className="w-3 h-3" />
-            <span>Mémoire : {count} élément{count !== 1 ? "s" : ""}</span>
+            <span>MÃ©moire : {count} Ã©lÃ©ment{count !== 1 ? "s" : ""}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
           <div className="space-y-1">
-            <p className="font-semibold text-[10px] uppercase tracking-wider opacity-70">Mémoires utilisées</p>
+            <p className="font-semibold text-[10px] uppercase tracking-wider opacity-70">MÃ©moires utilisÃ©es</p>
             {memories.map((m, i) => (
               <p key={i} className="text-[10px] truncate">{m}</p>
             ))}
@@ -508,7 +508,7 @@ function MemoryBadge({ count, memories, onToggleContext }: { count: number; memo
   );
 }
 
-/* ─── Context Panel (Memory sidebar) ─── */
+/* â”€â”€â”€ Context Panel (Memory sidebar) â”€â”€â”€ */
 interface MemoryItem {
   id: string;
   type: string;
@@ -547,7 +547,7 @@ function ContextPanel({
         {memories.length === 0 ? (
           <div className="text-center py-8">
             <Brain className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">Aucun contexte mémoire actif</p>
+            <p className="text-xs text-muted-foreground">Aucun contexte mÃ©moire actif</p>
           </div>
         ) : (
           memories.map((mem) => (
@@ -595,11 +595,11 @@ function ContextPanel({
   );
 }
 
-/* ─── Structured Content Renderer ─── */
+/* â”€â”€â”€ Structured Content Renderer â”€â”€â”€ */
 function StructuredContent({ content }: { content: string }) {
   // Le parseur markdown maison peut rencontrer du contenu partiel (streaming) ou
-  // malformé. On ne laisse JAMAIS une erreur de parsing casser le Chat : repli
-  // sur du texte brut. (Le rendu lui-même est protégé par l'ErrorBoundary global.)
+  // malformÃ©. On ne laisse JAMAIS une erreur de parsing casser le Chat : repli
+  // sur du texte brut. (Le rendu lui-mÃªme est protÃ©gÃ© par l'ErrorBoundary global.)
   const blocks = useMemo(() => {
     try {
       return parseContent(content);
@@ -636,7 +636,7 @@ function parseContent(content: string): ContentBlockType[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Média : VIDEO:<url> / IMAGE:<url> / AUDIO:<url> (une ligne = un lecteur).
+    // MÃ©dia : VIDEO:<url> / IMAGE:<url> / AUDIO:<url> (une ligne = un lecteur).
     const media = line.match(/^(VIDEO|IMAGE|AUDIO):(\S+)$/);
     if (media) {
       blocks.push({ type: "media", content: media[2], mediaKind: media[1].toLowerCase() as "video" | "image" | "audio" });
@@ -731,30 +731,30 @@ function highlightCode(code: string, language?: string): React.ReactNode {
   let highlighted = code;
 
   // Comments (must be first)
-  highlighted = highlighted.replace(comments, match => `§COMMENT§${match}§END§`);
+  highlighted = highlighted.replace(comments, match => `Â§COMMENTÂ§${match}Â§ENDÂ§`);
 
   // Strings
-  highlighted = highlighted.replace(strings, match => `§STRING§${match}§END§`);
+  highlighted = highlighted.replace(strings, match => `Â§STRINGÂ§${match}Â§ENDÂ§`);
 
   // Numbers
-  highlighted = highlighted.replace(numbers, match => `§NUMBER§${match}§END§`);
+  highlighted = highlighted.replace(numbers, match => `Â§NUMBERÂ§${match}Â§ENDÂ§`);
 
   // Keywords
   keywords.forEach(kw => {
     const regex = new RegExp(`\\b${kw}\\b`, "g");
-    highlighted = highlighted.replace(regex, match => `§KEYWORD§${match}§END§`);
+    highlighted = highlighted.replace(regex, match => `Â§KEYWORDÂ§${match}Â§ENDÂ§`);
   });
 
   // Split and render
-  const parts = highlighted.split(/(§\w+§|§END§)/);
+  const parts = highlighted.split(/(Â§\w+Â§|Â§ENDÂ§)/);
   let currentClass = "";
 
   return parts.map((part, i) => {
-    if (part === "§COMMENT§") { currentClass = "text-muted-foreground italic"; return null; }
-    if (part === "§STRING§") { currentClass = "text-emerald-400"; return null; }
-    if (part === "§NUMBER§") { currentClass = "text-amber-400"; return null; }
-    if (part === "§KEYWORD§") { currentClass = "text-violet-400 font-semibold"; return null; }
-    if (part === "§END§") { currentClass = ""; return null; }
+    if (part === "Â§COMMENTÂ§") { currentClass = "text-muted-foreground italic"; return null; }
+    if (part === "Â§STRINGÂ§") { currentClass = "text-emerald-400"; return null; }
+    if (part === "Â§NUMBERÂ§") { currentClass = "text-amber-400"; return null; }
+    if (part === "Â§KEYWORDÂ§") { currentClass = "text-violet-400 font-semibold"; return null; }
+    if (part === "Â§ENDÂ§") { currentClass = ""; return null; }
     return <span key={i} className={currentClass}>{part}</span>;
   });
 }
@@ -772,7 +772,7 @@ function ContentBlock({ block }: { block: ContentBlockType }) {
       }
       return (
         <a href={block.content} target="_blank" rel="noreferrer">
-          <img src={block.content} alt="Média généré" loading="lazy" className="my-2 rounded-xl w-full max-w-[280px] object-cover border border-border" />
+          <img src={block.content} alt="MÃ©dia gÃ©nÃ©rÃ©" loading="lazy" className="my-2 rounded-xl w-full max-w-[280px] object-cover border border-border" />
         </a>
       );
 
@@ -850,13 +850,13 @@ function ContentBlock({ block }: { block: ContentBlockType }) {
   }
 }
 
-/* ─── Mode-specific inline widgets ─── */
+/* â”€â”€â”€ Mode-specific inline widgets â”€â”€â”€ */
 
 /* Chief of Staff mini-dashboard */
 function ChiefOfStaffWidget({ content }: { content: string }) {
-  const priorities = extractSection(content, ["priorité", "priorities", "important"]);
+  const priorities = extractSection(content, ["prioritÃ©", "priorities", "important"]);
   const risks = extractSection(content, ["risque", "risks", "danger"]);
-  const actions = extractSection(content, ["action", "tâche", "task", "à faire"]);
+  const actions = extractSection(content, ["action", "tÃ¢che", "task", "Ã  faire"]);
 
   return (
     <div className="mt-3 space-y-2">
@@ -866,7 +866,7 @@ function ChiefOfStaffWidget({ content }: { content: string }) {
             <div className="p-2.5 rounded-xl bg-violet-500/5 border border-violet-500/10">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Target className="w-3 h-3 text-violet-400" />
-                <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">Priorités</span>
+                <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">PrioritÃ©s</span>
               </div>
               <ul className="space-y-1">
                 {priorities.slice(0, 3).map((p, i) => (
@@ -918,8 +918,8 @@ function ChiefOfStaffWidget({ content }: { content: string }) {
 
 /* Decision inline form widget */
 function DecisionWidget({ content }: { content: string }) {
-  const pros = extractSection(content, ["pour", "pros", "avantage", "bénéfice", "positif"]);
-  const cons = extractSection(content, ["contre", "cons", "inconvénient", "risque", "négatif"]);
+  const pros = extractSection(content, ["pour", "pros", "avantage", "bÃ©nÃ©fice", "positif"]);
+  const cons = extractSection(content, ["contre", "cons", "inconvÃ©nient", "risque", "nÃ©gatif"]);
 
   return (
     <div className="mt-3 space-y-2">
@@ -969,7 +969,7 @@ function DecisionWidget({ content }: { content: string }) {
 
 /* Red Team widget */
 function RedTeamWidget({ content }: { content: string }) {
-  const challenges = extractSection(content, ["challenge", "problème", "risque", "faille", "weakness"]);
+  const challenges = extractSection(content, ["challenge", "problÃ¨me", "risque", "faille", "weakness"]);
   const mitigations = extractSection(content, ["mitigation", "solution", "contre-mesure", "alternative"]);
 
   return (
@@ -1012,7 +1012,7 @@ function RedTeamWidget({ content }: { content: string }) {
 
 /* Execution widget - task list */
 function ExecutionWidget({ content }: { content: string }) {
-  const tasks = extractSection(content, ["tâche", "task", "créé", "ajouté", "action"]);
+  const tasks = extractSection(content, ["tÃ¢che", "task", "crÃ©Ã©", "ajoutÃ©", "action"]);
 
   return (
     <div className="mt-3">
@@ -1020,7 +1020,7 @@ function ExecutionWidget({ content }: { content: string }) {
         <div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
           <div className="flex items-center gap-1.5 mb-2">
             <ListChecks className="w-3 h-3 text-emerald-400" />
-            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Tâches créées</span>
+            <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">TÃ¢ches crÃ©Ã©es</span>
           </div>
           <div className="space-y-1.5">
             {tasks.slice(0, 5).map((t, i) => (
@@ -1099,7 +1099,7 @@ function ModeWidget({ mode, content }: { mode: Mode; content: string }) {
   }
 }
 
-/* ─── Message bubble with premium design ─── */
+/* â”€â”€â”€ Message bubble with premium design â”€â”€â”€ */
 function MessageBubble({
   msg,
   mode,
@@ -1173,7 +1173,7 @@ function formatTime(d: string) {
   return new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-/* ─── Main Chat Component ─── */
+/* â”€â”€â”€ Main Chat Component â”€â”€â”€ */
 export default function Chat() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -1211,16 +1211,16 @@ export default function Chat() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pièces jointes image (vision) : data URLs base64 envoyées à Gemini (gratuit).
+  // PiÃ¨ces jointes image (vision) : data URLs base64 envoyÃ©es Ã  Gemini (gratuit).
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
-  // Pièces jointes document (PDF/DOCX/CSV/TXT) : texte extrait localement et
-  // injecté comme contexte dans le message (endpoint /api/documents/analyze).
+  // PiÃ¨ces jointes document (PDF/DOCX/CSV/TXT) : texte extrait localement et
+  // injectÃ© comme contexte dans le message (endpoint /api/documents/analyze).
   const [attachedDocs, setAttachedDocs] = useState<{ name: string; text: string; chars: number }[]>([]);
   const [docBusy, setDocBusy] = useState(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
-  // Mode "Agent" (niveau Claude) : l'IA choisit ses outils (web, url, tâches,
-  // mémoire, image) via /api/agent/chat. Activé par défaut, mémorisé.
+  // Mode "Agent" (niveau Claude) : l'IA choisit ses outils (web, url, tÃ¢ches,
+  // mÃ©moire, image) via /api/agent/chat. ActivÃ© par dÃ©faut, mÃ©morisÃ©.
   const [agentMode, setAgentMode] = useState<boolean>(() => {
     try { return localStorage.getItem("tams.chat.agentMode") !== "false"; } catch { return true; }
   });
@@ -1274,7 +1274,7 @@ export default function Chat() {
         if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
         const text: string = data.extraction?.text || data.extraction?.preview || "";
         if (!text.trim()) {
-          toast({ title: "Aucun texte extractible", description: data.extraction?.note || `${file.name} : rien à lire (PDF scanné ?).`, variant: "destructive" });
+          toast({ title: "Aucun texte extractible", description: data.extraction?.note || `${file.name} : rien Ã  lire (PDF scannÃ© ?).`, variant: "destructive" });
           continue;
         }
         setAttachedDocs((prev) => [...prev, { name: file.name, text, chars: data.extraction?.chars ?? text.length }]);
@@ -1289,7 +1289,7 @@ export default function Chat() {
   function buildContentWithDocs(base: string): string {
     if (attachedDocs.length === 0) return base;
     const blocks = attachedDocs
-      .map((d) => `--- Document joint : ${d.name} (${d.chars} caractères) ---\n${d.text}`)
+      .map((d) => `--- Document joint : ${d.name} (${d.chars} caractÃ¨res) ---\n${d.text}`)
       .join("\n\n");
     return `${base}\n\n${blocks}`;
   }
@@ -1329,8 +1329,8 @@ export default function Chat() {
     ]);
   }, []);
 
-  // Sauvegarde locale à chaque changement → les messages survivent au
-  // rechargement et à la navigation (fin des "messages qui disparaissent").
+  // Sauvegarde locale Ã  chaque changement â†’ les messages survivent au
+  // rechargement et Ã  la navigation (fin des "messages qui disparaissent").
   useEffect(() => {
     saveDurableMessages(durableLocalMessages);
   }, [durableLocalMessages]);
@@ -1363,7 +1363,7 @@ export default function Chat() {
         qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
         setSelectedId(null);
         setShowConvList(true);
-        toast({ title: "Conversation supprimée" });
+        toast({ title: "Conversation supprimÃ©e" });
       },
     },
   });
@@ -1371,10 +1371,10 @@ export default function Chat() {
   // Build context memories from usedMemories
   useEffect(() => {
     const items: MemoryItem[] = usedMemories.map((m, i) => {
-      const type = m.includes("tâche") || m.includes("task") ? "task" :
+      const type = m.includes("tÃ¢che") || m.includes("task") ? "task" :
         m.includes("projet") || m.includes("project") ? "project" :
         m.includes("contact") ? "contact" :
-        m.includes("décision") || m.includes("decision") ? "decision" :
+        m.includes("dÃ©cision") || m.includes("decision") ? "decision" :
         "memory";
       return {
         id: `mem-${i}`,
@@ -1395,8 +1395,8 @@ export default function Chat() {
     let currentStep = 0;
     setThinkingSteps([]);
     const interval = setInterval(() => {
-      // On garde l'ÉLÉMENT comme garde (et non l'index) : impossible d'accéder
-      // à .text sur undefined → plus de crash "undefined is not an object".
+      // On garde l'Ã‰LÃ‰MENT comme garde (et non l'index) : impossible d'accÃ©der
+      // Ã  .text sur undefined â†’ plus de crash "undefined is not an object".
       const step = THINKING_STEPS[currentStep];
       if (step) {
         setThinkingSteps(prev => [...prev, step.text]);
@@ -1460,9 +1460,9 @@ export default function Chat() {
     setIsError(false);
     setLastFailedMessage(null);
 
-    // ─── Mode Agent : vrai moteur agentique (l'IA choisit ses outils) ───
+    // â”€â”€â”€ Mode Agent : vrai moteur agentique (l'IA choisit ses outils) â”€â”€â”€
     if (agentMode) {
-      setThinkingSteps(["Analyse de ta demande…", "Choix des outils…", "Rédaction de la réponse…"]);
+      setThinkingSteps(["Analyse de ta demandeâ€¦", "Choix des outilsâ€¦", "RÃ©daction de la rÃ©ponseâ€¦"]);
       const controller = new AbortController();
       const agentTimeout = window.setTimeout(() => controller.abort(), 120_000);
       try {
@@ -1480,19 +1480,19 @@ export default function Chat() {
         if (res.ok && (data as { ok?: boolean }).ok) {
           const steps = Array.isArray((data as { steps?: { tool: string }[] }).steps) ? (data as { steps: { tool: string }[] }).steps : [];
           const tools = [...new Set(steps.map(s => s.tool))];
-          const suffix = tools.length ? `\n\n_🛠️ Outils utilisés : ${tools.join(", ")}_` : "";
+          const suffix = tools.length ? `\n\n_ðŸ› ï¸ Outils utilisÃ©s : ${tools.join(", ")}_` : "";
           appendDurableMessage(selectedId, "assistant", `${(data as { message?: string }).message || ""}${suffix}`);
         } else if (res.status === 503) {
-          appendDurableMessage(selectedId, "assistant", (data as { error?: string }).error || "IA non configurée. Ajoute GROQ_API_KEY (gratuit) sur Railway pour activer l'agent.");
+          appendDurableMessage(selectedId, "assistant", (data as { error?: string }).error || "IA non configurÃ©e. Ajoute GROQ_API_KEY (gratuit) sur Railway pour activer l'agent.");
         } else {
           setIsError(true);
           setLastFailedMessage(content);
-          appendDurableMessage(selectedId, "assistant", (data as { error?: string }).error || "L'agent n'a pas pu répondre. Réessaie.");
+          appendDurableMessage(selectedId, "assistant", (data as { error?: string }).error || "L'agent n'a pas pu rÃ©pondre. RÃ©essaie.");
         }
       } catch {
         setIsError(true);
         setLastFailedMessage(content);
-        appendDurableMessage(selectedId, "assistant", "L'agent a mis trop de temps ou le réseau a coupé. Réessaie.");
+        appendDurableMessage(selectedId, "assistant", "L'agent a mis trop de temps ou le rÃ©seau a coupÃ©. RÃ©essaie.");
       } finally {
         window.clearTimeout(agentTimeout);
         setIsStreaming(false);
@@ -1521,7 +1521,7 @@ export default function Chat() {
       if (intentResponse.ok) {
         const intent = await intentResponse.json() as { intent?: string; route?: { honestNote?: string }; missingPrerequisites?: string[] };
         if (intent.intent === "generate_video" || intent.intent === "studio_create") {
-          setThinkingSteps(["Routage Kernel...", "Préparation du plan Studio..."]);
+          setThinkingSteps(["Routage Kernel...", "PrÃ©paration du plan Studio..."]);
           const studioResponse = await fetch(`${API_BASE}/api/studio/orchestrate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1536,8 +1536,8 @@ export default function Chat() {
             creativeBrief?: string; scriptPlan?: string; storyboardPlan?: string;
           } : {};
 
-          // GÉNÈRE RÉELLEMENT le MP4 (diaporama composé FFmpeg + images Pollinations).
-          setThinkingSteps(["Génération des visuels...", "Assemblage vidéo (FFmpeg)..."]);
+          // GÃ‰NÃˆRE RÃ‰ELLEMENT le MP4 (diaporama composÃ© FFmpeg + images Pollinations).
+          setThinkingSteps(["GÃ©nÃ©ration des visuels...", "Assemblage vidÃ©o (FFmpeg)..."]);
           let videoUrl = "";
           let genError = "";
           try {
@@ -1552,10 +1552,10 @@ export default function Chat() {
             if (gen.ok && typeof rawUrl === "string" && rawUrl.length > 0) {
               videoUrl = rawUrl.startsWith("http") ? rawUrl : `${API_BASE}${rawUrl}`;
             } else {
-              genError = genData.error || `échec (HTTP ${gen.status})`;
+              genError = genData.error || `Ã©chec (HTTP ${gen.status})`;
             }
           } catch (e) {
-            genError = e instanceof Error ? e.message : "erreur réseau";
+            genError = e instanceof Error ? e.message : "erreur rÃ©seau";
           }
 
           const shortPlan = [
@@ -1565,16 +1565,16 @@ export default function Chat() {
 
           const videoMessage = videoUrl
             ? [
-                "🎬 Vidéo générée (diaporama composé FFmpeg — pas de l'IA vidéo type Veo/Runway, mais un vrai fichier).",
+                "ðŸŽ¬ VidÃ©o gÃ©nÃ©rÃ©e (diaporama composÃ© FFmpeg â€” pas de l'IA vidÃ©o type Veo/Runway, mais un vrai fichier).",
                 `VIDEO:${videoUrl}`,
                 shortPlan,
                 "Astuce : pour un rendu plus fort, fournis tes vraies photos produit.",
               ].filter(Boolean).join("\n\n")
             : [
-                "Je n'ai pas pu générer le fichier vidéo maintenant.",
+                "Je n'ai pas pu gÃ©nÃ©rer le fichier vidÃ©o maintenant.",
                 genError ? `Raison : ${genError}` : "",
                 shortPlan,
-                "Réessaie, ou ouvre le Studio pour ajuster.",
+                "RÃ©essaie, ou ouvre le Studio pour ajuster.",
               ].filter(Boolean).join("\n\n");
 
           setStreamingContent(videoMessage);
@@ -1586,7 +1586,7 @@ export default function Chat() {
 
       const runtimeCommand = matchRuntimeCommand(content);
       if (runtimeCommand) {
-        setThinkingSteps(["Authentification Supabase...", "Exécution sécurisée du runtime..."]);
+        setThinkingSteps(["Authentification Supabase...", "ExÃ©cution sÃ©curisÃ©e du runtime..."]);
         const task = await requestRuntimeTask({
           apiBase: API_BASE,
           conversationId: selectedId,
@@ -1595,7 +1595,7 @@ export default function Chat() {
           fetchImpl: fetch,
         });
         const runtimeContent = [
-          `TAMS Development Runtime — ${task.report.verdict}`,
+          `TAMS Development Runtime â€” ${task.report.verdict}`,
           `Task: ${task.id}`,
           task.report.summary,
         ].join("\n\n");
@@ -1652,49 +1652,49 @@ export default function Chat() {
       if (assembledContent.trim()) {
         appendDurableMessage(selectedId, "assistant", assembledContent);
       } else if (!doneReceived) {
-        throw new Error("Réponse vide du serveur");
+        throw new Error("RÃ©ponse vide du serveur");
       }
     } catch (err: unknown) {
       setIsError(true);
       setLastFailedMessage(content);
-      const videoRequest = /vid[ée]o|tiktok|9:16|ugc/i.test(content);
+      const videoRequest = /vid[Ã©e]o|tiktok|9:16|ugc/i.test(content);
       const technicalReason = timedOut
-        ? "Le service a dépassé le délai de 45 secondes."
+        ? "Le service a dÃ©passÃ© le dÃ©lai de 45 secondes."
         : err instanceof RuntimeBridgeError
           ? err.message
           : err instanceof Error && err.name === "AbortError"
-            ? "La requête a été interrompue."
+            ? "La requÃªte a Ã©tÃ© interrompue."
             : err instanceof Error
               ? err.message
               : "Erreur inconnue.";
       const assistantFallback = videoRequest
         ? [
-            "Je n’ai pas pu joindre le backend vidéo, mais ta demande reste enregistrée.",
+            "Je nâ€™ai pas pu joindre le backend vidÃ©o, mais ta demande reste enregistrÃ©e.",
             "",
             "HOOK",
-            "« Le legging qui suit ton rythme, sans mise en scène forcée. »",
+            "Â« Le legging qui suit ton rythme, sans mise en scÃ¨ne forcÃ©e. Â»",
             "",
             "SCRIPT",
-            "0–3 s : hook face caméra. 3–10 s : montrer le legging en mouvement naturel. 10–20 s : détails coupe, matière et confort sans promesse non vérifiée. 20–27 s : résultat UGC. 27–30 s : CTA.",
+            "0â€“3 s : hook face camÃ©ra. 3â€“10 s : montrer le legging en mouvement naturel. 10â€“20 s : dÃ©tails coupe, matiÃ¨re et confort sans promesse non vÃ©rifiÃ©e. 20â€“27 s : rÃ©sultat UGC. 27â€“30 s : CTA.",
             "",
             "SHOT LIST",
-            "1. Face caméra verticale 9:16.\n2. Gros plan matière.\n3. Marche ou mouvement naturel.\n4. Détail taille/coupe.\n5. Plan final avec CTA.",
+            "1. Face camÃ©ra verticale 9:16.\n2. Gros plan matiÃ¨re.\n3. Marche ou mouvement naturel.\n4. DÃ©tail taille/coupe.\n5. Plan final avec CTA.",
             "",
             "CAPTIONS",
-            "Naturel, confortable, prêt à bouger avec toi. #activewear #legging #ugc",
+            "Naturel, confortable, prÃªt Ã  bouger avec toi. #activewear #legging #ugc",
             "",
             "CTA",
-            "Découvre le legging et vérifie les détails produit.",
+            "DÃ©couvre le legging et vÃ©rifie les dÃ©tails produit.",
             "",
             "NOTE",
-            "Le serveur vidéo était injoignable à l’instant : voici un plan de secours. Réessaie ta demande pour générer le fichier MP4 (diaporama composé FFmpeg).",
+            "Le serveur vidÃ©o Ã©tait injoignable Ã  lâ€™instant : voici un plan de secours. RÃ©essaie ta demande pour gÃ©nÃ©rer le fichier MP4 (diaporama composÃ© FFmpeg).",
             "",
-            `DÉTAIL TECHNIQUE : ${technicalReason}`,
+            `DÃ‰TAIL TECHNIQUE : ${technicalReason}`,
           ].join("\n")
-        : `Je n’ai pas pu obtenir la réponse du serveur. Ton message reste visible et tu peux réessayer.\n\nDétail : ${technicalReason}`;
+        : `Je nâ€™ai pas pu obtenir la rÃ©ponse du serveur. Ton message reste visible et tu peux rÃ©essayer.\n\nDÃ©tail : ${technicalReason}`;
       appendDurableMessage(selectedId, "assistant", assistantFallback);
       setStreamingContent(assistantFallback);
-      toast({ title: "Réponse de secours affichée", description: technicalReason, variant: "destructive" });
+      toast({ title: "RÃ©ponse de secours affichÃ©e", description: technicalReason, variant: "destructive" });
     } finally {
       window.clearTimeout(timeoutId);
       if (doneReceived) {
@@ -1714,7 +1714,7 @@ export default function Chat() {
   function handleSend() {
     if ((!message.trim() && attachedImages.length === 0 && attachedDocs.length === 0) || !selectedId || isStreaming) return;
     const base = message.trim()
-      || (attachedDocs.length > 0 ? "Analyse le(s) document(s) joint(s) et donne-moi l'essentiel." : "Analyse cette image et décris ce que tu vois.");
+      || (attachedDocs.length > 0 ? "Analyse le(s) document(s) joint(s) et donne-moi l'essentiel." : "Analyse cette image et dÃ©cris ce que tu vois.");
     const content = buildContentWithDocs(base);
     const imgs = attachedImages;
     setMessage("");
@@ -1768,8 +1768,8 @@ export default function Chat() {
   return (
     <TooltipProvider>
       <div className="flex flex-1 overflow-hidden animate-fade-in relative">
-        {/* ── Conversation list ── */}
-        <div className={cn(
+        {/* â”€â”€ Conversation list â”€â”€ */}
+        <div data-testid="conversation-sidebar" className={cn(
           "flex flex-col border-r border-border bg-sidebar",
           "absolute inset-0 z-10 md:relative md:inset-auto md:z-auto md:w-64 md:shrink-0",
           !showConvList && "hidden md:flex"
@@ -1844,7 +1844,7 @@ export default function Chat() {
                   disabled={!newTitle.trim() || createConv.isPending}
                   className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
                 >
-                  {createConv.isPending ? "Création..." : "Créer"}
+                  {createConv.isPending ? "CrÃ©ation..." : "CrÃ©er"}
                 </button>
                 <button
                   onClick={() => { setShowNew(false); setNewTitle(""); }}
@@ -1865,10 +1865,10 @@ export default function Chat() {
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
                 <Search className="w-8 h-8 text-muted-foreground/30 mb-2" />
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery ? "Aucune conversation trouvée" : "Aucune conversation"}
+                  {searchQuery ? "Aucune conversation trouvÃ©e" : "Aucune conversation"}
                 </p>
                 <p className="text-[10px] text-muted-foreground/50 mt-1">
-                  {searchQuery ? "Essayez un autre terme de recherche" : "Créez une nouvelle conversation pour commencer"}
+                  {searchQuery ? "Essayez un autre terme de recherche" : "CrÃ©ez une nouvelle conversation pour commencer"}
                 </p>
               </div>
             ) : (
@@ -1903,7 +1903,7 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* ── Message area ── */}
+        {/* â”€â”€ Message area â”€â”€ */}
         <div className={cn(
           "flex-1 flex flex-col overflow-hidden",
           showConvList && "hidden md:flex"
@@ -1938,8 +1938,8 @@ export default function Chat() {
                     "p-1.5 rounded-lg transition-colors active:scale-[0.98] min-h-[44px] min-w-[44px] flex items-center justify-center",
                     showContextPanel ? "bg-violet-500/10 text-violet-400" : "hover:bg-accent text-muted-foreground hover:text-foreground"
                   )}
-                  aria-label="Contexte mémoire"
-                  title="Contexte mémoire"
+                  aria-label="Contexte mÃ©moire"
+                  title="Contexte mÃ©moire"
                 >
                   <Brain className="w-4 h-4" />
                 </button>
@@ -1955,7 +1955,7 @@ export default function Chat() {
                 </button>
               </>
             ) : (
-              <div className="text-sm text-muted-foreground">Sélectionner une conversation</div>
+              <div className="text-sm text-muted-foreground">SÃ©lectionner une conversation</div>
             )}
           </div>
 
@@ -1981,7 +1981,7 @@ export default function Chat() {
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-background animate-pulse" />
                 </div>
-                <p className="text-sm text-muted-foreground">Sélectionne ou crée une conversation</p>
+                <p className="text-sm text-muted-foreground">SÃ©lectionne ou crÃ©e une conversation</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Tape / pour voir les commandes</p>
                 <div className="flex gap-2 mt-4">
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 bg-secondary/50 px-2 py-1 rounded">
@@ -2092,14 +2092,14 @@ export default function Chat() {
                         <AlertCircle className="w-4 h-4" />
                         <span className="text-sm font-medium">Erreur de connexion</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-3">Impossible d'envoyer le message. Vérifiez votre connexion.</p>
+                      <p className="text-xs text-muted-foreground mb-3">Impossible d'envoyer le message. VÃ©rifiez votre connexion.</p>
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={handleRetry}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
                         >
                           <RotateCcw className="w-3 h-3" />
-                          Réessayer
+                          RÃ©essayer
                         </button>
                         <button
                           onClick={handleNewConversation}
@@ -2128,12 +2128,12 @@ export default function Chat() {
                     onClose={() => setShowSlashPicker(false)}
                   />
                 )}
-                {/* Aperçu des images jointes */}
+                {/* AperÃ§u des images jointes */}
                 {attachedImages.length > 0 && (
                   <div className="flex gap-2 flex-wrap mb-2">
                     {attachedImages.map((url, i) => (
                       <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
-                        <img src={url} alt={`pièce jointe ${i + 1}`} className="w-full h-full object-cover" />
+                        <img src={url} alt={`piÃ¨ce jointe ${i + 1}`} className="w-full h-full object-cover" />
                         <button
                           onClick={() => setAttachedImages((prev) => prev.filter((_, j) => j !== i))}
                           className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 text-white"
@@ -2145,7 +2145,7 @@ export default function Chat() {
                     ))}
                   </div>
                 )}
-                {/* Aperçu des documents joints (texte extrait injecté au message) */}
+                {/* AperÃ§u des documents joints (texte extrait injectÃ© au message) */}
                 {(attachedDocs.length > 0 || docBusy) && (
                   <div className="flex gap-2 flex-wrap mb-2">
                     {attachedDocs.map((doc, i) => (
@@ -2163,7 +2163,7 @@ export default function Chat() {
                     ))}
                     {docBusy && (
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary border border-border text-xs text-muted-foreground">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Lecture du document…
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Lecture du documentâ€¦
                       </div>
                     )}
                   </div>
@@ -2194,7 +2194,7 @@ export default function Chat() {
                         ? "bg-primary/15 text-primary border-primary/30"
                         : "bg-secondary text-muted-foreground border-border/50 hover:text-foreground hover:bg-accent",
                     )}
-                    title={agentMode ? "Mode Agent activé : l'IA utilise ses outils (web, documents, mémoire…)" : "Mode Agent désactivé"}
+                    title={agentMode ? "Mode Agent activÃ© : l'IA utilise ses outils (web, documents, mÃ©moireâ€¦)" : "Mode Agent dÃ©sactivÃ©"}
                     aria-pressed={agentMode}
                     aria-label="Basculer le mode Agent"
                   >
@@ -2243,8 +2243,8 @@ export default function Chat() {
                     <button
                       onClick={handleStop}
                       className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-secondary text-foreground border border-border transition-all hover:bg-accent active:scale-[0.98]"
-                      title="Arrêter la génération"
-                      aria-label="Arrêter la génération"
+                      title="ArrÃªter la gÃ©nÃ©ration"
+                      aria-label="ArrÃªter la gÃ©nÃ©ration"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                     </button>
@@ -2279,7 +2279,7 @@ export default function Chat() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Supprimer la conversation</AlertDialogTitle>
-              <AlertDialogDescription>Cette action est irréversible. Voulez-vous continuer ?</AlertDialogDescription>
+              <AlertDialogDescription>Cette action est irrÃ©versible. Voulez-vous continuer ?</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setConfirmOpen(false)}>Annuler</AlertDialogCancel>
@@ -2296,3 +2296,4 @@ export default function Chat() {
     </TooltipProvider>
   );
 }
+
