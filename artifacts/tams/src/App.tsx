@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 
 const Accueil = lazy(() => import("@/pages/accueil"));
 const Chat = lazy(() => import("@/pages/chat"));
+const Capture = lazy(() => import("@/pages/capture"));
 const Travail = lazy(() => import("@/pages/travail"));
 const Vie = lazy(() => import("@/pages/vie"));
 const Studio = lazy(() => import("@/pages/studio"));
@@ -41,9 +42,13 @@ function Router() {
       <ErrorBoundary key={location}>
         <Switch>
           <Route path="/" component={Accueil} />
+          <Route path="/today" component={Accueil} />
           <Route path="/chat" component={Chat} />
+          <Route path="/capture" component={Capture} />
           <Route path="/travail" component={Travail} />
+          <Route path="/dossiers" component={Travail} />
           <Route path="/vie" component={Vie} />
+          <Route path="/memory" component={Systeme} />
           <Route path="/studio" component={Studio} />
           <Route path="/systeme" component={Systeme} />
           <Route path="/capabilities" component={Capabilities} />
