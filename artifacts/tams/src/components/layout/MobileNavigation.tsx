@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -109,3 +109,4 @@ export function MobileNavigation() {
     </>
   );
 }
+

@@ -1180,6 +1180,13 @@ export default function Chat() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showConvList, setShowConvList] = useState(true);
+  useEffect(() => {
+    function closeConversationSidebarForGlobalMenu() {
+      setShowConvList(false);
+    }
+    window.addEventListener("tams:global-menu-open", closeConversationSidebarForGlobalMenu);
+    return () => window.removeEventListener("tams:global-menu-open", closeConversationSidebarForGlobalMenu);
+  }, []);
   const [message, setMessage] = useState("");
   const [mode, setMode] = useState<Mode>("chat");
   const [newTitle, setNewTitle] = useState("");
@@ -2296,4 +2303,5 @@ export default function Chat() {
     </TooltipProvider>
   );
 }
+
 
