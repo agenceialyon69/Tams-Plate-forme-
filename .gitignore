@@ -30,3 +30,8 @@ dist-ssr
 
 # Artefacts de boot éphémères (runtime-check) — jamais versionnés
 **/.tams/
+
+# Rapports générés par les scénarios/benchmarks (CI les régénère, jamais versionnés)
+life-os-scenarios-report.json
+dev-agent-benchmark-report.json
+docs/life-os-scenarios-report.md
